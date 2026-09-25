@@ -12,7 +12,7 @@ import { Chevron } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { useCoarsePointer } from '../ui/useCoarsePointer'
 import { BaseMap } from './BaseMap'
-import { LinePickerSkeleton, MapSkeleton } from './MapSkeleton'
+import { LINE_PANEL, LinePickerSkeleton, MapSkeleton } from './MapSkeleton'
 
 /** Marker radius grows with the square root of mean boardings, so area tracks volume. */
 function radiusFor(stop: Stop) {
@@ -42,7 +42,7 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
   const { t } = useTranslation()
   return (
     <nav
-      className="max-h-[35svh] shrink-0 overflow-y-auto border-b border-rule bg-paper px-3.5 py-[18px] md:max-h-none md:w-[300px] md:border-r md:border-b-0"
+      className={cn(LINE_PANEL, 'overflow-y-auto')}
       aria-label={t('map.lines')}
     >
       <h2 className="mb-1 px-1.5 text-xl">{t('map.lines')}</h2>

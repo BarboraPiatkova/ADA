@@ -42,7 +42,7 @@ export function HealthSkeleton({ label }: { label: string }) {
 }
 
 /** One chart card: title, subtitle, plot area — the same frame as ChartFigure. */
-export function ChartCardSkeleton({ plot }: { plot: string }) {
+function ChartCardSkeleton({ plot }: { plot: string }) {
   return (
     <div className="rounded-[10px] border border-rule bg-paper px-[18px] pt-4 pb-3.5">
       <Skeleton className="mb-2 h-5 w-64 max-w-full" />

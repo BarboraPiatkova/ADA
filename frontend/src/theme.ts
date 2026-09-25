@@ -2,17 +2,15 @@
 // always holds the resolved theme (light or dark), which is what the CSS reads.
 // public/theme-init.js does the same resolution before first paint.
 
+import { readSetting, writeSetting } from './ui/storage'
+
 export type ThemeChoice = 'system' | 'light' | 'dark'
 
 const STORAGE_KEY = 'adaplatform.theme'
 
 export function readTheme(): ThemeChoice {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY)
-    return value === 'light' || value === 'dark' ? value : 'system'
-  } catch {
-    return 'system'
-  }
+  const value = readSetting(STORAGE_KEY)
+  return value === 'light' || value === 'dark' ? value : 'system'
 }
 
 const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
@@ -29,10 +27,5 @@ systemDark.addEventListener('change', () => {
 
 export function applyTheme(choice: ThemeChoice) {
   resolve(choice)
-  try {
-    if (choice === 'system') localStorage.removeItem(STORAGE_KEY)
-    else localStorage.setItem(STORAGE_KEY, choice)
-  } catch {
-    // Storage blocked — the choice holds for this page view only.
-  }
+  writeSetting(STORAGE_KEY, choice === 'system' ? null : choice)
 }

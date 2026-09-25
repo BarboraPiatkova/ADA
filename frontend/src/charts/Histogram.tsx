@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { cn } from '../ui/cn'
+import { STATUS_STROKE } from '../ui/status'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import type { HistogramBin } from './data'
 import { AXIS_LABEL, BASELINE, CHART_BOX, DIMMED, GRIDLINE, HIT_AREA, MIN_TARGET, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
@@ -138,7 +139,7 @@ export function Histogram({
             })}
             {lines.map((line) => (
               <g key={line.status}>
-                <line x1={x(line.value)} x2={x(line.value)} y1={TOP - 6} y2={TOP + PLOT_HEIGHT} className={cn('stroke-2', line.status === 'Fault' ? 'stroke-fault' : 'stroke-warning')} />
+                <line x1={x(line.value)} x2={x(line.value)} y1={TOP - 6} y2={TOP + PLOT_HEIGHT} className={cn('stroke-2', STATUS_STROKE[line.status])} />
                 <text x={x(line.value) + 5} y={TOP - 10} className="fill-ink-2 text-xs font-semibold">
                   {line.label} {formatValue(line.value)}
                 </text>

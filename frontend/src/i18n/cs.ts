@@ -12,7 +12,6 @@ export const cs = {
     },
     loading: 'Načítám…',
     skipToContent: 'Přeskočit na obsah',
-    comingSoon: 'Připravuje se.',
   },
   auth: {
     checking: 'Ověřuji přihlášení…',
@@ -115,7 +114,6 @@ export const cs = {
       autobus: 'autobus',
       trolejbus: 'trolejbus',
     },
-    clearFilters: 'zrušit filtry',
     shown: 'Zobrazeno {{count, number}}. Kliknutím na řádek zobrazíte jednotky vozu.',
     columns: {
       status: 'Stav',

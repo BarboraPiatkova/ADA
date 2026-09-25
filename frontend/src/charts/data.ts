@@ -38,7 +38,10 @@ export interface StatusGroup {
 
 export const emptyCounts = (): Record<HealthStatus, number> => ({ Fault: 0, Warning: 0, Ok: 0, Unknown: 0 })
 
-const groupTotal = (g: StatusGroup) => g.counts.Fault + g.counts.Warning + g.counts.Ok + g.counts.Unknown
+export const groupTotal = (g: StatusGroup) => g.counts.Fault + g.counts.Warning + g.counts.Ok + g.counts.Unknown
+
+/** Key of the folded tail. It's not a real group, so it can't be filtered by. */
+export const OTHER_KEY = '__other'
 
 /**
  * Largest groups first; past `limit`, the smallest fold into one "other" group so the
@@ -47,7 +50,7 @@ const groupTotal = (g: StatusGroup) => g.counts.Fault + g.counts.Warning + g.cou
 export function foldSmallGroups(groups: StatusGroup[], limit: number, otherLabel: string): StatusGroup[] {
   const sorted = [...groups].sort((a, b) => groupTotal(b) - groupTotal(a) || a.label.localeCompare(b.label))
   if (sorted.length <= limit) return sorted
-  const other: StatusGroup = { key: '__other', label: otherLabel, counts: emptyCounts() }
+  const other: StatusGroup = { key: OTHER_KEY, label: otherLabel, counts: emptyCounts() }
   for (const g of sorted.slice(limit - 1)) {
     for (const status of Object.keys(g.counts) as HealthStatus[]) other.counts[status] += g.counts[status]
   }

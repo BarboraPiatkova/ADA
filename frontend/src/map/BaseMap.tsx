@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { cn } from '../ui/cn'
+import { readSetting, writeSetting } from '../ui/storage'
 import type { BaseLayer } from '../api'
 
 const STORAGE_KEY = 'adaplatform.baseLayer'
@@ -14,21 +15,8 @@ const MIN_ZOOM = 7
 
 const THUMB = 'block aspect-square w-full rounded-md bg-surface-2 object-cover'
 
-function rememberedLayer(): string | null {
-  try {
-    return localStorage.getItem(STORAGE_KEY)
-  } catch {
-    return null
-  }
-}
-
-function rememberLayer(id: string) {
-  try {
-    localStorage.setItem(STORAGE_KEY, id)
-  } catch {
-    // Storage blocked (private window etc.) — the choice just isn't remembered.
-  }
-}
+const rememberedLayer = () => readSetting(STORAGE_KEY)
+const rememberLayer = (id: string) => writeSetting(STORAGE_KEY, id)
 
 /** Mapy.com's terms require its logo on the map while its tiles are displayed. */
 function MapyLogo() {

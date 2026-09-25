@@ -27,15 +27,18 @@ export const patternStopsQuery = (code: number) =>
     queryFn: ({ signal }) => api.patternStops(code, signal),
   })
 
+// The reports only change when new data is imported (the API caches them per import), so
+// the page asks again at most every 10 minutes.
+const REPORT_STALE_MS = 10 * 60 * 1000
+
 export const deviceHealthQuery = queryOptions({
   queryKey: ['quality', 'devices'],
   queryFn: ({ signal }) => api.deviceHealth(signal),
-  // The API caches this report for 10 minutes; asking sooner returns the same data.
-  staleTime: 10 * 60 * 1000,
+  staleTime: REPORT_STALE_MS,
 })
 
 export const dailyQualityQuery = queryOptions({
   queryKey: ['quality', 'daily'],
   queryFn: ({ signal }) => api.dailyQuality(signal),
-  staleTime: 10 * 60 * 1000,
+  staleTime: REPORT_STALE_MS,
 })

@@ -1,4 +1,8 @@
+import { cn } from '../ui/cn'
 import { Skeleton, SkeletonScreen } from '../ui/Skeleton'
+
+/** The line list's frame: a band on phones, a sidebar from md up. Shared with its skeleton. */
+export const LINE_PANEL = 'max-h-[35svh] shrink-0 border-b border-rule bg-paper px-3.5 py-[18px] md:max-h-none md:w-[300px] md:border-r md:border-b-0'
 
 const LINE_WIDTHS = ['w-40', 'w-32', 'w-44', 'w-36', 'w-28', 'w-40', 'w-32', 'w-36', 'w-44', 'w-28']
 
@@ -7,7 +11,7 @@ export function LinePickerSkeleton({ label }: { label: string }) {
   return (
     <SkeletonScreen
       label={label}
-      className="max-h-[35svh] shrink-0 overflow-hidden border-b border-rule bg-paper px-3.5 py-[18px] md:max-h-none md:w-[300px] md:border-r md:border-b-0"
+      className={cn(LINE_PANEL, 'overflow-hidden')}
     >
       <Skeleton className="mx-1.5 mb-2 h-6 w-20" />
       <Skeleton className="mx-1.5 mb-4 h-3.5 w-56" />

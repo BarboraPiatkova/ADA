@@ -12,7 +12,6 @@ export const en = {
     },
     loading: 'Loading…',
     skipToContent: 'Skip to content',
-    comingSoon: 'Coming soon.',
   },
   auth: {
     checking: 'Checking sign-in…',
@@ -110,7 +109,6 @@ export const en = {
       autobus: 'bus',
       trolejbus: 'trolleybus',
     },
-    clearFilters: 'clear filters',
     shown: '{{count, number}} shown. Click a row to see the vehicle’s devices.',
     columns: {
       status: 'Status',

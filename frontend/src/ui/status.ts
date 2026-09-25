@@ -3,6 +3,9 @@ import type { HealthStatus } from '../api'
 // One source for status styling. Status colours mean status only — never a series — and
 // always appear with an icon and a word (see StatusPill), never colour alone.
 
+/** Worst first: the order of pills, legends, stacked segments and table columns. */
+export const STATUS_ORDER: readonly HealthStatus[] = ['Fault', 'Warning', 'Ok', 'Unknown']
+
 /** Soft background + strong text: pills and tags. */
 export const STATUS_PILL: Record<HealthStatus, string> = {
   Fault: 'bg-fault-soft text-fault',
@@ -33,4 +36,10 @@ export const STATUS_FILL: Record<HealthStatus, string> = {
   Warning: 'fill-warning',
   Ok: 'fill-ok',
   Unknown: 'fill-unknown opacity-55',
+}
+
+/** Stroke for SVG lines (threshold markers). */
+export const STATUS_STROKE: Record<'Fault' | 'Warning', string> = {
+  Fault: 'stroke-fault',
+  Warning: 'stroke-warning',
 }

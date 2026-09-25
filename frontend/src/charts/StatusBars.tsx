@@ -2,26 +2,21 @@ import { useTranslation } from 'react-i18next'
 import type { HealthStatus } from '../api'
 import { StatusIcon } from '../ui/icons'
 import { cn } from '../ui/cn'
-import { STATUS_BG, STATUS_FILL, STATUS_TEXT } from '../ui/status'
+import { STATUS_BG, STATUS_FILL, STATUS_ORDER, STATUS_TEXT } from '../ui/status'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
-import type { StatusGroup } from './data'
+import { groupTotal, OTHER_KEY, type StatusGroup } from './data'
 import { AXIS_LABEL, AXIS_LABEL_STRONG, CHART_BOX, DIMMED, HIT_AREA, LEGEND, SWATCH, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
 import { FocusRing } from './FocusRing'
 import { useElementWidth, useTooltip } from './useChart'
 import { useRovingFocus } from './useRovingFocus'
 
-const STATUSES: HealthStatus[] = ['Fault', 'Warning', 'Ok', 'Unknown']
 const ROW = 30
 const BAR = 16
 const LABEL_WIDTH = 168
 const TOTAL_WIDTH = 44
 const GAP = 2
 
-/** The folded tail ("other") is not a real group, so it can't be filtered by. */
-const OTHER = '__other'
-
-const total = (g: StatusGroup) => STATUSES.reduce((n, s) => n + g.counts[s], 0)
 
 /**
  * Part-to-whole per group: how the vehicles of each model (or the devices of each
@@ -50,17 +45,16 @@ export function StatusBars({
   const [wrap, width] = useElementWidth<HTMLDivElement>()
   const { box, tooltip, show, hide } = useTooltip()
 
-  // Order is set by the caller (largest first, tail folded into "other").
-  const sorted = groups
-  const maxTotal = Math.max(1, ...sorted.map(total))
+  // Group order is set by the caller (largest first, tail folded into "other").
+  const maxTotal = Math.max(1, ...groups.map(groupTotal))
   const plotWidth = Math.max(0, width - LABEL_WIDTH - TOTAL_WIDTH)
   const scale = (n: number) => (n / maxTotal) * plotWidth
   // Per row, computed once for both the focus order and the drawing: the statuses present,
   // and whether the row filters (the folded "other" tail doesn't).
-  const rows = sorted.map((group) => ({
+  const rows = groups.map((group) => ({
     group,
-    present: STATUSES.filter((s) => group.counts[s] > 0),
-    selectable: group.key !== OTHER,
+    present: STATUS_ORDER.filter((s) => group.counts[s] > 0),
+    selectable: group.key !== OTHER_KEY,
   }))
   // Focusable marks per row: the type label (when it filters), then one per status present.
   const roving = useRovingFocus(
@@ -74,7 +68,7 @@ export function StatusBars({
     <div ref={wrap} className="min-w-0">
       <div ref={box} className={CHART_BOX}>
         {width > 0 && (
-          <svg width={width} height={sorted.length * ROW} role="group" aria-label={t('charts.statusBarsKeys')}>
+          <svg width={width} height={groups.length * ROW} role="group" aria-label={t('charts.statusBarsKeys')}>
             {rows.map(({ group, present, selectable }, row) => {
               const y = row * ROW + (ROW - BAR) / 2
               let x = LABEL_WIDTH
@@ -82,7 +76,7 @@ export function StatusBars({
               const groupDimmed = selectedKey !== undefined && selectedKey !== group.key
               const selectGroup = () => selectable && onSelectGroup?.(group.key)
               return (
-                <g key={group.key} className={groupDimmed ? 'opacity-30' : undefined}>
+                <g key={group.key} className={groupDimmed ? DIMMED : undefined}>
                   {onSelectGroup && selectable && (
                     <>
                       <rect
@@ -162,8 +156,8 @@ export function StatusBars({
                       </g>
                     )
                   })}
-                  <text x={LABEL_WIDTH + scale(total(group)) + 8} y={row * ROW + ROW / 2} className={AXIS_LABEL} dominantBaseline="middle">
-                    {total(group)}
+                  <text x={LABEL_WIDTH + scale(groupTotal(group)) + 8} y={row * ROW + ROW / 2} className={AXIS_LABEL} dominantBaseline="middle">
+                    {groupTotal(group)}
                   </text>
                 </g>
               )
@@ -180,7 +174,7 @@ export function StatusLegend() {
   const { t } = useTranslation()
   return (
     <ul className={LEGEND}>
-      {STATUSES.map((s) => (
+      {STATUS_ORDER.map((s) => (
         <li key={s}>
           <span className={cn(SWATCH, STATUS_BG[s])} />
           <span className={cn('-ml-0.5 inline-flex', STATUS_TEXT[s])}>
@@ -200,7 +194,7 @@ export function StatusBarsTable({ groups, groupHeader }: { groups: StatusGroup[]
       <thead>
         <tr>
           <th className={TH_COMPACT}>{groupHeader}</th>
-          {STATUSES.map((s) => (
+          {STATUS_ORDER.map((s) => (
             <th key={s} className={cn(TH_COMPACT, NUM)}>
               {t(`health.status.${s}`)}
             </th>
@@ -210,16 +204,16 @@ export function StatusBarsTable({ groups, groupHeader }: { groups: StatusGroup[]
       </thead>
       <tbody>
         {[...groups]
-          .sort((a, b) => total(b) - total(a))
+          .sort((a, b) => groupTotal(b) - groupTotal(a))
           .map((g) => (
             <tr key={g.key}>
               <td className={TD_COMPACT}>{g.label}</td>
-              {STATUSES.map((s) => (
+              {STATUS_ORDER.map((s) => (
                 <td key={s} className={cn(TD_COMPACT, NUM)}>
                   {g.counts[s]}
                 </td>
               ))}
-              <td className={cn(TD_COMPACT, NUM)}>{total(g)}</td>
+              <td className={cn(TD_COMPACT, NUM)}>{groupTotal(g)}</td>
             </tr>
           ))}
       </tbody>
