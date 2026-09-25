@@ -70,7 +70,7 @@ export const en = {
       vehicles: 'Vehicles',
       devices: 'Devices',
     },
-    note: 'Evaluated from the devices’ raw messages using provisional rules, described below the table.',
+    note: 'Evaluated from the counting devices’ raw messages using provisional rules.',
     fleetStatus: 'Fleet status',
     status: {
       Fault: 'Fault',
@@ -107,7 +107,7 @@ export const en = {
     },
     hints: {
       imbalance: '|boardings − alightings| / (boardings + alightings) over the whole period',
-      negative: 'Share of stops after which the vehicle reports fewer than zero passengers on board',
+      negative: 'Share of stops after which the on-board computer reports fewer than zero passengers — evidence of a counting error',
       flagged: 'Share of stops at which the vehicle flagged a device as invalid (chyba)',
     },
     reasons: {
@@ -124,17 +124,32 @@ export const en = {
       DeviceWarning: 'a device has a warning',
     },
     rules: {
-      title: 'Evaluation rules (provisional)',
-      imbalance:
-        '<strong>Imbalance</strong> = |boardings − alightings| / (boardings + alightings) over the whole period, only with at least {{min}} passengers counted. Warning from {{warning}}, fault from {{fault}}.',
-      negative:
-        '<strong>Negative occupancy</strong> = share of stops after which the on-board computer reports fewer than zero passengers. Warning from {{warning}}, fault from {{fault}}.',
-      flagged:
-        '<strong>Error flag</strong> = share of stops at which the vehicle flagged a device as invalid (<code>chyba</code>). Warning from {{warning}}.',
-      silent:
-        '<strong>Silent device</strong> = finished counting at stops but counted nobody over the whole period — a fault if every device of the vehicle is silent.',
-      counts: 'Counts per stop = difference of the counter reading between counting start and stop (log values are running readings, see report F11).',
-      restarts: 'Restarts are not evaluated: in the data they are a routine operational event (see report F5).',
+      open: 'How status is evaluated',
+      close: 'Close',
+      title: 'How status is evaluated',
+      lead: 'Vehicle and device status is computed from the counting devices’ raw messages. A vehicle gets the worst status any of the rules below gives it.',
+      negative: {
+        title: 'Negative occupancy',
+        body: '<p>The on-board computer keeps a running count of passengers on board: at each stop it adds boardings and subtracts alightings. When devices miss some boardings or count alightings twice, the count drifts away from reality until it drops below zero — the vehicle then reports, say, “−3 passengers”. That is physically impossible, which makes it clear evidence of a counting error.</p><p>The measure is the share of stops after which the on-board count is negative. <strong>Warning from {{warning}}, fault from {{fault}}.</strong></p>',
+      },
+      silent: {
+        title: 'A device that doesn’t count',
+        body: '<p>The device reports in and finishes counting at stops, but counted not a single passenger over the whole period. It is most likely broken or misconfigured.</p><p><strong>A fault if every device of the vehicle is silent; a warning if only some are.</strong></p>',
+      },
+      imbalance: {
+        title: 'Boarding/alighting imbalance',
+        body: '<p>Everyone who boards also alights, so over a longer period a vehicle’s boardings and alightings should nearly match. A large gap means the devices systematically under-count one direction. Computed as |boardings − alightings| / (boardings + alightings), only when the vehicle counted at least {{min}} passengers.</p><p><strong>Warning from {{warning}}, fault from {{fault}}.</strong></p>',
+      },
+      flagged: {
+        title: 'Error flag',
+        body: '<p>At a stop, the on-board computer itself marks a device as invalid (the <code>chyba</code> field in the log). The measure is the share of stops with this flag.</p><p><strong>Warning from {{warning}}.</strong></p>',
+      },
+      notes: {
+        title: 'Notes',
+        counts: 'Passengers at a stop = the difference of the device’s counter reading between counting start and stop — the log values are running readings (report, F11).',
+        restarts: 'Device restarts are not evaluated: in the data they are a routine operational event (report, F5).',
+        provisional: 'The thresholds are provisional, set from one week of data. Calibrating them is part of the thesis.',
+      },
     },
   },
   pagination: {

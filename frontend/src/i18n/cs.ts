@@ -75,7 +75,7 @@ export const cs = {
       vehicles: 'Vozidla',
       devices: 'Jednotky',
     },
-    note: 'Vyhodnoceno ze surových zpráv jednotek podle předběžných pravidel, která jsou popsána pod tabulkou.',
+    note: 'Vyhodnoceno ze surových zpráv sčítacích jednotek podle předběžných pravidel.',
     fleetStatus: 'Stav vozového parku',
     status: {
       Fault: 'Porucha',
@@ -112,7 +112,7 @@ export const cs = {
     },
     hints: {
       imbalance: '|nástupy − výstupy| / (nástupy + výstupy) za celé období',
-      negative: 'Podíl zastavení, po kterých vůz vede méně než nula cestujících',
+      negative: 'Podíl zastavení, po kterých palubní počítač hlásí méně než nula cestujících ve voze — doklad chyby sčítání',
       flagged: 'Podíl zastavení, kdy vůz označil některou jednotku jako chybnou (chyba)',
     },
     reasons: {
@@ -130,17 +130,32 @@ export const cs = {
       DeviceWarning: 'varování u některé jednotky',
     },
     rules: {
-      title: 'Pravidla vyhodnocení (předběžná)',
-      imbalance:
-        '<strong>Nesoulad</strong> = |nástupy − výstupy| / (nástupy + výstupy) za celé období, jen při alespoň {{min}} cestujících. Varování od {{warning}}, porucha od {{fault}}.',
-      negative:
-        '<strong>Záporná obsazenost</strong> = podíl zastavení, po kterých palubní počítač vede ve voze méně než nula cestujících. Varování od {{warning}}, porucha od {{fault}}.',
-      flagged:
-        '<strong>Příznak chyby</strong> = podíl zastavení, kdy vůz označil některou jednotku jako chybnou (<code>chyba</code>). Varování od {{warning}}.',
-      silent:
-        '<strong>Mlčící jednotka</strong> = dokončovala sčítání, ale za celé období nenapočítala nikoho — porucha, pokud mlčí všechny jednotky vozu.',
-      counts: 'Počty na zastávce = rozdíl stavu čítače mezi zahájením a ukončením sčítání (hodnoty v logu jsou průběžné stavy, viz report F11).',
-      restarts: 'Restarty se nehodnotí: v datech jsou běžnou provozní událostí (viz report F5).',
+      open: 'Jak se stav vyhodnocuje',
+      close: 'Zavřít',
+      title: 'Jak se stav vyhodnocuje',
+      lead: 'Stav vozidla a jednotky se počítá ze surových zpráv sčítacích jednotek. Vozidlo dostane nejhorší stav, na který narazí některé z pravidel níže.',
+      negative: {
+        title: 'Záporná obsazenost',
+        body: '<p>Palubní počítač vede průběžný počet cestujících ve voze: na každé zastávce přičte nástupy a odečte výstupy. Když jednotky část nástupů nezapočítají nebo výstupy započítají dvakrát, počet se postupně rozchází se skutečností, až klesne pod nulu — vůz pak hlásí třeba „−3 cestující“. To je fyzikálně nemožné, a proto jde o jasný doklad chyby sčítání.</p><p>Hodnotí se podíl zastavení, po kterých je počet ve voze záporný. <strong>Varování od {{warning}}, porucha od {{fault}}.</strong></p>',
+      },
+      silent: {
+        title: 'Jednotka, která nepočítá',
+        body: '<p>Jednotka se hlásí a dokončuje sčítání na zastávkách, ale za celé období nenapočítala ani jednoho cestujícího. Nejspíš je vadná nebo špatně nastavená.</p><p><strong>Porucha, pokud takto mlčí všechny jednotky vozu; varování, pokud jen některé.</strong></p>',
+      },
+      imbalance: {
+        title: 'Nesoulad nástupů a výstupů',
+        body: '<p>Kdo nastoupí, musí také vystoupit, takže za delší období by se nástupy a výstupy vozu měly téměř rovnat. Velký rozdíl znamená, že jednotky jeden směr soustavně podhodnocují. Počítá se jako |nástupy − výstupy| / (nástupy + výstupy), jen když vůz napočítal alespoň {{min}} cestujících.</p><p><strong>Varování od {{warning}}, porucha od {{fault}}.</strong></p>',
+      },
+      flagged: {
+        title: 'Příznak chyby',
+        body: '<p>Palubní počítač sám u zastávky označí jednotku jako chybnou (pole <code>chyba</code> v logu). Hodnotí se podíl zastavení s tímto příznakem.</p><p><strong>Varování od {{warning}}.</strong></p>',
+      },
+      notes: {
+        title: 'Poznámky',
+        counts: 'Počet cestujících na zastávce je rozdíl stavu čítače jednotky mezi zahájením a ukončením sčítání — hodnoty v logu jsou průběžné stavy (report, F11).',
+        restarts: 'Restarty jednotek se nehodnotí: v datech jsou běžnou provozní událostí (report, F5).',
+        provisional: 'Prahy jsou předběžné, nastavené podle jednoho týdne dat. Jejich kalibrace je součástí diplomové práce.',
+      },
     },
   },
   pagination: {

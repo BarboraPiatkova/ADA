@@ -19,7 +19,7 @@ import {
   type SortFn,
 } from '@tanstack/react-table'
 import type { TFunction } from 'i18next'
-import { Collapsible, ToggleGroup } from 'radix-ui'
+import { Dialog, ToggleGroup } from 'radix-ui'
 import { Fragment, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import type { DeviceHealth, DeviceHealthReport, HealthReason, HealthStatus, HealthThresholds, VehicleDay, VehicleHealth } from '../api'
@@ -244,40 +244,59 @@ function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
   )
 }
 
-function Rules({ th }: { th: HealthThresholds }) {
+/**
+ * How status is decided, in plain language — opened from the page header, where the
+ * question arises, as a side panel the reader can keep open next to the table.
+ */
+function RulesPanel({ th }: { th: HealthThresholds }) {
   const { t } = useTranslation()
   const format = useFormat()
-  const markup = { strong: <strong />, code: <code /> }
+  const markup = { strong: <strong />, code: <code />, p: <p /> }
+  const rules = [
+    { key: 'negative', values: { warning: format.percent(th.negativeOccupancyWarning), fault: format.percent(th.negativeOccupancyFault) } },
+    { key: 'silent', values: {} },
+    { key: 'imbalance', values: { min: th.minPassengersForBalance, warning: format.percent(th.imbalanceWarning), fault: format.percent(th.imbalanceFault) } },
+    { key: 'flagged', values: { warning: format.percent(th.flaggedStopsWarning) } },
+  ] as const
+
   return (
-    <Collapsible.Root className="rules">
-      <Collapsible.Trigger className="link-button">{t('health.rules.title')} ▾</Collapsible.Trigger>
-      <Collapsible.Content>
-        <ul>
-          <li>
-            <Trans
-              i18nKey="health.rules.imbalance"
-              values={{ min: th.minPassengersForBalance, warning: format.percent(th.imbalanceWarning), fault: format.percent(th.imbalanceFault) }}
-              components={markup}
-            />
-          </li>
-          <li>
-            <Trans
-              i18nKey="health.rules.negative"
-              values={{ warning: format.percent(th.negativeOccupancyWarning), fault: format.percent(th.negativeOccupancyFault) }}
-              components={markup}
-            />
-          </li>
-          <li>
-            <Trans i18nKey="health.rules.flagged" values={{ warning: format.percent(th.flaggedStopsWarning) }} components={markup} />
-          </li>
-          <li>
-            <Trans i18nKey="health.rules.silent" components={markup} />
-          </li>
-          <li>{t('health.rules.counts')}</li>
-          <li>{t('health.rules.restarts')}</li>
-        </ul>
-      </Collapsible.Content>
-    </Collapsible.Root>
+    <Dialog.Root>
+      <Dialog.Trigger className="link-button rules-trigger">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v5M12 8h.01" />
+        </svg>
+        {t('health.rules.open')}
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="sheet-overlay" />
+        <Dialog.Content className="sheet">
+          <div className="sheet-head">
+            <Dialog.Title className="sheet-title">{t('health.rules.title')}</Dialog.Title>
+            <Dialog.Close className="sheet-close" aria-label={t('health.rules.close')}>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </Dialog.Close>
+          </div>
+          <Dialog.Description className="sheet-lead">{t('health.rules.lead')}</Dialog.Description>
+          {rules.map((rule) => (
+            <section key={rule.key} className="rule">
+              <h3>{t(`health.rules.${rule.key}.title`)}</h3>
+              <Trans i18nKey={`health.rules.${rule.key}.body`} values={rule.values} components={markup} />
+            </section>
+          ))}
+          <section className="rule rule-notes">
+            <h3>{t('health.rules.notes.title')}</h3>
+            <ul>
+              <li>{t('health.rules.notes.counts')}</li>
+              <li>{t('health.rules.notes.restarts')}</li>
+              <li>{t('health.rules.notes.provisional')}</li>
+            </ul>
+          </section>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }
 
@@ -380,7 +399,9 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
             <dd>{format.number(deviceTotal)}</dd>
           </div>
         </dl>
-        <p className="page-note">{t('health.note')}</p>
+        <p className="page-note">
+          {t('health.note')} <RulesPanel th={report.thresholds} />
+        </p>
       </header>
 
       <section className="fleet-status" aria-label={t('health.fleetStatus')}>
@@ -556,7 +577,6 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
         onPageSizeChange={(size) => table.setPageSize(size)}
       />
 
-      <Rules th={report.thresholds} />
     </div>
   )
 }
