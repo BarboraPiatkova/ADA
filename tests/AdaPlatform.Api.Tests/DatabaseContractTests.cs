@@ -5,6 +5,8 @@ using AdaPlatform.Api.Tests.Infrastructure;
 using AdaPlatform.Domain.Fleet;
 using AdaPlatform.Domain.Network;
 using AdaPlatform.Domain.Operations;
+using AdaPlatform.Domain.Quality;
+using AdaPlatform.Infrastructure.Import.Ada;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -119,6 +121,41 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         Assert.NotNull(stops);
         Assert.Equal([201, 301], stops.Select(s => s.Code));
         Assert.Equal("Dopravní podnik", stops[0].Name);
+    }
+
+    [Fact]
+    public async Task Ada_import_translates_legacy_storage_quirks()
+    {
+        var sqlitePath = await AdaSqliteFixture.CreateAsync();
+        try
+        {
+            await using var api = NewApi();
+            await using var scope = api.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var report = await new AdaSqliteImporter(db).ImportAsync(sqlitePath);
+
+            Assert.Equal(1, report.Trips);
+            Assert.Equal(1, report.TripsWithNegativeOccupancy);
+
+            db.ChangeTracker.Clear();
+            var vehicle = await db.Vehicles.SingleAsync();
+            Assert.Null(vehicle.SeatingCapacity);   // ADA's 0 = "not filled in"
+
+            var trip = await db.Trips.Include(t => t.StopVisits).SingleAsync();
+            Assert.Equal(-45, trip.InitialDelaySeconds);   // -450,000,000 ticks
+            Assert.Equal("208021", trip.BlockCode);
+            Assert.Null(trip.SourceFileId);                // legacy: no raw provenance
+            // Stop order is derived from time, even though ADA's row ids are reversed.
+            Assert.Equal([201, 301], trip.StopVisits.OrderBy(s => s.Sequence).Select(s => s.StopCode));
+
+            var fault = await db.DeviceFaults.SingleAsync();
+            Assert.Equal((FaultSource.LegacyAda, trip.Id), (fault.Source, fault.TripId!.Value));
+        }
+        finally
+        {
+            File.Delete(sqlitePath);
+        }
     }
 
     private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());
