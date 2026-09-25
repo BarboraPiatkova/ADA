@@ -259,13 +259,18 @@ h3 {
   margin-left: auto;
 }
 
-/* Compact segmented control (Radix ToggleGroup): theme and language switches. */
+/*
+ * Segmented control (Radix ToggleGroup): theme, language, chart/table, grouping.
+ * The selected option is unmistakable — filled in the product colour — rather than a
+ * subtle white-on-grey lift that is hard to see on a white card.
+ */
 .segmented {
   display: inline-flex;
+  gap: 2px;
   padding: 2px;
   border: 1px solid var(--rule);
   border-radius: 8px;
-  background: var(--surface);
+  background: var(--paper);
 }
 
 .segmented-item {
@@ -274,7 +279,7 @@ h3 {
   justify-content: center;
   min-width: 30px;
   height: 26px;
-  padding: 0 7px;
+  padding: 0 9px;
   border: none;
   border-radius: 6px;
   background: none;
@@ -286,13 +291,18 @@ h3 {
 }
 
 .segmented-item:hover {
+  background: var(--surface);
   color: var(--ink);
 }
 
 .segmented-item[data-state='on'] {
-  background: var(--paper);
-  color: var(--route);
-  box-shadow: 0 1px 2px rgba(27, 36, 48, 0.16);
+  background: var(--route);
+  color: var(--on-route);
+  cursor: default;
+}
+
+.segmented-item:focus-visible {
+  outline-offset: 1px;
 }
 
 /* ---------- map screen ---------- */
