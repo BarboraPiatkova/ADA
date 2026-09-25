@@ -59,6 +59,20 @@ public sealed class MapTileProxyTests(PostgresFixture fixture) : IClassFixture<P
         Assert.DoesNotContain(Key, upstream.RequestUri.Query);
     }
 
+    [Fact]
+    public async Task A_tile_is_served_even_when_the_cache_cannot_be_written()
+    {
+        // The cache folder path is taken by a file, so nothing can be cached there
+        // (as with a volume the app's user doesn't own).
+        await File.WriteAllTextAsync(_cacheFolder, "not a folder");
+        await using var api = NewApi(Key);
+
+        var response = await api.CreateClient().GetAsync("/api/map/tiles/basic/256/5/17/10");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(FakeMapy.Tile, await response.Content.ReadAsByteArrayAsync());
+    }
+
     [Theory]
     [InlineData("/api/map/tiles/unknown/256/1/0/0")]    // not a Mapy.com map set
     [InlineData("/api/map/tiles/basic/512/1/0/0")]      // unsupported tile size
@@ -77,6 +91,10 @@ public sealed class MapTileProxyTests(PostgresFixture fixture) : IClassFixture<P
         if (Directory.Exists(_cacheFolder))
         {
             Directory.Delete(_cacheFolder, recursive: true);
+        }
+        else if (File.Exists(_cacheFolder))
+        {
+            File.Delete(_cacheFolder);
         }
     }
 

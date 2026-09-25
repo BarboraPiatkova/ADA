@@ -9,6 +9,9 @@ import type { BaseLayer } from '../api'
 
 const STORAGE_KEY = 'adaplatform.baseLayer'
 
+// A city's network is a speck below this; zoom 7 still shows the whole Czech Republic.
+const MIN_ZOOM = 7
+
 const THUMB = 'block aspect-square w-full rounded-md bg-surface-2 object-cover'
 
 function rememberedLayer(): string | null {
@@ -143,7 +146,7 @@ export function BaseMap({ layers, bounds, children }: { layers: BaseLayer[]; bou
   const active = layers.find((l) => l.id === activeId) ?? layers[0]
 
   return (
-    <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} className="flex-1 bg-surface font-sans">
+    <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} minZoom={MIN_ZOOM} className="flex-1 bg-surface font-sans">
       {active && (
         <>
           {/* Keyed by id so switching swaps the tile layer (and its attribution) cleanly. */}
