@@ -200,6 +200,40 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         }
     }
 
+    [Fact]
+    public async Task Device_health_report_explains_status_with_reason_codes()
+    {
+        var folder = UcpLogFixture.WriteToNewFolder();
+        try
+        {
+            await using var api = NewApi();
+            await using (var scope = api.Services.CreateAsyncScope())
+            {
+                await new UcpLogIngestor(scope.ServiceProvider.GetRequiredService<AppDbContext>()).IngestAsync(folder);
+            }
+
+            using var report = System.Text.Json.JsonDocument.Parse(await api.CreateClient().GetStringAsync("/api/quality/devices"));
+            var vehicle = report.RootElement.GetProperty("vehicles").EnumerateArray().Single();
+            string[] Codes(System.Text.Json.JsonElement e) =>
+                e.GetProperty("reasons").EnumerateArray().Select(r => r.GetProperty("code").GetString()!).ToArray();
+
+            // The fixture's only stop summary flags device 42 (chyba=[42]); 3 in / 1 out is
+            // too few passengers to judge the balance.
+            Assert.Equal("Warning", vehicle.GetProperty("status").GetString());
+            Assert.Equal(["FlaggedStops"], Codes(vehicle));
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, vehicle.GetProperty("imbalance").ValueKind);
+
+            // Per door: counts are stop − start readings (41: 2 in; 42: 1 in, 1 out).
+            var devices = vehicle.GetProperty("devices").EnumerateArray().ToDictionary(d => d.GetProperty("deviceNumber").GetInt32());
+            Assert.Equal((2, 0), (devices[41].GetProperty("boardings").GetInt32(), devices[41].GetProperty("alightings").GetInt32()));
+            Assert.Equal(["DeviceFlagged", "DeviceNotAlive"], Codes(devices[42]));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());
 
     private static void SeedNetwork(AppDbContext db)

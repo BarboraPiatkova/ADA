@@ -21,6 +21,7 @@ import { deviceHealthQuery } from '../queries'
 import { Hint } from '../ui/Hint'
 import { QueryState } from '../ui/QueryState'
 import { Select } from '../ui/Select'
+import { formatReason } from './reasons'
 
 const nf = new Intl.NumberFormat('cs-CZ')
 const pf = new Intl.NumberFormat('cs-CZ', { style: 'percent', maximumFractionDigits: 1 })
@@ -114,7 +115,7 @@ function buildVehicleColumns(t: HealthThresholds) {
     vehicleColumns.display({
       id: 'reasons',
       header: 'Důvod',
-      cell: (info) => info.row.original.reasons.join(' · ') || <span className="muted">—</span>,
+      cell: (info) => info.row.original.reasons.map(formatReason).join(' · ') || <span className="muted">—</span>,
     }),
   ])
 }
@@ -138,7 +139,7 @@ const deviceColumnDefs = deviceColumns.columns([
   deviceColumns.display({
     id: 'reasons',
     header: 'Důvod',
-    cell: (info) => info.row.original.reasons.join(' · ') || <span className="muted">—</span>,
+    cell: (info) => info.row.original.reasons.map(formatReason).join(' · ') || <span className="muted">—</span>,
   }),
 ])
 const DEVICE_NUMERIC = new Set(['deviceNumber', 'stopsCounted', 'boardings', 'alightings', 'notAliveHeartbeats', 'restarts', 'flaggedStops'])

@@ -35,6 +35,42 @@ public sealed record HealthThresholds
     public double NotAliveWarning { get; init; } = 0.50;
 }
 
+/// <summary>
+/// Why a status was given — a code plus the measured value, so the UI can phrase it in any
+/// language (the API returns no display text).
+/// </summary>
+public enum HealthReason
+{
+    /// <summary>Device: finished counting at stops but counted nobody. Value = stops.</summary>
+    DeviceSilent,
+
+    /// <summary>Device: flagged invalid (<c>chyba</c>) at this share of its stops.</summary>
+    DeviceFlagged,
+
+    /// <summary>Device: this share of its heartbeats report alive=false.</summary>
+    DeviceNotAlive,
+
+    /// <summary>Vehicle: every counting device is silent.</summary>
+    AllDevicesSilent,
+
+    /// <summary>Vehicle: some devices are silent. Value = how many.</summary>
+    SomeDevicesSilent,
+
+    /// <summary>Vehicle: |in − out| / (in + out) over the period.</summary>
+    Imbalance,
+
+    /// <summary>Vehicle: share of stops after which occupancy is negative.</summary>
+    NegativeOccupancy,
+
+    /// <summary>Vehicle: share of stops with a device flagged invalid.</summary>
+    FlaggedStops,
+
+    /// <summary>Vehicle: at least one of its devices has a warning.</summary>
+    DeviceWarning,
+}
+
+public sealed record HealthReasonDto(HealthReason Code, double? Value = null);
+
 public sealed record DeviceHealthDto(
     int DeviceNumber,
     string? FirmwareVersion,
@@ -46,7 +82,7 @@ public sealed record DeviceHealthDto(
     int Restarts,
     int FlaggedStops,
     HealthStatus Status,
-    IReadOnlyList<string> Reasons);
+    IReadOnlyList<HealthReasonDto> Reasons);
 
 public sealed record VehicleHealthDto(
     int VehicleId,
@@ -62,7 +98,7 @@ public sealed record VehicleHealthDto(
     double? FlaggedStopShare,
     int SilentDevices,
     HealthStatus Status,
-    IReadOnlyList<string> Reasons,
+    IReadOnlyList<HealthReasonDto> Reasons,
     IReadOnlyList<DeviceHealthDto> Devices);
 
 public sealed record DeviceHealthReportDto(
@@ -138,21 +174,21 @@ public sealed class DeviceHealthReport(AppDbContext db)
                 var (stops, doorIn, doorOut) = doors.GetValueOrDefault((vehicle.VehicleId, number));
                 var flagged = flaggedPerDevice.GetValueOrDefault((vehicle.VehicleId, number));
 
-                var reasons = new List<string>();
+                var reasons = new List<HealthReasonDto>();
                 var status = stops == 0 ? HealthStatus.Unknown : HealthStatus.Ok;
                 if (stops > 0 && doorIn + doorOut == 0)
                 {
-                    reasons.Add($"za {stops} zastavení nenapočítala nikoho");
+                    reasons.Add(new(HealthReason.DeviceSilent, stops));
                     status = HealthStatus.Fault;
                 }
                 if (stops > 0 && flagged / (double)stops >= thresholds.FlaggedStopsWarning)
                 {
-                    reasons.Add($"označena jako chybná na {flagged / (double)stops:P0} zastavení");
+                    reasons.Add(new(HealthReason.DeviceFlagged, flagged / (double)stops));
                     status = Worse(status, HealthStatus.Warning);
                 }
                 if (heartbeats is { Count: > 0 } && heartbeats.NotAlive / (double)heartbeats.Count >= thresholds.NotAliveWarning)
                 {
-                    reasons.Add($"{heartbeats.NotAlive / (double)heartbeats.Count:P0} zpráv o stavu hlásí alive=false");
+                    reasons.Add(new(HealthReason.DeviceNotAlive, heartbeats.NotAlive / (double)heartbeats.Count));
                     status = Worse(status, HealthStatus.Warning);
                 }
 
@@ -171,32 +207,32 @@ public sealed class DeviceHealthReport(AppDbContext db)
             double? flaggedShare = summary is { Total: > 0 } ? summary.Flagged / (double)summary.Total : null;
             var silent = devices.Count(d => d.StopsCounted > 0 && d.Boardings + d.Alightings == 0);
 
-            var vehicleReasons = new List<string>();
+            var vehicleReasons = new List<HealthReasonDto>();
             var vehicleStatus = devices.Any(d => d.StopsCounted > 0) ? HealthStatus.Ok : HealthStatus.Unknown;
             if (silent > 0)
             {
                 var all = silent == devices.Count(d => d.StopsCounted > 0);
-                vehicleReasons.Add(all ? "žádná jednotka nenapočítala nikoho" : $"{silent} jednotek nenapočítalo nikoho");
+                vehicleReasons.Add(all ? new(HealthReason.AllDevicesSilent) : new(HealthReason.SomeDevicesSilent, silent));
                 vehicleStatus = Worse(vehicleStatus, all ? HealthStatus.Fault : HealthStatus.Warning);
             }
             if (imbalance is { } i && i >= thresholds.ImbalanceWarning)
             {
-                vehicleReasons.Add($"nesoulad nástupů a výstupů {i:P0}");
+                vehicleReasons.Add(new(HealthReason.Imbalance, i));
                 vehicleStatus = Worse(vehicleStatus, i >= thresholds.ImbalanceFault ? HealthStatus.Fault : HealthStatus.Warning);
             }
             if (negativeShare is { } n && n >= thresholds.NegativeOccupancyWarning)
             {
-                vehicleReasons.Add($"záporná obsazenost na {n:P0} zastavení");
+                vehicleReasons.Add(new(HealthReason.NegativeOccupancy, n));
                 vehicleStatus = Worse(vehicleStatus, n >= thresholds.NegativeOccupancyFault ? HealthStatus.Fault : HealthStatus.Warning);
             }
             if (flaggedShare is { } f && f >= thresholds.FlaggedStopsWarning)
             {
-                vehicleReasons.Add($"příznak chyby na {f:P0} zastavení");
+                vehicleReasons.Add(new(HealthReason.FlaggedStops, f));
                 vehicleStatus = Worse(vehicleStatus, HealthStatus.Warning);
             }
             if (devices.Any(d => d.Status == HealthStatus.Warning) && vehicleStatus == HealthStatus.Ok)
             {
-                vehicleReasons.Add("varování u některé jednotky");
+                vehicleReasons.Add(new(HealthReason.DeviceWarning));
                 vehicleStatus = HealthStatus.Warning;
             }
 

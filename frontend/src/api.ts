@@ -2,8 +2,8 @@
 // in production, the API serving the SPA) makes them same-origin.
 
 export interface BaseLayer {
+  /** Stable id (e.g. "mapy-basic", "osm"); the UI names layers by id in its own language. */
   id: string
-  name: string
   /** Leaflet URL template; Mapy.com layers point at the API's caching tile proxy. */
   url: string
   attribution: string
@@ -49,6 +49,23 @@ export interface PatternStop {
 
 export type HealthStatus = 'Ok' | 'Warning' | 'Fault' | 'Unknown'
 
+export type HealthReasonCode =
+  | 'DeviceSilent'
+  | 'DeviceFlagged'
+  | 'DeviceNotAlive'
+  | 'AllDevicesSilent'
+  | 'SomeDevicesSilent'
+  | 'Imbalance'
+  | 'NegativeOccupancy'
+  | 'FlaggedStops'
+  | 'DeviceWarning'
+
+/** Why a status was given: a code and the measured value (a count or a 0–1 share). */
+export interface HealthReason {
+  code: HealthReasonCode
+  value: number | null
+}
+
 export interface DeviceHealth {
   deviceNumber: number
   firmwareVersion: string | null
@@ -60,7 +77,7 @@ export interface DeviceHealth {
   restarts: number
   flaggedStops: number
   status: HealthStatus
-  reasons: string[]
+  reasons: HealthReason[]
 }
 
 export interface VehicleHealth {
@@ -76,7 +93,7 @@ export interface VehicleHealth {
   flaggedStopShare: number | null
   silentDevices: number
   status: HealthStatus
-  reasons: string[]
+  reasons: HealthReason[]
   devices: DeviceHealth[]
 }
 

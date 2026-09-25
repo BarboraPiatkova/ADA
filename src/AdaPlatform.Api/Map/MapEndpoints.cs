@@ -27,18 +27,19 @@ public static class MapEndpoints
     // the proxy keeps tiles no longer than that.
     private static readonly TimeSpan TileLifetime = TimeSpan.FromDays(1);
 
-    private static readonly Dictionary<string, (string Name, string Extension, string ContentType)> MapySets = new()
+    private static readonly Dictionary<string, (string Extension, string ContentType)> MapySets = new()
     {
-        ["basic"] = ("Mapy.com – základní", ".png", "image/png"),
-        ["outdoor"] = ("Mapy.com – turistická", ".png", "image/png"),
-        ["aerial"] = ("Mapy.com – letecká", ".jpg", "image/jpeg"),
-        ["winter"] = ("Mapy.com – zimní", ".png", "image/png"),
+        ["basic"] = (".png", "image/png"),
+        ["outdoor"] = (".png", "image/png"),
+        ["aerial"] = (".jpg", "image/jpeg"),
+        ["winter"] = (".png", "image/png"),
     };
 
     private const string MapyAttribution =
         "<a href=\"https://api.mapy.com/copyright\" target=\"_blank\" rel=\"noopener\">&copy; Seznam.cz a.s. a další</a>";
 
-    public sealed record BaseLayerDto(string Id, string Name, string Url, string Attribution, int MaxZoom, bool RequiresMapyLogo);
+    /// <summary>A base map. No display name: the UI names layers by <see cref="Id"/> in its own language.</summary>
+    public sealed record BaseLayerDto(string Id, string Url, string Attribution, int MaxZoom, bool RequiresMapyLogo);
 
     public sealed record MapConfigDto(IReadOnlyList<BaseLayerDto> BaseLayers);
 
@@ -64,14 +65,14 @@ public static class MapEndpoints
             {
                 // {r} is Leaflet's retina placeholder ("@2x" on high-DPI screens).
                 layers.AddRange(MapySets.Select(set => new BaseLayerDto(
-                    $"mapy-{set.Key}", set.Value.Name, $"/api/map/tiles/{set.Key}/256{{r}}/{{z}}/{{x}}/{{y}}",
+                    $"mapy-{set.Key}", $"/api/map/tiles/{set.Key}/256{{r}}/{{z}}/{{x}}/{{y}}",
                     MapyAttribution, MaxZoom: 19, RequiresMapyLogo: true)));
             }
 
             // Fallback that needs no key. The public OSM tile server is for light use only
             // (see its tile usage policy), so it's not the default when a Mapy.com key exists.
             layers.Add(new BaseLayerDto(
-                "osm", "OpenStreetMap", "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                "osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 "&copy; <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" rel=\"noopener\">OpenStreetMap</a>",
                 MaxZoom: 19, RequiresMapyLogo: false));
 

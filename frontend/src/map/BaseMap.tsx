@@ -3,6 +3,7 @@ import { Control, DomUtil, type LatLngBoundsExpression } from 'leaflet'
 import { useEffect, useState, type ReactNode } from 'react'
 import { LayersControl, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { BaseLayer } from '../api'
+import { LAYER_NAMES } from '../quality/reasons'
 
 const STORAGE_KEY = 'adaplatform.baseLayer'
 
@@ -46,7 +47,7 @@ function MapyLogo() {
 function BaseLayerTracker({ layers, onChange }: { layers: BaseLayer[]; onChange: (layer: BaseLayer) => void }) {
   useMapEvents({
     baselayerchange: (event) => {
-      const layer = layers.find((l) => l.name === event.name)
+      const layer = layers.find((l) => (LAYER_NAMES[l.id] ?? l.id) === event.name)
       if (layer) onChange(layer)
     },
   })
@@ -65,7 +66,7 @@ export function BaseMap({ layers, bounds, children }: { layers: BaseLayer[]; bou
     <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} className="map">
       <LayersControl position="topright">
         {layers.map((layer) => (
-          <LayersControl.BaseLayer key={layer.id} name={layer.name} checked={layer.id === initial?.id}>
+          <LayersControl.BaseLayer key={layer.id} name={LAYER_NAMES[layer.id] ?? layer.id} checked={layer.id === initial?.id}>
             <TileLayer url={layer.url} attribution={layer.attribution} maxZoom={layer.maxZoom} />
           </LayersControl.BaseLayer>
         ))}
