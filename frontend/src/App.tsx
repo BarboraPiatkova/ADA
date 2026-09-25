@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import { Tabs } from 'radix-ui'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { LoginPage } from './auth/LoginPage'
+import { hasPermission, useSession, type Session } from './auth/session'
+import { UserMenu } from './auth/UserMenu'
 import { NetworkMapView } from './map/NetworkMapView'
 import { mapConfigQuery } from './queries'
 import { DeviceHealthView } from './quality/DeviceHealthView'
+import { Empty } from './ui/Empty'
 import { BrandMark } from './ui/icons'
 import { LanguageSwitch } from './ui/LanguageSwitch'
 import { QueryState } from './ui/QueryState'
@@ -15,21 +19,45 @@ import { ThemeSwitch } from './ui/ThemeSwitch'
 const VIEWS = ['mapa', 'jednotky'] as const
 type View = (typeof VIEWS)[number]
 
-function viewFromHash(): View {
+/** The permission each screen needs; a screen the user can't open isn't shown at all. */
+const VIEW_PERMISSION: Record<View, string> = {
+  mapa: 'network:read',
+  jednotky: 'quality:read',
+}
+
+function viewFromHash(allowed: readonly View[]): View | undefined {
   const hash = window.location.hash.replace(/^#\/?/, '')
-  return (VIEWS as readonly string[]).includes(hash) ? (hash as View) : 'mapa'
+  return allowed.includes(hash as View) ? (hash as View) : allowed[0]
 }
 
 export default function App() {
   const { t } = useTranslation()
-  const [view, setView] = useState<View>(viewFromHash)
-  const mapConfig = useQuery(mapConfigQuery)
+  const session = useSession()
+
+  if (session.status === 'checking') {
+    return (
+      <div className="flex h-svh bg-surface">
+        <Empty>{t('auth.checking')}</Empty>
+      </div>
+    )
+  }
+  if (session.status === 'signedOut') {
+    return <LoginPage reason={session.reason} />
+  }
+  return <Shell session={session.session} />
+}
+
+function Shell({ session }: { session: Session }) {
+  const { t } = useTranslation()
+  const views = useMemo(() => VIEWS.filter((v) => hasPermission(session, VIEW_PERMISSION[v])), [session])
+  const [view, setView] = useState<View | undefined>(() => viewFromHash(views))
+  const mapConfig = useQuery({ ...mapConfigQuery, enabled: views.includes('mapa') })
 
   useEffect(() => {
-    const onHash = () => setView(viewFromHash())
+    const onHash = () => setView(viewFromHash(views))
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [])
+  }, [views])
 
   return (
     <Tabs.Root className="flex h-svh flex-col" value={view} onValueChange={(v) => (window.location.hash = `/${v}`)}>
@@ -40,7 +68,7 @@ export default function App() {
           <span>AdaPlatform</span>
         </h1>
         <Tabs.List className="order-3 flex h-[42px] w-full gap-1 self-stretch md:order-none md:h-auto md:w-auto" aria-label={t('app.screens')}>
-          {VIEWS.map((v) => (
+          {views.map((v) => (
             <Tabs.Trigger
               key={v}
               value={v}
@@ -53,8 +81,10 @@ export default function App() {
         <div className="ml-auto flex items-center gap-2">
           <LanguageSwitch />
           <ThemeSwitch />
+          <UserMenu user={session.user} />
         </div>
       </header>
+      {views.length === 0 && <Empty>{t('auth.noPermissions')}</Empty>}
       <Tabs.Content value="mapa" className="flex min-h-0 flex-1">
         <QueryState query={mapConfig} loading={t('app.loading')}>
           {(config) => <NetworkMapView baseLayers={config.baseLayers} />}
