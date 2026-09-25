@@ -9,11 +9,11 @@ import { METRICS } from './metrics'
 
 function Chip({ label, value, onRemove, removeLabel, icon }: { label: string; value: string; onRemove: () => void; removeLabel: string; icon?: React.ReactNode }) {
   return (
-    <li className="inline-flex h-[30px] items-center gap-[5px] rounded-full border border-route bg-route-soft pr-1 pl-2.5">
+    <li className="inline-flex h-[30px] pointer-coarse:h-11 items-center gap-[5px] rounded-full border border-route bg-route-soft pr-1 pl-2.5">
       {icon}
       <span className="text-ink-2">{label}:</span>
       <span className="font-semibold">{value}</span>
-      <button className="inline-flex cursor-pointer rounded-full p-1 text-ink-2 hover:bg-paper hover:text-ink" onClick={onRemove} aria-label={removeLabel}>
+      <button className="inline-flex size-6 cursor-pointer items-center justify-center rounded-full text-ink-2 pointer-coarse:size-11 hover:bg-paper hover:text-ink" onClick={onRemove} aria-label={removeLabel}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
           <path d="M7 7l10 10M17 7 7 17" />
         </svg>

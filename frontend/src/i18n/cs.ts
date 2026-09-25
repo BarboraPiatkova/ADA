@@ -22,7 +22,7 @@ export const cs = {
     password: 'Heslo',
     submit: 'Přihlásit se',
     submitting: 'Přihlašuji…',
-    help: 'Nemáte účet nebo přístup? Požádejte správce, aby vám přidělil roli v aplikaci AdaPlatform.',
+    help: 'Nemáte účet nebo přístup? Požádejte správce, aby vám přidělil roli pro aplikaci AdaPlatform.',
     messages: {
       wrongCredentials: 'Nesprávné jméno nebo heslo.',
       noAccess: 'Tento účet nemá přístup do AdaPlatform. Požádejte správce o přidělení role.',

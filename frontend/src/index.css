@@ -109,8 +109,20 @@
   }
 }
 
+/* Leaflet's zoom buttons are 30px; on touch screens make them 44px like every other control. */
+@media (pointer: coarse) {
+  /* As specific as Leaflet's own ".leaflet-touch .leaflet-bar a", and loaded after it. */
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-in,
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-out {
+    width: 44px;
+    height: 44px;
+    line-height: 44px;
+  }
+}
+
 /* Leaflet builds its own tooltip DOM; give it the app's type. */
-.leaflet-tooltip {
+.leaflet-tooltip,
+.leaflet-popup-content {
   font-family: var(--font-sans);
   font-size: var(--text-sm);
 }

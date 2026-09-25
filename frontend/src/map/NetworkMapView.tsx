@@ -1,15 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
 import { latLngBounds } from 'leaflet'
 import { Accordion } from 'radix-ui'
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet'
+import { CircleMarker, Polyline, Popup, Tooltip, useMap } from 'react-leaflet'
 import type { BaseLayer, Line, PatternSummary, Stop } from '../api'
 import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
 import { cn } from '../ui/cn'
 import { Empty } from '../ui/Empty'
 import { Chevron } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
+import { useCoarsePointer } from '../ui/useCoarsePointer'
 import { Skeleton, SkeletonScreen } from '../ui/Skeleton'
 import { BaseMap } from './BaseMap'
 
@@ -54,7 +55,7 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
             <Accordion.Item key={line.id} value={String(line.id)}>
               <Accordion.Header asChild>
                 <h3 className="font-sans text-base font-normal">
-                  <Accordion.Trigger className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-1.5 py-[7px] text-left hover:bg-surface">
+                  <Accordion.Trigger className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-1.5 py-[7px] text-left pointer-coarse:py-2.5 hover:bg-surface">
                     <span className="min-w-[46px] rounded-md bg-route px-2 py-[3px] text-center font-display text-lg leading-[1.1] font-bold text-on-route">{line.id}</span>
                     <span className="text-sm text-ink-2">{t('map.patternsWithTrips', { count: withTrips.length })}</span>
                     <span className="ml-auto text-ink-2 transition-transform duration-150 group-data-[state=open]:rotate-180">
@@ -87,16 +88,32 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
   )
 }
 
+/** Radius of the invisible tap area around a stop on touch screens: a 24px target. */
+const TOUCH_HIT_RADIUS = 12
+
 function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number> }) {
   const { t } = useTranslation()
+  const coarse = useCoarsePointer()
   return stops.map((s) => {
     const highlighted = onPattern.has(s.code)
     const dimmed = onPattern.size > 0 && !highlighted
-    return (
+    const radius = radiusFor(s)
+    const details = (
+      <>
+        <strong>{s.name}</strong> <span className="text-ink-2">({s.code})</span>
+        <br />
+        {s.visits === 0
+          ? t('map.noVisits')
+          : t('map.stopActivity', { count: s.visits, boardings: s.boardings / s.visits, alightings: s.alightings / s.visits })}
+      </>
+    )
+    const tooltip = <Tooltip>{details}</Tooltip>
+    const marker = (
       <CircleMarker
         key={s.code}
         center={[s.latitude, s.longitude]}
-        radius={radiusFor(s)}
+        radius={radius}
+        interactive={!coarse}
         pathOptions={{
           color: s.visits === 0 ? 'var(--map-no-data)' : 'var(--map-route)',
           weight: highlighted ? 3.5 : 2,
@@ -105,14 +122,26 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
           opacity: dimmed ? 0.3 : s.visits === 0 ? 0.6 : 1,
         }}
       >
-        <Tooltip>
-          <strong>{s.name}</strong> <span className="text-ink-2">({s.code})</span>
-          <br />
-          {s.visits === 0
-            ? t('map.noVisits')
-            : t('map.stopActivity', { count: s.visits, boardings: s.boardings / s.visits, alightings: s.alightings / s.visits })}
-        </Tooltip>
+        {!coarse && tooltip}
       </CircleMarker>
+    )
+    if (!coarse) return marker
+    // Touch: a finger can't hit a 4px circle. An invisible, larger circle takes the tap
+    // (a transparent fill still receives pointer events); the drawn marker is unchanged.
+    // A tap has no hover, so the details open as a popup that stays until dismissed.
+    return (
+      <Fragment key={s.code}>
+        {marker}
+        <CircleMarker
+          center={[s.latitude, s.longitude]}
+          radius={Math.max(TOUCH_HIT_RADIUS, radius)}
+          pathOptions={{ stroke: false, fillColor: '#000', fillOpacity: 0 }}
+        >
+          <Popup closeButton autoPan>
+            {details}
+          </Popup>
+        </CircleMarker>
+      </Fragment>
     )
   })
 }

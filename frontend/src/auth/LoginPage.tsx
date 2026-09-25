@@ -8,7 +8,7 @@ import { useDocumentTitle } from '../ui/useDocumentTitle'
 import { AuthError, login } from './session'
 
 const FIELD =
-  'h-10 w-full rounded-lg border border-rule bg-paper px-3 text-ink outline-none focus:border-route focus:shadow-[0_0_0_1px_var(--route)] disabled:opacity-60'
+  'h-10 w-full rounded-lg pointer-coarse:h-11 border border-rule bg-paper px-3 text-ink outline-none focus:border-route focus:shadow-[0_0_0_1px_var(--route)] disabled:opacity-60'
 
 type Message = 'wrongCredentials' | 'noAccess' | 'tooManyAttempts' | 'unavailable' | 'expired'
 
@@ -115,7 +115,7 @@ export function LoginPage({ reason }: { reason?: 'expired' | 'unavailable' }) {
             <button
               type="submit"
               disabled={signIn.isPending || !userName.trim() || !password}
-              className="mt-6 h-10 w-full cursor-pointer rounded-lg bg-route font-display font-semibold text-on-route hover:bg-route-strong disabled:cursor-default disabled:opacity-50"
+              className="mt-6 h-10 w-full cursor-pointer pointer-coarse:h-11 rounded-lg bg-route font-display font-semibold text-on-route hover:bg-route-strong disabled:cursor-default disabled:opacity-50"
             >
               {signIn.isPending ? t('auth.submitting') : t('auth.submit')}
             </button>
