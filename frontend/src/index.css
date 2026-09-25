@@ -97,4 +97,20 @@
   }
 }
 
-@import './styles/legacy.css';
+/* Motion that answers an action: the rules panel slides in when opened. */
+@theme {
+  --animate-sheet-in: sheet-in 180ms ease-out;
+
+  @keyframes sheet-in {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+}
+
+/* Leaflet builds its own tooltip DOM; give it the app's type. */
+.leaflet-tooltip {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}

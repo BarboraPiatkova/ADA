@@ -1,7 +1,11 @@
 import { useTranslation } from 'react-i18next'
 import type { HealthStatus } from '../api'
 import { StatusIcon } from '../ui/icons'
+import { cn } from '../ui/cn'
+import { STATUS_BG, STATUS_FILL, STATUS_TEXT } from '../ui/status'
+import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import type { StatusGroup } from './data'
+import { AXIS_LABEL, AXIS_LABEL_STRONG, CHART_BOX, DIMMED, HIT_AREA, LEGEND, SWATCH, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
 import { useElementWidth, useTooltip } from './useChart'
 
@@ -59,10 +63,10 @@ export function StatusBars({
   const scale = (n: number) => (n / maxTotal) * plotWidth
 
   return (
-    <div ref={wrap} className="chart-canvas">
-      <div ref={box} className="chart-box">
+    <div ref={wrap} className="min-w-0">
+      <div ref={box} className={CHART_BOX}>
         {width > 0 && (
-          <svg width={width} height={sorted.length * ROW} className="status-bars">
+          <svg width={width} height={sorted.length * ROW} >
             {sorted.map((group, row) => {
               const y = row * ROW + (ROW - BAR) / 2
               const present = STATUSES.filter((s) => group.counts[s] > 0)
@@ -71,14 +75,14 @@ export function StatusBars({
               const groupDimmed = selectedKey !== undefined && selectedKey !== group.key
               const selectGroup = () => selectable && onSelectGroup?.(group.key)
               return (
-                <g key={group.key} className={groupDimmed ? 'dimmed' : undefined}>
+                <g key={group.key} className={groupDimmed ? 'opacity-30' : undefined}>
                   {onSelectGroup && selectable && (
                     <rect
                       x={0}
                       y={row * ROW}
                       width={LABEL_WIDTH - 4}
                       height={ROW}
-                      className="row-hit"
+                      className={cn(HIT_AREA, 'cursor-pointer')}
                       tabIndex={0}
                       role="button"
                       aria-pressed={selectedKey === group.key}
@@ -90,7 +94,7 @@ export function StatusBars({
                   <text
                     x={LABEL_WIDTH - 10}
                     y={row * ROW + ROW / 2}
-                    className={`axis-label strong${selectedKey === group.key ? ' selected-label' : ''}`}
+                    className={cn(AXIS_LABEL_STRONG, selectedKey === group.key && 'fill-route font-bold')}
                     textAnchor="end"
                     dominantBaseline="middle"
                     pointerEvents="none"
@@ -108,8 +112,8 @@ export function StatusBars({
                     const r = last ? Math.min(4, w) : 0
                     const content = (
                       <>
-                        <strong className="tooltip-value">{countLabel(group.counts[status])}</strong>
-                        <span className="tooltip-label">
+                        <strong className={TOOLTIP_VALUE}>{countLabel(group.counts[status])}</strong>
+                        <span className={TOOLTIP_LABEL}>
                           {t(`health.status.${status}`)}, {group.label}
                         </span>
                       </>
@@ -117,7 +121,12 @@ export function StatusBars({
                     return (
                       <path
                         key={status}
-                        className={`segment segment-${status.toLowerCase()}${segmentDimmed ? ' dimmed' : ''}${selectable && onSelectSegment ? ' clickable' : ''}`}
+                        className={cn(
+                          'outline-none hover:opacity-80 focus-visible:opacity-80',
+                          STATUS_FILL[status],
+                          segmentDimmed && DIMMED,
+                          selectable && onSelectSegment && 'cursor-pointer',
+                        )}
                         tabIndex={0}
                         role={selectable && onSelectSegment ? 'button' : undefined}
                         aria-label={`${group.label}, ${t(`health.status.${status}`)}: ${countLabel(group.counts[status])}`}
@@ -131,7 +140,7 @@ export function StatusBars({
                       />
                     )
                   })}
-                  <text x={LABEL_WIDTH + scale(total(group)) + 8} y={row * ROW + ROW / 2} className="axis-label" dominantBaseline="middle">
+                  <text x={LABEL_WIDTH + scale(total(group)) + 8} y={row * ROW + ROW / 2} className={AXIS_LABEL} dominantBaseline="middle">
                     {total(group)}
                   </text>
                 </g>
@@ -148,11 +157,11 @@ export function StatusBars({
 export function StatusLegend() {
   const { t } = useTranslation()
   return (
-    <ul className="status-legend">
+    <ul className={LEGEND}>
       {STATUSES.map((s) => (
         <li key={s}>
-          <span className={`legend-swatch segment-${s.toLowerCase()}`} />
-          <span className={`legend-icon status-${s.toLowerCase()}`}>
+          <span className={cn(SWATCH, STATUS_BG[s])} />
+          <span className={cn('-ml-0.5 inline-flex', STATUS_TEXT[s])}>
             <StatusIcon status={s} size={14} />
           </span>
           {t(`health.status.${s}`)}
@@ -165,16 +174,16 @@ export function StatusLegend() {
 export function StatusBarsTable({ groups, groupHeader }: { groups: StatusGroup[]; groupHeader: string }) {
   const { t } = useTranslation()
   return (
-    <table className="data-table compact">
+    <table className={TABLE}>
       <thead>
         <tr>
-          <th>{groupHeader}</th>
+          <th className={TH_COMPACT}>{groupHeader}</th>
           {STATUSES.map((s) => (
-            <th key={s} className="num">
+            <th key={s} className={cn(TH_COMPACT, NUM)}>
               {t(`health.status.${s}`)}
             </th>
           ))}
-          <th className="num">{t('charts.total')}</th>
+          <th className={cn(TH_COMPACT, NUM)}>{t('charts.total')}</th>
         </tr>
       </thead>
       <tbody>
@@ -182,13 +191,13 @@ export function StatusBarsTable({ groups, groupHeader }: { groups: StatusGroup[]
           .sort((a, b) => total(b) - total(a))
           .map((g) => (
             <tr key={g.key}>
-              <td>{g.label}</td>
+              <td className={TD_COMPACT}>{g.label}</td>
               {STATUSES.map((s) => (
-                <td key={s} className="num">
+                <td key={s} className={cn(TD_COMPACT, NUM)}>
                   {g.counts[s]}
                 </td>
               ))}
-              <td className="num">{total(g)}</td>
+              <td className={cn(TD_COMPACT, NUM)}>{total(g)}</td>
             </tr>
           ))}
       </tbody>

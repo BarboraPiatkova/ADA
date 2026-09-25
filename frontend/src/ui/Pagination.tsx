@@ -2,6 +2,9 @@ import { useTranslation } from 'react-i18next'
 import { useFormat } from '../i18n/format'
 import { Select } from './Select'
 
+const PAGE_BUTTON =
+  'inline-flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-lg border border-rule bg-paper px-2 font-display font-semibold text-ink tabular-nums hover:enabled:border-ink-2 hover:enabled:bg-surface disabled:cursor-default disabled:text-ink-2 disabled:opacity-45 aria-[current=page]:cursor-default aria-[current=page]:border-route aria-[current=page]:bg-route aria-[current=page]:text-on-route'
+
 /** Page-size choices; the table starts on the first. */
 const PAGE_SIZES = [25, 50, 100]
 
@@ -51,8 +54,8 @@ export function Pagination({
   const to = Math.min(rowCount, from + pageSize - 1)
 
   return (
-    <nav className="pagination" aria-label={t('pagination.label')}>
-      <span className="pagination-range">
+    <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2.5" aria-label={t('pagination.label')}>
+      <span className="text-ink-2 tabular-nums">
         {t('pagination.range', { from: format.number(from), to: format.number(to), total: format.number(rowCount) })}
       </span>
       <Select
@@ -61,19 +64,19 @@ export function Pagination({
         options={PAGE_SIZES.map((size) => ({ value: String(size), label: String(size) }))}
         onChange={(value) => onPageSizeChange(Number(value))}
       />
-      <div className="pagination-pages">
-        <button className="page-button" onClick={() => onPageChange(pageIndex - 1)} disabled={pageIndex === 0} aria-label={t('pagination.previous')}>
+      <div className="flex items-center gap-1 md:ml-auto">
+        <button className={PAGE_BUTTON} onClick={() => onPageChange(pageIndex - 1)} disabled={pageIndex === 0} aria-label={t('pagination.previous')}>
           <Arrow direction="left" />
         </button>
         {pageList(pageIndex, pageCount).map((page, i) =>
           page === null ? (
-            <span key={`gap-${i}`} className="page-gap" aria-hidden="true">
+            <span key={`gap-${i}`} className="min-w-5 text-center text-ink-2" aria-hidden="true">
               …
             </span>
           ) : (
             <button
               key={page}
-              className="page-button"
+              className={PAGE_BUTTON}
               aria-current={page === pageIndex ? 'page' : undefined}
               aria-label={t('pagination.page', { page: page + 1 })}
               onClick={() => onPageChange(page)}
@@ -83,7 +86,7 @@ export function Pagination({
           ),
         )}
         <button
-          className="page-button"
+          className={PAGE_BUTTON}
           onClick={() => onPageChange(pageIndex + 1)}
           disabled={pageIndex >= pageCount - 1}
           aria-label={t('pagination.next')}

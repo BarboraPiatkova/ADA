@@ -1,5 +1,8 @@
 import { useTranslation } from 'react-i18next'
+import { cn } from '../ui/cn'
+import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import type { HistogramBin } from './data'
+import { AXIS_LABEL, BASELINE, CHART_BOX, DIMMED, GRIDLINE, HIT_AREA, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
 import { useElementWidth, useTooltip } from './useChart'
 
@@ -71,14 +74,14 @@ export function Histogram({
     : []
 
   return (
-    <div ref={wrap} className="chart-canvas">
-      <div ref={box} className="chart-box">
+    <div ref={wrap} className="min-w-0">
+      <div ref={box} className={CHART_BOX}>
         {width > 0 && (
-          <svg width={width} height={TOP + PLOT_HEIGHT + AXIS_HEIGHT} className="histogram">
+          <svg width={width} height={TOP + PLOT_HEIGHT + AXIS_HEIGHT} >
             {ticks.map((tick) => (
               <g key={tick}>
-                <line x1={LEFT} x2={width - RIGHT} y1={y(tick)} y2={y(tick)} className={tick === 0 ? 'axis-baseline' : 'gridline'} />
-                <text x={LEFT - 8} y={y(tick)} className="axis-label" textAnchor="end" dominantBaseline="middle">
+                <line x1={LEFT} x2={width - RIGHT} y1={y(tick)} y2={y(tick)} className={tick === 0 ? BASELINE : GRIDLINE} />
+                <text x={LEFT - 8} y={y(tick)} className={AXIS_LABEL} textAnchor="end" dominantBaseline="middle">
                   {tick}
                 </text>
               </g>
@@ -92,8 +95,8 @@ export function Histogram({
               const select = () => onSelect?.(bin, i === bins.length - 1)
               const content = (
                 <>
-                  <strong className="tooltip-value">{countLabel(bin.count)}</strong>
-                  <span className="tooltip-label">
+                  <strong className={TOOLTIP_VALUE}>{countLabel(bin.count)}</strong>
+                  <span className={TOOLTIP_LABEL}>
                     {formatValue(bin.from)} – {formatValue(bin.to)}
                   </span>
                 </>
@@ -106,7 +109,7 @@ export function Histogram({
                     y={TOP}
                     width={band}
                     height={PLOT_HEIGHT}
-                    className={`hit-area${onSelect ? ' clickable' : ''}`}
+                    className={cn(HIT_AREA, onSelect && 'cursor-pointer')}
                     tabIndex={0}
                     role={onSelect ? 'button' : undefined}
                     aria-pressed={onSelect ? selectedFrom === bin.from : undefined}
@@ -121,12 +124,12 @@ export function Histogram({
                   {bin.count > 0 && (
                     // 4px rounded data end, square at the baseline.
                     <path
-                      className={`bar${dimmed ? ' dimmed' : ''}`}
+                      className={cn('pointer-events-none fill-series-1', dimmed && DIMMED)}
                       d={`M${x0},${y(0)} V${y(bin.count) + r} Q${x0},${y(bin.count)} ${x0 + r},${y(bin.count)} H${x0 + barWidth - r} Q${x0 + barWidth},${y(bin.count)} ${x0 + barWidth},${y(bin.count) + r} V${y(0)} Z`}
                     />
                   )}
                   {i % labelEvery === 0 && (
-                    <text x={LEFT + i * band} y={TOP + PLOT_HEIGHT + 18} className="axis-label" textAnchor="middle">
+                    <text x={LEFT + i * band} y={TOP + PLOT_HEIGHT + 18} className={AXIS_LABEL} textAnchor="middle">
                       {formatValue(bin.from)}
                     </text>
                   )}
@@ -134,9 +137,9 @@ export function Histogram({
               )
             })}
             {lines.map((line) => (
-              <g key={line.status} className={`threshold threshold-${line.status.toLowerCase()}`}>
-                <line x1={x(line.value)} x2={x(line.value)} y1={TOP - 6} y2={TOP + PLOT_HEIGHT} />
-                <text x={x(line.value) + 5} y={TOP - 10} className="threshold-label">
+              <g key={line.status}>
+                <line x1={x(line.value)} x2={x(line.value)} y1={TOP - 6} y2={TOP + PLOT_HEIGHT} className={cn('stroke-2', line.status === 'Fault' ? 'stroke-fault' : 'stroke-warning')} />
+                <text x={x(line.value) + 5} y={TOP - 10} className="fill-ink-2 text-[11px] font-semibold">
                   {line.label} {formatValue(line.value)}
                 </text>
               </g>
@@ -152,20 +155,20 @@ export function Histogram({
 export function HistogramTable({ bins, formatValue, countHeader }: { bins: HistogramBin[]; formatValue: (value: number) => string; countHeader: string }) {
   const { t } = useTranslation()
   return (
-    <table className="data-table compact">
+    <table className={TABLE}>
       <thead>
         <tr>
-          <th>{t('charts.range')}</th>
-          <th className="num">{countHeader}</th>
+          <th className={TH_COMPACT}>{t('charts.range')}</th>
+          <th className={cn(TH_COMPACT, NUM)}>{countHeader}</th>
         </tr>
       </thead>
       <tbody>
         {bins.map((bin) => (
           <tr key={bin.from}>
-            <td>
+            <td className={TD_COMPACT}>
               {formatValue(bin.from)} – {formatValue(bin.to)}
             </td>
-            <td className="num">{bin.count}</td>
+            <td className={cn(TD_COMPACT, NUM)}>{bin.count}</td>
           </tr>
         ))}
       </tbody>

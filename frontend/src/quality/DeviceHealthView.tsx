@@ -23,12 +23,17 @@ import { Histogram, HistogramTable } from '../charts/Histogram'
 import { StatusBars, StatusBarsTable, StatusLegend } from '../charts/StatusBars'
 import { useFormat } from '../i18n/format'
 import { dailyQualityQuery, deviceHealthQuery } from '../queries'
+import { cn } from '../ui/cn'
+import { Empty } from '../ui/Empty'
 import { Hint } from '../ui/Hint'
 import { Pagination } from '../ui/Pagination'
-import { StatusIcon, TractionIcon } from '../ui/icons'
+import { TractionIcon } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { SegmentedItem, SegmentedRoot } from '../ui/Segmented'
 import { Select } from '../ui/Select'
+import { STATUS_BG } from '../ui/status'
+import { StatusPill } from '../ui/StatusPill'
+import { NUM, TABLE, TD, TH, WRAP } from '../ui/table'
 import { ActiveFilters } from './ActiveFilters'
 import { matches, NO_FILTERS, type FilterKey, type Filters } from './filters'
 import { METRIC_ORDER, METRICS, type MetricId } from './metrics'
@@ -71,9 +76,9 @@ function searchText(t: TFunction, v: VehicleHealth) {
 
 /** Phrases reason codes from the API in the current language, one per line. */
 function formatReasons(t: TFunction, reasons: HealthReason[]) {
-  if (reasons.length === 0) return <span className="muted">—</span>
+  if (reasons.length === 0) return <span className="text-ink-2">—</span>
   return (
-    <ul className="reason-list">
+    <ul className="space-y-0.5">
       {reasons.map((r) => (
         <li key={r.code}>{t(`health.reasons.${r.code}`, { count: r.value ?? 0, value: r.value ?? 0 })}</li>
       ))}
@@ -86,27 +91,27 @@ function tractionLabel(t: TFunction, traction: string) {
   return traction ? t(`health.tractions.${traction}` as 'health.tractions.tramvaj', { defaultValue: traction }) : '—'
 }
 
-function StatusPill({ status }: { status: HealthStatus }) {
-  const { t } = useTranslation()
-  return (
-    <span className={`pill pill-${status.toLowerCase()}`}>
-      <StatusIcon status={status} size={14} />
-      {t(`health.status.${status}`)}
-    </span>
-  )
-}
-
 /** A share cell coloured by the same thresholds the backend used. */
 function Share({ value, warning, fault, format }: { value: number | undefined; warning: number; fault?: number; format: Format }) {
-  if (value === undefined) return <span className="muted">—</span>
+  if (value === undefined) return <span className="text-ink-2">—</span>
   const level = fault !== undefined && value >= fault ? 'fault' : value >= warning ? 'warning' : ''
-  return <span className={level ? `share share-${level}` : 'share'}>{format.percent(value)}</span>
+  return (
+    <span
+      className={cn(
+        'inline-block min-w-[58px] rounded-[5px] px-[7px] py-px',
+        level === 'warning' && 'bg-warning-soft font-semibold text-warning',
+        level === 'fault' && 'bg-fault-soft font-semibold text-fault',
+      )}
+    >
+      {format.percent(value)}
+    </span>
+  )
 }
 
 function HeaderHint({ label, hint }: { label: string; hint: string }) {
   return (
     <Hint text={hint}>
-      <span className="has-hint">{label}</span>
+      <span className="cursor-help border-b border-dotted border-current">{label}</span>
     </Hint>
   )
 }
@@ -118,15 +123,15 @@ function buildVehicleColumns(t: TFunction, th: HealthThresholds, format: Format)
       cell: (info) => <StatusPill status={info.getValue()} />,
       sortFn: byStatus,
     }),
-    vehicleColumns.accessor('vehicleId', { header: t('health.columns.vehicle'), cell: (info) => <span className="vehicle-number">{info.getValue()}</span> }),
+    vehicleColumns.accessor('vehicleId', { header: t('health.columns.vehicle'), cell: (info) => <span className="font-display text-lg leading-[1.1] font-bold">{info.getValue()}</span> }),
     vehicleColumns.accessor((v) => v.traction ?? '', {
       id: 'traction',
       header: t('health.columns.traction'),
       cell: (info) => (
-        <span className="traction">
+        <span className="inline-flex items-center gap-1.5 [&>svg]:shrink-0 [&>svg]:text-ink-2">
           <TractionIcon traction={info.getValue()} />
           <span>
-            {tractionLabel(t, info.getValue())} <span className="model">{info.row.original.model ?? ''}</span>
+            {tractionLabel(t, info.getValue())} <span className="text-sm text-ink-2">{info.row.original.model ?? ''}</span>
           </span>
         </span>
       ),
@@ -186,7 +191,7 @@ function buildDeviceColumns(t: TFunction, format: Format) {
 const DEVICE_NUMERIC = new Set(['deviceNumber', 'stopsCounted', 'boardings', 'alightings', 'notAliveHeartbeats', 'restarts', 'flaggedStops'])
 
 function SortIndicator({ sorted }: { sorted: false | 'asc' | 'desc' }) {
-  return <span className="sort-indicator">{sorted === 'asc' ? ' ▴' : sorted === 'desc' ? ' ▾' : ''}</span>
+  return <span className="text-route">{sorted === 'asc' ? ' ▴' : sorted === 'desc' ? ' ▾' : ''}</span>
 }
 
 function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
@@ -202,14 +207,14 @@ function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
   })
 
   return (
-    <table className="data-table inner">
+    <table className={cn(TABLE, 'rounded-lg border border-rule bg-paper text-sm')}>
       <thead>
         {table.getHeaderGroups().map((group) => (
           <tr key={group.id}>
             {group.headers.map((header) => (
-              <th key={header.id} className={DEVICE_NUMERIC.has(header.column.id) ? 'num' : ''}>
+              <th key={header.id} className={cn(TH, DEVICE_NUMERIC.has(header.column.id) && NUM)}>
                 {header.column.getCanSort() ? (
-                  <button className="sort-button" onClick={header.column.getToggleSortingHandler()}>
+                  <button className="inline-flex cursor-pointer items-center gap-0.5 hover:text-ink" onClick={header.column.getToggleSortingHandler()}>
                     <table.FlexRender header={header} />
                     <SortIndicator sorted={header.column.getIsSorted()} />
                   </button>
@@ -225,7 +230,7 @@ function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
         {table.getRowModel().rows.map((row) => (
           <tr key={row.id}>
             {row.getAllCells().map((cell) => (
-              <td key={cell.id} className={`${DEVICE_NUMERIC.has(cell.column.id) ? 'num' : ''}${cell.column.id === 'reasons' ? ' reasons' : ''}`}>
+              <td key={cell.id} className={cn(TD, DEVICE_NUMERIC.has(cell.column.id) && NUM, cell.column.id === 'reasons' && WRAP)}>
                 <table.FlexRender cell={cell} />
               </td>
             ))}
@@ -240,6 +245,9 @@ function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
  * How status is decided, in plain language — opened from the page header, where the
  * question arises, as a side panel the reader can keep open next to the table.
  */
+/** One rule in the side panel: heading, then short paragraphs. */
+const RULE = 'border-t border-rule py-3.5 [&_h3]:mb-1.5 [&_h3]:text-lg [&_p]:mb-2 [&_p]:leading-[1.55] [&_p:last-child]:mb-0'
+
 function RulesPanel({ th }: { th: HealthThresholds }) {
   const { t } = useTranslation()
   const format = useFormat()
@@ -253,7 +261,7 @@ function RulesPanel({ th }: { th: HealthThresholds }) {
 
   return (
     <Dialog.Root>
-      <Dialog.Trigger className="link-button rules-trigger">
+      <Dialog.Trigger className="inline-flex cursor-pointer items-center gap-1 align-bottom font-semibold text-route hover:text-route-strong hover:underline">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           <circle cx="12" cy="12" r="9" />
           <path d="M12 11v5M12 8h.01" />
@@ -261,26 +269,26 @@ function RulesPanel({ th }: { th: HealthThresholds }) {
         {t('health.rules.open')}
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="sheet-overlay" />
-        <Dialog.Content className="sheet">
-          <div className="sheet-head">
-            <Dialog.Title className="sheet-title">{t('health.rules.title')}</Dialog.Title>
-            <Dialog.Close className="sheet-close" aria-label={t('health.rules.close')}>
+        <Dialog.Overlay className="fixed inset-0 z-[2000] bg-[rgb(17_26_31/0.28)]" />
+        <Dialog.Content className="fixed inset-y-0 right-0 z-[2001] w-[min(460px,100vw)] overflow-y-auto border-l border-rule bg-paper px-6 pt-5 pb-8 shadow-float data-[state=open]:animate-sheet-in">
+          <div className="flex items-center justify-between gap-3">
+            <Dialog.Title className="text-xl">{t('health.rules.title')}</Dialog.Title>
+            <Dialog.Close className="inline-flex cursor-pointer rounded-lg p-1.5 text-ink-2 hover:bg-surface hover:text-ink" aria-label={t('health.rules.close')}>
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M6 6l12 12M18 6 6 18" />
               </svg>
             </Dialog.Close>
           </div>
-          <Dialog.Description className="sheet-lead">{t('health.rules.lead')}</Dialog.Description>
+          <Dialog.Description className="mt-2 mb-[18px] text-ink-2">{t('health.rules.lead')}</Dialog.Description>
           {rules.map((rule) => (
-            <section key={rule.key} className="rule">
+            <section key={rule.key} className={RULE}>
               <h3>{t(`health.rules.${rule.key}.title`)}</h3>
               <Trans i18nKey={`health.rules.${rule.key}.body`} values={rule.values} components={markup} />
             </section>
           ))}
-          <section className="rule rule-notes">
+          <section className={RULE}>
             <h3>{t('health.rules.notes.title')}</h3>
-            <ul>
+            <ul className="list-disc space-y-1.5 pl-[18px] text-ink-2">
               <li>{t('health.rules.notes.counts')}</li>
               <li>{t('health.rules.notes.restarts')}</li>
               <li>{t('health.rules.notes.provisional')}</li>
@@ -391,10 +399,10 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
     )
 
   return (
-    <div className="page">
-      <header className="page-header">
-        <h2>{t('health.title')}</h2>
-        <dl className="facts">
+    <div className="flex-1 overflow-y-auto p-4 md:px-7 md:pt-6 md:pb-10">
+      <header>
+        <h2 className="mb-2 text-2xl">{t('health.title')}</h2>
+        <dl className="flex flex-wrap gap-x-7 gap-y-1.5 [&>div]:flex [&>div]:items-baseline [&>div]:gap-2 [&_dd]:font-semibold [&_dt]:text-ink-2">
           <div>
             <dt>{t('health.facts.period')}</dt>
             <dd>
@@ -410,49 +418,53 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
             <dd>{format.number(deviceTotal)}</dd>
           </div>
         </dl>
-        <p className="page-note">
+        <p className="mt-1.5 max-w-[72ch] text-sm text-ink-2">
           {t('health.note')} <RulesPanel th={report.thresholds} />
         </p>
       </header>
 
-      <section className="fleet-status" aria-label={t('health.fleetStatus')}>
+      <section className="mt-[22px] mb-[18px]" aria-label={t('health.fleetStatus')}>
         {/* Decorative summary of the counts below; the toggle buttons carry the same numbers as text. */}
-        <div className={`status-bar${statusFilter ? ' filtered' : ''}`} aria-hidden="true">
+        <div className="mb-2.5 flex h-3.5 gap-[3px]" aria-hidden="true">
           {STATUS_ORDER.filter((s) => counts[s] > 0).map((s) => (
             <span
               key={s}
-              className={`status-bar-segment ${s.toLowerCase()}${statusFilter === s ? ' active' : ''}`}
+              className={cn('min-w-1 rounded-[3px] transition-opacity', STATUS_BG[s], statusFilter && statusFilter !== s && 'opacity-20')}
               style={{ flexGrow: counts[s] }}
             />
           ))}
         </div>
         <ToggleGroup.Root
           type="single"
-          className="status-filter"
+          className="flex flex-wrap gap-2"
           aria-label={t('health.statusFilter')}
           value={statusFilter}
           onValueChange={(value) => set({ status: (value || undefined) as HealthStatus | undefined })}
         >
           {STATUS_ORDER.map((s) => (
-            <ToggleGroup.Item key={s} value={s} className="status-filter-item">
-              <span className={`pill pill-${s.toLowerCase()}`}>
-                <StatusIcon status={s} size={14} />
-                {t(`health.status.${s}`)}
-              </span>
-              <span className="status-filter-count">{format.number(counts[s])}</span>
+            <ToggleGroup.Item
+              key={s}
+              value={s}
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-rule bg-paper py-[5px] pr-3 pl-2 hover:bg-surface data-[state=on]:border-ink data-[state=on]:bg-surface-2"
+            >
+              <StatusPill status={s} />
+              <span className="font-display text-lg leading-none font-bold">{format.number(counts[s])}</span>
             </ToggleGroup.Item>
           ))}
         </ToggleGroup.Root>
       </section>
 
-      <div className="filters" role="search">
-        <label className="search">
-          <span className="visually-hidden">{t('health.searchLabel')}</span>
+      <div className="mb-3 flex flex-wrap items-center gap-4" role="search">
+        <label className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rule bg-paper px-2.5 text-ink-2 focus-within:border-route focus-within:shadow-[0_0_0_1px_var(--route)]">
+          <span className="sr-only">{t('health.searchLabel')}</span>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.5-3.5" />
           </svg>
-          <input type="search" value={filters.search} placeholder={t('health.searchPlaceholder')} onChange={(event) => set({ search: event.target.value })} />
+          <input
+            className="w-[150px] bg-transparent text-ink outline-none md:w-[220px]"
+            type="search"
+            value={filters.search} placeholder={t('health.searchPlaceholder')} onChange={(event) => set({ search: event.target.value })} />
         </label>
         <Select
           label={t('health.traction')}
@@ -475,7 +487,7 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
         formatRange={(id, value) => (METRICS[id].kind === 'share' ? format.percentWhole(value) : format.number(Math.round(value)))}
       />
 
-      <section className="analysis" aria-label={t('charts.analysis')}>
+      <section className="mb-7 flex flex-col gap-4" aria-label={t('charts.analysis')}>
         <ChartFigure
           title={t('charts.heatmapTitle', { metric: metricName })}
           subtitle={t('charts.heatmapSubtitle')}
@@ -492,7 +504,7 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
           }
           table={<HeatmapTable vehicles={visible} days={days} daily={dailyByKey} metric={metric} formatValue={formatMetric} />}
         />
-        <div className="analysis-grid">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[repeat(auto-fit,minmax(420px,1fr))]">
           <ChartFigure
             title={t('charts.histogramTitle', { metric: metricName })}
             subtitle={t(thresholds ? 'charts.histogramSubtitle' : 'charts.histogramSubtitleNoThresholds')}
@@ -542,24 +554,24 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
         </div>
       </section>
 
-      <div className="section-head">
-        <h3>{t('health.vehiclesTitle')}</h3>
-        <span className="muted small">{t('health.shown', { count: filtered.length })}</span>
+      <div className="mb-2.5 flex items-baseline gap-3">
+        <h3 className="text-xl">{t('health.vehiclesTitle')}</h3>
+        <span className="text-xs text-ink-2">{t('health.shown', { count: filtered.length })}</span>
       </div>
 
-      <div className="table-wrap" ref={tableTop}>
-        <table className="data-table">
+      <div className="overflow-x-auto rounded-[10px] border border-rule" ref={tableTop}>
+        <table className={TABLE}>
           <thead>
             {table.getHeaderGroups().map((group) => (
               <tr key={group.id}>
                 {group.headers.map((header) => (
                   <th
                     key={header.id}
-                    className={NUMERIC.has(header.column.id) ? 'num' : ''}
+                    className={cn(TH, NUMERIC.has(header.column.id) && NUM)}
                     aria-sort={header.column.getIsSorted() === 'asc' ? 'ascending' : header.column.getIsSorted() === 'desc' ? 'descending' : 'none'}
                   >
                     {header.column.getCanSort() ? (
-                      <button className="sort-button" onClick={header.column.getToggleSortingHandler()}>
+                      <button className="inline-flex cursor-pointer items-center gap-0.5 hover:text-ink" onClick={header.column.getToggleSortingHandler()}>
                         <table.FlexRender header={header} />
                         <SortIndicator sorted={header.column.getIsSorted()} />
                       </button>
@@ -574,16 +586,18 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
           <tbody>
             {shown.map((row) => (
               <Fragment key={row.id}>
-                <tr className="clickable" onClick={() => row.toggleExpanded()} aria-expanded={row.getIsExpanded()}>
+                <tr
+                  className="cursor-pointer hover:[&>td]:bg-surface aria-expanded:[&>td]:bg-route-soft"
+                  onClick={() => row.toggleExpanded()} aria-expanded={row.getIsExpanded()}>
                   {row.getAllCells().map((cell) => (
-                    <td key={cell.id} className={`${NUMERIC.has(cell.column.id) ? 'num' : ''}${cell.column.id === 'reasons' ? ' reasons' : ''}`}>
+                    <td key={cell.id} className={cn(TD, NUMERIC.has(cell.column.id) && NUM, cell.column.id === 'reasons' && WRAP)}>
                       <table.FlexRender cell={cell} />
                     </td>
                   ))}
                 </tr>
                 {row.getIsExpanded() && (
-                  <tr className="detail-row">
-                    <td colSpan={row.getAllCells().length}>
+                  <tr>
+                    <td colSpan={row.getAllCells().length} className="bg-route-soft pt-1 pr-3 pb-4 pl-12">
                       <DeviceTable devices={row.original.devices} />
                     </td>
                   </tr>
@@ -617,7 +631,7 @@ export function DeviceHealthView() {
     <QueryState query={report} loading={t('health.loading')}>
       {(data) =>
         data.vehicles.length === 0 ? (
-          <p className="empty">{t('health.empty')}</p>
+          <Empty>{t('health.empty')}</Empty>
         ) : (
           // The heatmap fills in when the per-day data arrives; the rest doesn't wait for it.
           <VehicleHealthTable report={data} daily={daily.data ?? EMPTY_DAYS} />

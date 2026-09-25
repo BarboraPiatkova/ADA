@@ -26,13 +26,13 @@ export function ChartFigure({
   const [view, setView] = useState<'chart' | 'table'>('chart')
 
   return (
-    <figure className="chart-figure">
-      <figcaption className="chart-head">
+    <figure className="m-0 min-w-0 rounded-[10px] border border-rule bg-paper px-[18px] pt-4 pb-3.5">
+      <figcaption className="mb-2.5 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
-          <h3 className="chart-title">{title}</h3>
-          {subtitle && <p className="chart-subtitle">{subtitle}</p>}
+          <h3 className="text-lg">{title}</h3>
+          {subtitle && <p className="mt-0.5 max-w-[72ch] text-sm text-ink-2">{subtitle}</p>}
         </div>
-        <div className="chart-controls">
+        <div className="flex flex-wrap gap-2">
           {controls}
           <SegmentedRoot
             type="single"
@@ -51,11 +51,11 @@ export function ChartFigure({
       </figcaption>
       {view === 'chart' ? (
         <>
-          {legend && <div className="chart-legend">{legend}</div>}
+          {legend && <div className="mb-2.5">{legend}</div>}
           {chart}
         </>
       ) : (
-        <div className="chart-table-wrap">{table}</div>
+        <div className="max-h-[360px] overflow-auto rounded-lg border border-rule">{table}</div>
       )}
     </figure>
   )

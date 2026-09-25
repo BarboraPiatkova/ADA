@@ -6,7 +6,7 @@ export function ChartTooltip({ tooltip, width }: { tooltip: TooltipState | null;
   const flip = tooltip.x > width - 220
   return (
     <div
-      className="chart-tooltip"
+      className="pointer-events-none absolute z-[5] flex min-w-[120px] flex-col gap-px rounded-lg border border-rule bg-paper px-2.5 py-[7px] whitespace-nowrap shadow-float"
       role="status"
       style={{
         left: flip ? undefined : tooltip.x + 14,

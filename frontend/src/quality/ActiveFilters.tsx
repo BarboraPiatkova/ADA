@@ -1,16 +1,19 @@
 import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
+import { cn } from '../ui/cn'
 import { StatusIcon } from '../ui/icons'
+import { LinkButton } from '../ui/LinkButton'
+import { STATUS_TEXT } from '../ui/status'
 import { hasFilters, NO_FILTERS, type FilterKey, type Filters } from './filters'
 import { METRICS } from './metrics'
 
 function Chip({ label, value, onRemove, removeLabel, icon }: { label: string; value: string; onRemove: () => void; removeLabel: string; icon?: React.ReactNode }) {
   return (
-    <li className="filter-chip">
+    <li className="inline-flex h-[30px] items-center gap-[5px] rounded-full border border-route bg-route-soft pr-1 pl-2.5">
       {icon}
-      <span className="filter-chip-label">{label}:</span>
-      <span className="filter-chip-value">{value}</span>
-      <button className="filter-chip-remove" onClick={onRemove} aria-label={removeLabel}>
+      <span className="text-ink-2">{label}:</span>
+      <span className="font-semibold">{value}</span>
+      <button className="inline-flex cursor-pointer rounded-full p-1 text-ink-2 hover:bg-paper hover:text-ink" onClick={onRemove} aria-label={removeLabel}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
           <path d="M7 7l10 10M17 7 7 17" />
         </svg>
@@ -47,7 +50,7 @@ export function ActiveFilters({
       label: t('filters.status'),
       value: t(`health.status.${filters.status}`),
       icon: (
-        <span className={`legend-icon status-${filters.status.toLowerCase()}`}>
+        <span className={cn('-ml-0.5 inline-flex', STATUS_TEXT[filters.status])}>
           <StatusIcon status={filters.status} size={14} />
         </span>
       ),
@@ -67,8 +70,8 @@ export function ActiveFilters({
   if (filters.search.trim()) chips.push({ key: 'search', label: t('filters.search'), value: `„${filters.search.trim()}“` })
 
   return (
-    <div className="active-filters" aria-live="polite">
-      <ul className="filter-chips" aria-label={t('filters.active')}>
+    <div className="-mt-0.5 mb-4 flex flex-wrap items-center gap-x-3.5 gap-y-2" aria-live="polite">
+      <ul className="flex flex-wrap gap-2" aria-label={t('filters.active')}>
         {chips.map((chip) => (
           <Chip
             key={chip.key}
@@ -80,9 +83,7 @@ export function ActiveFilters({
           />
         ))}
       </ul>
-      <button className="link-button" onClick={() => onChange(NO_FILTERS)}>
-        {t('filters.clearAll')}
-      </button>
+      <LinkButton onClick={() => onChange(NO_FILTERS)}>{t('filters.clearAll')}</LinkButton>
     </div>
   )
 }

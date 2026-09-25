@@ -3,6 +3,10 @@ import { useTranslation } from 'react-i18next'
 import type { VehicleDay, VehicleHealth } from '../api'
 import { useFormat } from '../i18n/format'
 import { binOf, type Metric } from '../quality/metrics'
+import { cn } from '../ui/cn'
+import { Empty } from '../ui/Empty'
+import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
+import { AXIS_LABEL, CHART_BOX, LEGEND, SWATCH, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
 import { useElementWidth, useTooltip } from './useChart'
 
@@ -64,17 +68,17 @@ export function FleetHeatmap({
   }
 
   if (vehicles.length === 0 || days.length === 0) {
-    return <p className="empty">{t('charts.nothingToShow')}</p>
+    return <Empty>{t('charts.nothingToShow')}</Empty>
   }
 
   return (
-    <div ref={wrap} className="chart-canvas">
-      <div ref={box} className="chart-box">
+    <div ref={wrap} className="min-w-0">
+      <div ref={box} className={CHART_BOX}>
         {width > 0 && (
           <svg
             width={DAY_LABEL_WIDTH + plotWidth}
             height={height}
-            className="heatmap"
+            className="cursor-pointer"
             role="img"
             aria-label={t('charts.heatmapAria', { metric: t(`charts.metrics.${metric.id}`), vehicles: vehicles.length, days: days.length })}
             onPointerMove={(event) => {
@@ -88,11 +92,11 @@ export function FleetHeatmap({
               show(
                 event,
                 <>
-                  <strong className="tooltip-value">{cell.value === null ? t('charts.noData') : formatValue(cell.value)}</strong>
-                  <span className="tooltip-label">
+                  <strong className={TOOLTIP_VALUE}>{cell.value === null ? t('charts.noData') : formatValue(cell.value)}</strong>
+                  <span className={TOOLTIP_LABEL}>
                     {t('charts.vehicleDay', { vehicle: cell.vehicle.vehicleId, day: format.dayShort(cell.day) })}
                   </span>
-                  {cell.record && <span className="tooltip-label">{t('charts.stopsThatDay', { count: cell.record.stopSummaries })}</span>}
+                  {cell.record && <span className={TOOLTIP_LABEL}>{t('charts.stopsThatDay', { count: cell.record.stopSummaries })}</span>}
                 </>,
               )
             }}
@@ -106,7 +110,7 @@ export function FleetHeatmap({
             }}
           >
             {days.map((day, row) => (
-              <text key={day} x={DAY_LABEL_WIDTH - 10} y={row * ROW_HEIGHT + ROW_HEIGHT / 2} className="axis-label" textAnchor="end" dominantBaseline="middle">
+              <text key={day} x={DAY_LABEL_WIDTH - 10} y={row * ROW_HEIGHT + ROW_HEIGHT / 2} className={AXIS_LABEL} textAnchor="end" dominantBaseline="middle">
                 {format.dayShort(day)}
               </text>
             ))}
@@ -121,7 +125,7 @@ export function FleetHeatmap({
                   width={cellWidth - GAP - 1}
                   height={ROW_HEIGHT - GAP - 1}
                   rx={2}
-                  className="heat-empty"
+                  className="fill-none stroke-rule"
                 />
               ) : (
                 <rect
@@ -142,7 +146,7 @@ export function FleetHeatmap({
                 width={cellWidth}
                 height={days.length * ROW_HEIGHT}
                 rx={3}
-                className="heat-column-hover"
+                className="pointer-events-none fill-none stroke-ink stroke-2"
               />
             )}
             {vehicles.map((vehicle, column) =>
@@ -151,7 +155,7 @@ export function FleetHeatmap({
                   key={vehicle.vehicleId}
                   x={DAY_LABEL_WIDTH + column * cellWidth + (cellWidth - GAP) / 2}
                   y={days.length * ROW_HEIGHT + 16}
-                  className="axis-label"
+                  className={AXIS_LABEL}
                   textAnchor="middle"
                 >
                   {vehicle.vehicleId}
@@ -174,15 +178,15 @@ export function HeatmapLegend({ metric, formatValue }: { metric: Metric; formatV
     return edge === Infinity ? `≥ ${formatValue(lower)}` : i === 0 ? `< ${formatValue(edge)}` : `${formatValue(lower)} – ${formatValue(edge)}`
   })
   return (
-    <ul className="scale-legend">
+    <ul className={LEGEND}>
       {labels.map((label, i) => (
         <li key={label}>
-          <span className="scale-swatch" style={{ background: `var(--seq-${i + 1})` }} />
+          <span className={SWATCH} style={{ background: `var(--seq-${i + 1})` }} />
           {label}
         </li>
       ))}
       <li>
-        <span className="scale-swatch no-data" />
+        <span className={cn(SWATCH, 'border border-rule')} />
         {t('charts.noData')}
       </li>
     </ul>
@@ -206,12 +210,12 @@ export function HeatmapTable({
   const { t } = useTranslation()
   const format = useFormat()
   return (
-    <table className="data-table compact">
+    <table className={TABLE}>
       <thead>
         <tr>
-          <th>{t('health.columns.vehicle')}</th>
+          <th className={TH_COMPACT}>{t('health.columns.vehicle')}</th>
           {days.map((day) => (
-            <th key={day} className="num">
+            <th key={day} className={cn(TH_COMPACT, NUM)}>
               {format.dayShort(day)}
             </th>
           ))}
@@ -220,12 +224,12 @@ export function HeatmapTable({
       <tbody>
         {vehicles.map((vehicle) => (
           <tr key={vehicle.vehicleId}>
-            <td>{vehicle.vehicleId}</td>
+            <td className={TD_COMPACT}>{vehicle.vehicleId}</td>
             {days.map((day) => {
               const record = daily.get(`${vehicle.vehicleId}|${day}`)
               const value = record ? metric.day(record) : null
               return (
-                <td key={day} className="num">
+                <td key={day} className={cn(TD_COMPACT, NUM)}>
                   {value === null ? '—' : formatValue(value)}
                 </td>
               )
