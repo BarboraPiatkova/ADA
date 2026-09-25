@@ -1,30 +1,15 @@
-using AdaPlatform.Api.Data;
-using Microsoft.EntityFrameworkCore;
+using AdaPlatform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 
-// Connection string is resolved lazily from IConfiguration per DbContext instance
-// (not captured once at startup) so it always reflects the final, fully-merged
-// configuration — including overrides applied in integration tests.
-builder.Services.AddDbContext<AppDbContext>((sp, options) =>
-{
-    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Default")
-        ?? throw new InvalidOperationException(
-            "Connection string 'Default' is not configured. Set ConnectionStrings:Default " +
-            "(appsettings.Development.json for local dev, or the ConnectionStrings__Default " +
-            "environment variable when running via docker-compose).");
-    options.UseNpgsql(connectionString);
-});
-
-// Tied to the same DbContext/connection above, rather than a separately configured
-// connection string — one source of truth for "can we reach Postgres".
-builder.Services
-    .AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>(name: "postgres");
+// Engine (Postgres or SQL Server) comes from Database:Provider — see ADR 0003.
+builder.Services.AddAdaPlatformDatabase(builder.Configuration);
 
 var app = builder.Build();
+
+await app.Services.MigrateAdaPlatformDatabaseAsync();
 
 if (app.Environment.IsDevelopment())
 {
@@ -33,8 +18,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// Liveness/readiness probe — verifies the API is up AND can reach Postgres.
+// Liveness/readiness probe — verifies the API is up AND can reach the database.
 app.MapHealthChecks("/health");
+
 
 app.Run();
 
