@@ -3,6 +3,7 @@ import { Tabs } from 'radix-ui'
 import { useEffect, useState } from 'react'
 import { NetworkMapView } from './map/NetworkMapView'
 import { mapConfigQuery } from './queries'
+import { DeviceHealthView } from './quality/DeviceHealthView'
 import { QueryState } from './ui/QueryState'
 
 // Two screens as Radix tabs, mirrored in the URL hash so each has a shareable link and
@@ -46,7 +47,7 @@ export default function App() {
         </QueryState>
       </Tabs.Content>
       <Tabs.Content value="jednotky" className="content">
-        <p className="empty">Připravuje se.</p>
+        <DeviceHealthView />
       </Tabs.Content>
     </Tabs.Root>
   )
