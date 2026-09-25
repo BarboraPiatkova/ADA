@@ -70,13 +70,16 @@ public static class MapEndpoints
                     $"mapy-{set.Key}", $"/api/map/tiles/{set.Key}/256{{r}}/{{z}}/{{x}}/{{y}}",
                     MapyAttribution, MaxZoom: 19, RequiresMapyLogo: true)));
             }
-
-            // Fallback that needs no key. The public OSM tile server is for light use only
-            // (see its tile usage policy), so it's not the default when a Mapy.com key exists.
-            layers.Add(new BaseLayerDto(
-                "osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                "&copy; <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" rel=\"noopener\">OpenStreetMap</a>",
-                MaxZoom: 19, RequiresMapyLogo: false));
+            else
+            {
+                // Only without a Mapy.com key: a deployment or dev machine without one still
+                // gets a map. The public OSM tile server is for light use only (its tile usage
+                // policy), so it's never offered next to Mapy.com.
+                layers.Add(new BaseLayerDto(
+                    "osm", "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                    "&copy; <a href=\"https://www.openstreetmap.org/copyright\" target=\"_blank\" rel=\"noopener\">OpenStreetMap</a>",
+                    MaxZoom: 19, RequiresMapyLogo: false));
+            }
 
             return new MapConfigDto(layers);
         }).RequireAuthorization(Permissions.NetworkRead);

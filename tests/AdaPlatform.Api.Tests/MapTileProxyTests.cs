@@ -40,6 +40,15 @@ public sealed class MapTileProxyTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task With_a_key_only_Mapy_layers_are_offered()
+    {
+        await using var api = NewApi(Key);
+        var config = await api.CreateSignedInClient().GetFromJsonAsync<MapEndpoints.MapConfigDto>("/api/map/config");
+
+        Assert.Equal(["mapy-basic", "mapy-outdoor", "mapy-aerial", "mapy-winter"], config!.BaseLayers.Select(l => l.Id));
+    }
+
+    [Fact]
     public async Task A_tile_is_fetched_once_with_the_key_in_a_header_then_served_from_cache()
     {
         await using var api = NewApi(Key);
