@@ -29,6 +29,8 @@ import { Hint } from '../ui/Hint'
 import { Pagination } from '../ui/Pagination'
 import { TractionIcon } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
+import { Skeleton, SkeletonScreen } from '../ui/Skeleton'
+import { HealthSkeleton } from './HealthSkeleton'
 import { SegmentedItem, SegmentedRoot } from '../ui/Segmented'
 import { Select } from '../ui/Select'
 import { STATUS_BG } from '../ui/status'
@@ -300,7 +302,7 @@ function RulesPanel({ th }: { th: HealthThresholds }) {
   )
 }
 
-function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; daily: VehicleDay[] }) {
+function VehicleHealthTable({ report, daily, dailyPending }: { report: DeviceHealthReport; daily: VehicleDay[]; dailyPending: boolean }) {
   const { t, i18n } = useTranslation()
   const format = useFormat()
   const [filters, setFilters] = useState<Filters>(NO_FILTERS)
@@ -493,6 +495,12 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
           subtitle={t('charts.heatmapSubtitle')}
           legend={<HeatmapLegend metric={metric} formatValue={formatMetric} />}
           chart={
+            // Until the per-day data arrives, every cell would read as "no data" — misleading.
+            dailyPending ? (
+              <SkeletonScreen label={t('app.loading')}>
+                <Skeleton className="h-[180px] w-full" />
+              </SkeletonScreen>
+            ) : (
             <FleetHeatmap
               vehicles={visible}
               days={days}
@@ -501,6 +509,7 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
               formatValue={formatMetric}
               onSelectVehicle={(id) => set({ search: String(id) })}
             />
+            )
           }
           table={<HeatmapTable vehicles={visible} days={days} daily={dailyByKey} metric={metric} formatValue={formatMetric} />}
         />
@@ -628,13 +637,13 @@ export function DeviceHealthView() {
   const report = useQuery(deviceHealthQuery)
   const daily = useQuery(dailyQualityQuery)
   return (
-    <QueryState query={report} loading={t('health.loading')}>
+    <QueryState query={report} loading={t('health.loading')} skeleton={<HealthSkeleton label={t('health.loading')} />}>
       {(data) =>
         data.vehicles.length === 0 ? (
           <Empty>{t('health.empty')}</Empty>
         ) : (
           // The heatmap fills in when the per-day data arrives; the rest doesn't wait for it.
-          <VehicleHealthTable report={data} daily={daily.data ?? EMPTY_DAYS} />
+          <VehicleHealthTable report={data} daily={daily.data ?? EMPTY_DAYS} dailyPending={daily.isPending} />
         )
       }
     </QueryState>
