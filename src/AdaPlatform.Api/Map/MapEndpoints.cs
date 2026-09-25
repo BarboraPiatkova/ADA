@@ -93,7 +93,7 @@ public static class MapEndpoints
     private static async Task<IResult> GetTileAsync(
         string mapset, string size, int z, int x, int y,
         IOptions<MapOptions> options, IHttpClientFactory httpClients, IWebHostEnvironment env,
-        HttpContext http, CancellationToken ct)
+        ILogger<MapOptions> logger, HttpContext http, CancellationToken ct)
     {
         var apiKey = options.Value.MapyComApiKey;
         if (string.IsNullOrWhiteSpace(apiKey) || !MapySets.TryGetValue(mapset, out var set)
@@ -142,10 +142,20 @@ public static class MapEndpoints
             var bytes = await upstream.Content.ReadAsByteArrayAsync(ct);
 
             // Write to a temp file and move, so a concurrent reader never sees half a tile.
-            Directory.CreateDirectory(Path.GetDirectoryName(cacheFile)!);
-            var temp = $"{cacheFile}.{Guid.NewGuid():N}.tmp";
-            await File.WriteAllBytesAsync(temp, bytes, ct);
-            File.Move(temp, cacheFile, overwrite: true);
+            // A cache that can't be written (full disk, wrong volume owner) must not cost the
+            // user the tile: serve it anyway and say so in the log.
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(cacheFile)!);
+                var temp = $"{cacheFile}.{Guid.NewGuid():N}.tmp";
+                await File.WriteAllBytesAsync(temp, bytes, ct);
+                File.Move(temp, cacheFile, overwrite: true);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(e, "Tile cache {Folder} is not writable; tiles are fetched from Mapy.com on every request",
+                    options.Value.TileCacheFolder);
+            }
 
             SetBrowserCache(http, TileLifetime);
             return Results.Bytes(bytes, set.ContentType);
