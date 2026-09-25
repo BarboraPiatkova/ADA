@@ -33,3 +33,9 @@ export const deviceHealthQuery = queryOptions({
   // The API caches this report for 10 minutes; asking sooner returns the same data.
   staleTime: 10 * 60 * 1000,
 })
+
+export const dailyQualityQuery = queryOptions({
+  queryKey: ['quality', 'daily'],
+  queryFn: ({ signal }) => api.dailyQuality(signal),
+  staleTime: 10 * 60 * 1000,
+})

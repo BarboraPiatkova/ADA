@@ -107,6 +107,19 @@ export interface HealthThresholds {
   notAliveWarning: number
 }
 
+/** One vehicle on one operating day (the heatmap cell). Shares are null when there were no stops. */
+export interface VehicleDay {
+  vehicleId: number
+  /** ISO date, e.g. "2022-08-01". */
+  day: string
+  boardings: number
+  alightings: number
+  imbalance: number | null
+  stopSummaries: number
+  negativeOccupancyShare: number | null
+  flaggedStopShare: number | null
+}
+
 export interface DeviceHealthReport {
   from: string | null
   to: string | null
@@ -128,4 +141,5 @@ export const api = {
   lines: (signal?: AbortSignal) => getJson<Line[]>('/api/lines', signal),
   patternStops: (code: number, signal?: AbortSignal) => getJson<PatternStop[]>(`/api/patterns/${code}/stops`, signal),
   deviceHealth: (signal?: AbortSignal) => getJson<DeviceHealthReport>('/api/quality/devices', signal),
+  dailyQuality: (signal?: AbortSignal) => getJson<VehicleDay[]>('/api/quality/daily', signal),
 }
