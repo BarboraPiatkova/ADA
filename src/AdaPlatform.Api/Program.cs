@@ -1,4 +1,5 @@
 using AdaPlatform.Api.Endpoints;
+using AdaPlatform.Api.Map;
 using AdaPlatform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +8,9 @@ builder.Services.AddOpenApi();
 
 // Engine (Postgres or SQL Server) comes from Database:Provider — see ADR 0003.
 builder.Services.AddAdaPlatformDatabase(builder.Configuration);
+
+// Base maps: Mapy.com through a caching proxy (key stays server-side), OSM as fallback.
+builder.Services.AddMapTiles(builder.Configuration);
 
 var app = builder.Build();
 
@@ -23,6 +27,7 @@ app.UseHttpsRedirection();
 app.MapHealthChecks("/health");
 
 app.MapNetworkEndpoints();
+app.MapMapEndpoints();
 
 app.Run();
 

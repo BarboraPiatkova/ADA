@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
+  <PropertyGroup>
+    <!-- Local secrets (e.g. Map:MapyComApiKey) live in the user-secrets store, never in the repo. -->
+    <UserSecretsId>56b3f5a4-8d95-4252-9c70-0155e48c670f</UserSecretsId>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
   </ItemGroup>

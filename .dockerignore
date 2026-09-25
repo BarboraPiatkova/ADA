@@ -5,3 +5,5 @@
 .vs/
 frontend/
 tests/
+**/tile-cache/
+.env

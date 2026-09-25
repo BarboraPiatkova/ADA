@@ -15,3 +15,6 @@ Thumbs.db
 ## Local secrets — never commit real connection strings/credentials
 appsettings.*.local.json
 .env
+
+## Proxied map tiles (runtime cache)
+tile-cache/

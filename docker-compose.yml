@@ -25,13 +25,19 @@ services:
       Database__Provider: Postgres
       Database__MigrateOnStartup: "true"
       ConnectionStrings__Default: "Host=db;Port=5432;Database=adaplatform;Username=postgres;Password=postgres"
+      # Mapy.com key from the gitignored .env file next to this compose file (MAPY_API_KEY=...).
+      # Without it the map falls back to OpenStreetMap.
+      Map__MapyComApiKey: ${MAPY_API_KEY:-}
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080"
     ports:
       - "8080:8080"
+    volumes:
+      - tile-cache:/app/tile-cache
     depends_on:
       db:
         condition: service_healthy
 
 volumes:
   db-data:
+  tile-cache:
