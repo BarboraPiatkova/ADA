@@ -1,6 +1,8 @@
 // Typed access to the AdaPlatform API. Paths are relative: the Vite dev proxy (and,
 // in production, the API serving the SPA) makes them same-origin.
 
+import { accessToken, refresh } from './auth/session'
+
 export interface BaseLayer {
   /** Stable id (e.g. "mapy-basic", "osm"); the UI names layers by id in its own language. */
   id: string
@@ -127,10 +129,35 @@ export interface DeviceHealthReport {
   vehicles: VehicleHealth[]
 }
 
+/** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
+export class ApiError extends Error {
+  readonly path: string
+  readonly status: number
+
+  constructor(path: string, status: number) {
+    super(`${path} → HTTP ${status}`)
+    this.path = path
+    this.status = status
+  }
+}
+
+function send(path: string, signal?: AbortSignal): Promise<Response> {
+  const token = accessToken()
+  return fetch(path, {
+    signal,
+    headers: { Accept: 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  })
+}
+
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(path, { signal, headers: { Accept: 'application/json' } })
+  let response = await send(path, signal)
+  // The access token expired (a laptop waking from sleep misses the refresh timer):
+  // refresh once and retry. If that fails too, the session is over and the app shows login.
+  if (response.status === 401 && (await refresh())) {
+    response = await send(path, signal)
+  }
   if (!response.ok) {
-    throw new Error(`${path} → HTTP ${response.status}`)
+    throw new ApiError(path, response.status)
   }
   return (await response.json()) as T
 }

@@ -4,4 +4,6 @@
 try {
   var theme = localStorage.getItem('adaplatform.theme')
   if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme
-} catch (e) {}
+} catch {
+  // Storage blocked (private mode, site data off): the system theme applies.
+}

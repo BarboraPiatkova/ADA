@@ -1,6 +1,7 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ApiError } from '../api'
 import { Empty } from './Empty'
 import { LinkButton } from './LinkButton'
 
@@ -17,6 +18,10 @@ export function QueryState<T>({
   const { t } = useTranslation()
   if (query.isPending) return <Empty>{loading}</Empty>
   if (query.isError) {
+    // Signed in, but a role in Tokari doesn't include this: retrying won't help.
+    if (query.error instanceof ApiError && query.error.status === 403) {
+      return <Empty error>{t('common.forbidden')}</Empty>
+    }
     return (
       <Empty error>
         {t('common.apiUnavailable', { message: query.error.message })}{' '}
