@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next'
 import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet'
 import type { BaseLayer, Line, PatternSummary, Stop } from '../api'
 import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
+import { cn } from '../ui/cn'
+import { Empty } from '../ui/Empty'
 import { Chevron } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { BaseMap } from './BaseMap'
@@ -15,6 +17,9 @@ function radiusFor(stop: Stop) {
   if (stop.visits === 0) return 3
   return Math.min(4 + Math.sqrt(stop.boardings / stop.visits) * 2.5, 14)
 }
+
+/** A stop marker as drawn on the map: white fill, route-coloured ring. */
+const LEGEND_STOP = 'inline-block rounded-full border-2 border-map-route bg-map-stop'
 
 function FitTo({ points }: { points: [number, number][] }) {
   const map = useMap()
@@ -34,41 +39,44 @@ function patternLabel(p: PatternSummary) {
 function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: number | null; onSelect: (code: number | null) => void }) {
   const { t } = useTranslation()
   return (
-    <nav className="sidebar" aria-label={t('map.lines')}>
-      <h2>{t('map.lines')}</h2>
-      <p className="sidebar-hint">{t('map.linesHint')}</p>
-      <Accordion.Root type="single" collapsible className="line-list">
+    <nav
+      className="max-h-[35svh] shrink-0 overflow-y-auto border-b border-rule bg-paper px-3.5 py-[18px] md:max-h-none md:w-[300px] md:border-r md:border-b-0"
+      aria-label={t('map.lines')}
+    >
+      <h2 className="mb-1 px-1.5 text-xl">{t('map.lines')}</h2>
+      <p className="mb-3 px-1.5 text-sm text-ink-2">{t('map.linesHint')}</p>
+      <Accordion.Root type="single" collapsible className="flex flex-col gap-0.5">
         {lines.map((line) => {
           const withTrips = line.patterns.filter((p) => p.trips > 0)
           const hidden = line.patterns.length - withTrips.length
           return (
-            <Accordion.Item key={line.id} value={String(line.id)} className="line-item">
+            <Accordion.Item key={line.id} value={String(line.id)}>
               <Accordion.Header asChild>
-                <h3 className="line-header">
-                  <Accordion.Trigger className="line-button">
-                    <span className="line-badge">{line.id}</span>
-                    <span className="line-meta">{t('map.patternsWithTrips', { count: withTrips.length })}</span>
-                    <span className="chevron">
+                <h3 className="font-sans text-base font-normal">
+                  <Accordion.Trigger className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-1.5 py-[7px] text-left hover:bg-surface">
+                    <span className="min-w-[46px] rounded-md bg-route px-2 py-[3px] text-center font-display text-lg leading-[1.1] font-bold text-on-route">{line.id}</span>
+                    <span className="text-sm text-ink-2">{t('map.patternsWithTrips', { count: withTrips.length })}</span>
+                    <span className="ml-auto text-ink-2 transition-transform duration-150 group-data-[state=open]:rotate-180">
                       <Chevron />
                     </span>
                   </Accordion.Trigger>
                 </h3>
               </Accordion.Header>
-              <Accordion.Content className="pattern-list">
+              <Accordion.Content className="mt-0.5 mb-2 ml-[29px] border-l-[3px] border-route-soft pl-3.5">
                 {withTrips.map((p) => (
                   <button
                     key={p.code}
-                    className="pattern-button"
+                    className="flex w-full cursor-pointer flex-col rounded-md px-2 py-1.5 text-left hover:bg-surface aria-pressed:bg-route-soft aria-pressed:shadow-[inset_3px_0_0_var(--route)]"
                     aria-pressed={selected === p.code}
                     onClick={() => onSelect(selected === p.code ? null : p.code)}
                   >
-                    <span className="pattern-name">{patternLabel(p)}</span>
-                    <span className="muted small">
+                    <span className="font-medium">{patternLabel(p)}</span>
+                    <span className="text-xs text-ink-2">
                       {t('map.patternMeta', { trips: t('map.trips', { count: p.trips }), stops: t('map.stops', { count: p.stopCount }) })}
                     </span>
                   </button>
                 ))}
-                {hidden > 0 && <p className="muted small pattern-hidden">{t('map.hiddenPatterns', { count: hidden })}</p>}
+                {hidden > 0 && <p className="mx-2 mt-1 text-xs text-ink-2">{t('map.hiddenPatterns', { count: hidden })}</p>}
               </Accordion.Content>
             </Accordion.Item>
           )
@@ -97,7 +105,7 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
         }}
       >
         <Tooltip>
-          <strong>{s.name}</strong> <span className="muted">({s.code})</span>
+          <strong>{s.name}</strong> <span className="text-ink-2">({s.code})</span>
           <br />
           {s.visits === 0
             ? t('map.noVisits')
@@ -127,13 +135,13 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
     <QueryState query={stops} loading={t('map.loadingStops')}>
       {(stopList) =>
         stopList.length === 0 ? (
-          <p className="empty">{t('map.noStops')}</p>
+          <Empty>{t('map.noStops')}</Empty>
         ) : (
-          <div className="split">
+          <div className="flex min-w-0 flex-1 flex-col md:flex-row">
             <QueryState query={lines} loading={t('map.loadingLines')}>
               {(lineList) => <LinePicker lines={lineList} selected={selected} onSelect={setSelected} />}
             </QueryState>
-            <div className="map-wrap">
+            <div className="relative flex min-w-0 flex-1">
               <BaseMap layers={baseLayers} bounds={latLngBounds(stopList.map((s) => [s.latitude, s.longitude]))}>
                 {patternPoints.length > 1 && (
                   <>
@@ -145,15 +153,18 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
                 )}
                 <StopsLayer stops={stopList} onPattern={onPattern} />
               </BaseMap>
-              <div className="map-legend" aria-hidden="true">
+              <div
+                className="absolute right-3 bottom-[26px] z-[500] flex items-center gap-3.5 rounded-lg bg-paper px-3 py-1.5 text-xs shadow-float [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5"
+                aria-hidden="true"
+              >
                 <span>
-                  <i className="legend-stop small" /> {t('map.legendFewer')}
+                  <i className={cn(LEGEND_STOP, 'size-[9px]')} /> {t('map.legendFewer')}
                 </span>
                 <span>
-                  <i className="legend-stop big" /> {t('map.legendMore')}
+                  <i className={cn(LEGEND_STOP, 'size-[17px]')} /> {t('map.legendMore')}
                 </span>
                 <span>
-                  <i className="legend-stop none" /> {t('map.legendNoData')}
+                  <i className={cn(LEGEND_STOP, 'size-[9px] border-map-no-data')} /> {t('map.legendNoData')}
                 </span>
               </div>
             </div>
