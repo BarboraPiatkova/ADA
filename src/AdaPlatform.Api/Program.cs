@@ -1,6 +1,6 @@
+using System.Text.Json.Serialization;
 using AdaPlatform.Api.Endpoints;
 using AdaPlatform.Api.Map;
-using System.Text.Json.Serialization;
 using AdaPlatform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);

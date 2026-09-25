@@ -2,7 +2,6 @@ root = true
 
 [*]
 charset = utf-8
-end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 indent_style = space
@@ -13,6 +12,10 @@ indent_size = 4
 # Usings: System first, then the rest, as the code already does.
 dotnet_sort_system_directives_first = true
 csharp_style_namespace_declarations = file_scoped:warning
+
+# EF Core generates these; style checks leave them as generated.
+[**/Migrations/*.cs]
+generated_code = true
 
 [*.{csproj,props,targets,slnx,xml}]
 indent_size = 2
