@@ -19,6 +19,13 @@ public static class QualityEndpoints
                 return new DeviceHealthReport(db).BuildAsync(new HealthThresholds(), ct);
             }));
 
+        app.MapGet("/api/quality/daily", async (AppDbContext db, IMemoryCache cache, CancellationToken ct) =>
+            await cache.GetOrCreateAsync("quality/daily", entry =>
+            {
+                entry.AbsoluteExpirationRelativeToNow = CacheFor;
+                return new DailyQualityReport(db).BuildAsync(new HealthThresholds(), ct);
+            }));
+
         return app;
     }
 }

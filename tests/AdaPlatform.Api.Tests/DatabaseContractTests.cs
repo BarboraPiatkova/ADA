@@ -234,6 +234,33 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         }
     }
 
+    [Fact]
+    public async Task Daily_quality_report_has_one_row_per_vehicle_and_day()
+    {
+        var folder = UcpLogFixture.WriteToNewFolder();
+        try
+        {
+            await using var api = NewApi();
+            await using (var scope = api.Services.CreateAsyncScope())
+            {
+                await new UcpLogIngestor(scope.ServiceProvider.GetRequiredService<AppDbContext>()).IngestAsync(folder);
+            }
+
+            using var report = System.Text.Json.JsonDocument.Parse(await api.CreateClient().GetStringAsync("/api/quality/daily"));
+            var day = report.RootElement.EnumerateArray().Single();
+
+            Assert.Equal(UcpLogFixture.VehicleId, day.GetProperty("vehicleId").GetInt32());
+            Assert.Equal("2022-08-02", day.GetProperty("day").GetString());
+            Assert.Equal((3, 1), (day.GetProperty("boardings").GetInt32(), day.GetProperty("alightings").GetInt32()));
+            Assert.Equal(1.0, day.GetProperty("flaggedStopShare").GetDouble());    // the one stop flags device 42
+            Assert.Equal(0.0, day.GetProperty("negativeOccupancyShare").GetDouble());
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());
 
     private static void SeedNetwork(AppDbContext db)
