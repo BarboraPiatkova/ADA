@@ -1,21 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import {
-  columnFilteringFeature,
   createColumnHelper,
   createExpandedRowModel,
-  createFilteredRowModel,
   createPaginatedRowModel,
   createSortedRowModel,
-  filterFn_equals,
-  functionalUpdate,
-  globalFilteringFeature,
   rowExpandingFeature,
   rowPaginationFeature,
   rowSortingFeature,
   tableFeatures,
   useTable,
-  type ColumnFiltersState,
-  type FilterFn,
   type SortFn,
 } from '@tanstack/react-table'
 import type { TFunction } from 'i18next'
@@ -35,6 +28,8 @@ import { Pagination } from '../ui/Pagination'
 import { StatusIcon, TractionIcon } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { Select } from '../ui/Select'
+import { ActiveFilters } from './ActiveFilters'
+import { matches, NO_FILTERS, type FilterKey, type Filters } from './filters'
 import { METRIC_ORDER, METRICS, type MetricId } from './metrics'
 
 type Format = ReturnType<typeof useFormat>
@@ -42,13 +37,11 @@ type Format = ReturnType<typeof useFormat>
 const STATUS_ORDER: HealthStatus[] = ['Fault', 'Warning', 'Ok', 'Unknown']
 
 // Only the features these tables use are registered (TanStack Table v9 is opt-in per feature).
+// Filtering happens before the table (quality/filters.ts), because the charts need the same
+// filters applied with one dimension left out — the table sorts, pages and expands.
 const vehicleFeatures = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
-  columnFilteringFeature,
-  globalFilteringFeature,
-  filteredRowModel: createFilteredRowModel(),
-  filterFns: { equals: filterFn_equals },
   rowExpandingFeature,
   expandedRowModel: createExpandedRowModel(),
   rowPaginationFeature,
@@ -123,13 +116,11 @@ function buildVehicleColumns(t: TFunction, th: HealthThresholds, format: Format)
       header: t('health.columns.status'),
       cell: (info) => <StatusPill status={info.getValue()} />,
       sortFn: byStatus,
-      filterFn: 'equals',
     }),
     vehicleColumns.accessor('vehicleId', { header: t('health.columns.vehicle'), cell: (info) => <span className="vehicle-number">{info.getValue()}</span> }),
     vehicleColumns.accessor((v) => v.traction ?? '', {
       id: 'traction',
       header: t('health.columns.traction'),
-      filterFn: 'equals',
       cell: (info) => (
         <span className="traction">
           <TractionIcon traction={info.getValue()} />
@@ -303,18 +294,21 @@ function RulesPanel({ th }: { th: HealthThresholds }) {
 function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; daily: VehicleDay[] }) {
   const { t, i18n } = useTranslation()
   const format = useFormat()
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [search, setSearch] = useState('')
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS)
   const [metricId, setMetricId] = useState<MetricId>('negative')
   const [groupBy, setGroupBy] = useState<'model' | 'firmware'>('model')
   const tableTop = useRef<HTMLDivElement>(null)
   const metric = METRICS[metricId]
 
-  const searchFn = useMemo<FilterFn<any, VehicleHealth>>(
-    () => (row, _columnId, value: string) => searchText(t, row.original).includes(String(value).trim().toLowerCase()),
+  const text = useMemo(
+    () => (v: VehicleHealth) => searchText(t, v),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on the language only
     [i18n.resolvedLanguage],
   )
+  const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }))
+  /** Vehicles passing every filter except the given ones — what a chart shows for its own dimension. */
+  const except = (...keys: FilterKey[]) => report.vehicles.filter((v) => matches(v, filters, text, keys))
+  const tableData = useMemo(() => report.vehicles.filter((v) => matches(v, filters, text)), [report.vehicles, filters, text])
   const columns = useMemo(
     () => buildVehicleColumns(t, report.thresholds, format),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
@@ -324,26 +318,22 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
   const table = useTable({
     features: vehicleFeatures,
     columns,
-    data: report.vehicles,
+    data: tableData,
     getRowId: (v) => String(v.vehicleId),
     getRowCanExpand: () => true,
     initialState: { sorting: [{ id: 'status', desc: false }], pagination: { pageIndex: 0, pageSize: 25 } },
-    // Filters, search and sorting send the reader back to page 1 (TanStack's default reset).
-    state: { columnFilters, globalFilter: search },
-    onColumnFiltersChange: (updater) => setColumnFilters((previous) => functionalUpdate(updater, previous)),
-    onGlobalFilterChange: (updater) => setSearch((previous) => functionalUpdate(updater, previous) ?? ''),
-    globalFilterFn: searchFn,
-    // One eligible column is enough: the search function looks at the whole row.
-    getColumnCanGlobalFilter: (column) => column.id === 'vehicleId',
+    // A new filter result or sort sends the reader back to page 1 (TanStack's default reset).
   })
 
   const all = report.vehicles
-  const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, all.filter((v) => v.status === s).length])) as Record<HealthStatus, number>
+  // Like a Power BI slicer, the status counts react to every filter except status itself.
+  const forStatus = except('status')
+  const counts = Object.fromEntries(STATUS_ORDER.map((s) => [s, forStatus.filter((v) => v.status === s).length])) as Record<HealthStatus, number>
   const tractions = [...new Set(all.map((v) => v.traction).filter((x): x is string => x !== null))].sort()
   const deviceTotal = all.reduce((n, v) => n + v.devices.length, 0)
 
-  const statusFilter = (columnFilters.find((f) => f.id === 'status')?.value as HealthStatus | undefined) ?? ''
-  const tractionFilter = (columnFilters.find((f) => f.id === 'traction')?.value as string | undefined) ?? 'all'
+  const statusFilter = filters.status ?? ''
+  const tractionFilter = filters.traction ?? 'all'
   // The table body shows one page; everything else — charts, counts — sees every filtered,
   // sorted row, so paging never changes what the analysis says.
   const shown = table.getRowModel().rows
@@ -356,7 +346,9 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
   const metricName = t(`charts.metrics.${metricId}`)
   const thresholds = metric.thresholds?.(report.thresholds)
   const histogramBins = binValues(
-    visible.map(metric.vehicle).filter((v): v is number => v !== null),
+    except('range')
+      .map(metric.vehicle)
+      .filter((v): v is number => v !== null),
     metric.histogramStep,
     thresholds ? (thresholds.fault ?? thresholds.warning) * 1.2 : 0,
     metric.kind === 'share' ? 1 : undefined,
@@ -368,16 +360,34 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
       group.counts[status]++
       groups.set(key, group)
     }
-    for (const v of visible) {
+    // The bars keep showing every group (the selected one highlighted), so they ignore their own filters.
+    const source = groupBy === 'model' ? except('model', 'status') : except('firmware')
+    for (const v of source) {
       if (groupBy === 'model') add(v.model ?? '', v.model ?? t('charts.unknownModel'), v.status)
       else for (const d of v.devices) add(d.firmwareVersion ?? '', d.firmwareVersion ?? t('charts.unknownFirmware'), d.status)
     }
     return [...groups.values()]
   })()
-  const clearFilters = () => {
-    setColumnFilters([])
-    setSearch('')
-  }
+  const toggleRange = (bin: { from: number; to: number }, isLast: boolean) =>
+    setFilters((f) =>
+      f.range?.metric === metricId && f.range.from === bin.from
+        ? { ...f, range: undefined }
+        : { ...f, range: { metric: metricId, from: bin.from, to: isLast ? Infinity : bin.to } },
+    )
+  const toggleGroup = (key: string) =>
+    setFilters((f) =>
+      groupBy === 'model'
+        ? { ...f, model: f.model === key ? undefined : key }
+        : { ...f, firmware: f.firmware === key ? undefined : key },
+    )
+  const toggleSegment = (key: string, status: HealthStatus) =>
+    setFilters((f) =>
+      groupBy === 'firmware'
+        ? { ...f, firmware: f.firmware === key ? undefined : key }
+        : f.model === key && f.status === status
+          ? { ...f, model: undefined, status: undefined }
+          : { ...f, model: key, status },
+    )
 
   return (
     <div className="page">
@@ -420,7 +430,7 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
           className="status-filter"
           aria-label={t('health.statusFilter')}
           value={statusFilter}
-          onValueChange={(value) => table.getColumn('status')?.setFilterValue(value || undefined)}
+          onValueChange={(value) => set({ status: (value || undefined) as HealthStatus | undefined })}
         >
           {STATUS_ORDER.map((s) => (
             <ToggleGroup.Item key={s} value={s} className="status-filter-item">
@@ -441,13 +451,13 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.5-3.5" />
           </svg>
-          <input type="search" value={search} placeholder={t('health.searchPlaceholder')} onChange={(event) => setSearch(event.target.value)} />
+          <input type="search" value={filters.search} placeholder={t('health.searchPlaceholder')} onChange={(event) => set({ search: event.target.value })} />
         </label>
         <Select
           label={t('health.traction')}
           value={tractionFilter}
           options={[{ value: 'all', label: t('health.allTractions') }, ...tractions.map((x) => ({ value: x, label: tractionLabel(t, x) }))]}
-          onChange={(value) => table.getColumn('traction')?.setFilterValue(value === 'all' ? undefined : value)}
+          onChange={(value) => set({ traction: value === 'all' ? undefined : value })}
         />
         <Select
           label={t('charts.metric')}
@@ -455,12 +465,14 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
           options={METRIC_ORDER.map((id) => ({ value: id, label: t(`charts.metrics.${id}`) }))}
           onChange={(value) => setMetricId(value as MetricId)}
         />
-        {(columnFilters.length > 0 || search) && (
-          <button className="link-button" onClick={clearFilters}>
-            {t('health.clearFilters')}
-          </button>
-        )}
       </div>
+
+      <ActiveFilters
+        filters={filters}
+        onChange={setFilters}
+        tractionLabel={tractionLabel}
+        formatRange={(id, value) => (METRICS[id].kind === 'share' ? format.percentWhole(value) : format.number(Math.round(value)))}
+      />
 
       <section className="analysis" aria-label={t('charts.analysis')}>
         <ChartFigure
@@ -474,7 +486,7 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
               daily={dailyByKey}
               metric={metric}
               formatValue={formatMetric}
-              onSelectVehicle={(id) => setSearch(String(id))}
+              onSelectVehicle={(id) => set({ search: String(id) })}
             />
           }
           table={<HeatmapTable vehicles={visible} days={days} daily={dailyByKey} metric={metric} formatValue={formatMetric} />}
@@ -484,7 +496,14 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
             title={t('charts.histogramTitle', { metric: metricName })}
             subtitle={t(thresholds ? 'charts.histogramSubtitle' : 'charts.histogramSubtitleNoThresholds')}
             chart={
-              <Histogram bins={histogramBins} thresholds={thresholds} formatValue={formatMetric} countLabel={(count) => t('charts.vehicles', { count })} />
+              <Histogram
+                bins={histogramBins}
+                thresholds={thresholds}
+                formatValue={formatMetric}
+                countLabel={(count) => t('charts.vehicles', { count })}
+                selectedFrom={filters.range?.metric === metricId ? filters.range.from : undefined}
+                onSelect={toggleRange}
+              />
             }
             table={<HistogramTable bins={histogramBins} formatValue={formatMetric} countHeader={t('charts.vehiclesHeader')} />}
           />
@@ -508,7 +527,16 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
               </ToggleGroup.Root>
             }
             legend={<StatusLegend />}
-            chart={<StatusBars groups={foldSmallGroups(statusGroups, 10, t('charts.other'))} countLabel={(count) => t(groupBy === 'model' ? 'charts.vehicles' : 'charts.devices', { count })} />}
+            chart={
+              <StatusBars
+                groups={foldSmallGroups(statusGroups, 10, t('charts.other'))}
+                countLabel={(count) => t(groupBy === 'model' ? 'charts.vehicles' : 'charts.devices', { count })}
+                selectedKey={groupBy === 'model' ? filters.model : filters.firmware}
+                selectedStatus={groupBy === 'model' ? filters.status : undefined}
+                onSelectGroup={toggleGroup}
+                onSelectSegment={toggleSegment}
+              />
+            }
             table={<StatusBarsTable groups={statusGroups} groupHeader={t(groupBy === 'model' ? 'charts.model' : 'charts.firmware')} />}
           />
         </div>

@@ -1405,6 +1405,88 @@ h3 {
   margin-top: 6px;
 }
 
+/* ---------- cross-filtering ---------- */
+
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: -2px 0 16px;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--route);
+  border-radius: 999px;
+  background: var(--route-soft);
+}
+
+.filter-chip-label {
+  color: var(--ink-2);
+}
+
+.filter-chip-value {
+  font-weight: 600;
+}
+
+.filter-chip-remove {
+  display: inline-flex;
+  padding: 4px;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.filter-chip-remove:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* A selection in one chart dims the rest of that chart, as in Power BI. */
+.dimmed {
+  opacity: 0.3;
+}
+
+.segment.dimmed,
+.bar.dimmed {
+  opacity: 0.25;
+}
+
+.clickable,
+.row-hit {
+  cursor: pointer;
+}
+
+.row-hit {
+  fill: transparent;
+  outline: none;
+}
+
+.row-hit:focus-visible {
+  fill: var(--route-soft);
+}
+
+.selected-label {
+  fill: var(--route);
+  font-weight: 700;
+}
+
 /* ---------- Radix primitives ---------- */
 
 .select-trigger {
