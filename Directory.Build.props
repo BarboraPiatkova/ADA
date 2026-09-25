@@ -5,4 +5,23 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <!--
+    Package supply chain. packages.lock.json pins every package, transitive ones included,
+    with its content hash; CI restores in locked mode, so a build never picks up a version
+    (or a tampered package) nobody reviewed. Audit covers transitive packages as well, and
+    with TreatWarningsAsErrors a known vulnerability fails the build.
+  -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(ContinuousIntegrationBuild)' == 'true'">true</RestoreLockedMode>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
+  <!-- Reproducible builds on CI (GitHub Actions sets GITHUB_ACTIONS=true). -->
+  <PropertyGroup Condition="'$(GITHUB_ACTIONS)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
 </Project>
