@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import { cn } from '../ui/cn'
 import { BrandMark, StatusIcon } from '../ui/icons'
 import { LanguageSwitch } from '../ui/LanguageSwitch'
 import { ThemeSwitch } from '../ui/ThemeSwitch'
@@ -28,6 +29,7 @@ export function LoginPage({ reason }: { reason?: 'expired' | 'unavailable' }) {
   const { t } = useTranslation()
   const [userName, setUserName] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const signIn = useMutation({ mutationFn: () => login(userName.trim(), password) })
   const ids = { user: useId(), password: useId(), message: useId() }
   useDocumentTitle(t('auth.title'))
@@ -100,17 +102,34 @@ export function LoginPage({ reason }: { reason?: 'expired' | 'unavailable' }) {
             <label htmlFor={ids.password} className="mt-4 mb-1 block font-display text-sm font-semibold text-ink-2">
               {t('auth.password')}
             </label>
-            <input
-              id={ids.password}
-              className={FIELD}
-              type="password"
-              name="password"
-              autoComplete="current-password"
-              required
-              disabled={signIn.isPending}
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-            />
+            <div className="relative">
+              <input
+                id={ids.password}
+                className={cn(FIELD, 'pr-11')}
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
+                required
+                disabled={signIn.isPending}
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+              {/* Show/hide: a long password is easier to type right when it can be checked. */}
+              <button
+                type="button"
+                className="touch-target absolute inset-y-0 right-0 inline-flex w-10 cursor-pointer items-center justify-center rounded-r-lg text-ink-2 hover:text-ink"
+                aria-label={t(showPassword ? 'auth.hidePassword' : 'auth.showPassword')}
+                aria-pressed={showPassword}
+                aria-controls={ids.password}
+                onClick={() => setShowPassword((shown) => !shown)}
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                  <circle cx="12" cy="12" r="3" />
+                  {showPassword && <path d="M4 4l16 16" />}
+                </svg>
+              </button>
+            </div>
 
             <button
               type="submit"

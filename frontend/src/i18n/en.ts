@@ -20,6 +20,8 @@ export const en = {
     intro: 'Sign in with the account you use for Herman’s other applications.',
     userName: 'User name or email',
     password: 'Password',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
     submit: 'Sign in',
     submitting: 'Signing in…',
     help: 'No account or no access? Ask your administrator to give you a role in AdaPlatform in Tokari.',

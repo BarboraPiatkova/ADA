@@ -20,6 +20,8 @@ export const cs = {
     intro: 'Přihlaste se účtem, kterým se přihlašujete do ostatních aplikací Herman.',
     userName: 'Uživatelské jméno nebo e-mail',
     password: 'Heslo',
+    showPassword: 'Zobrazit heslo',
+    hidePassword: 'Skrýt heslo',
     submit: 'Přihlásit se',
     submitting: 'Přihlašuji…',
     help: 'Nemáte účet nebo přístup? Požádejte správce, aby vám přidělil roli pro aplikaci AdaPlatform.',
