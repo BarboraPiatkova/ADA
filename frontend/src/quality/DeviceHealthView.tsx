@@ -7,24 +7,32 @@ import {
   createSortedRowModel,
   filterFn_equals,
   functionalUpdate,
+  globalFilteringFeature,
   rowExpandingFeature,
   rowSortingFeature,
   tableFeatures,
   useTable,
   type ColumnFiltersState,
+  type FilterFn,
   type SortFn,
 } from '@tanstack/react-table'
 import type { TFunction } from 'i18next'
 import { Collapsible, ToggleGroup } from 'radix-ui'
 import { Fragment, useMemo, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
-import type { DeviceHealth, DeviceHealthReport, HealthReason, HealthStatus, HealthThresholds, VehicleHealth } from '../api'
+import type { DeviceHealth, DeviceHealthReport, HealthReason, HealthStatus, HealthThresholds, VehicleDay, VehicleHealth } from '../api'
+import { ChartFigure } from '../charts/ChartFigure'
+import { binValues, emptyCounts, foldSmallGroups, heatmapDays, type StatusGroup } from '../charts/data'
+import { FleetHeatmap, HeatmapLegend, HeatmapTable } from '../charts/FleetHeatmap'
+import { Histogram, HistogramTable } from '../charts/Histogram'
+import { StatusBars, StatusBarsTable, StatusLegend } from '../charts/StatusBars'
 import { useFormat } from '../i18n/format'
-import { deviceHealthQuery } from '../queries'
+import { dailyQualityQuery, deviceHealthQuery } from '../queries'
 import { Hint } from '../ui/Hint'
 import { StatusIcon, TractionIcon } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { Select } from '../ui/Select'
+import { METRIC_ORDER, METRICS, type MetricId } from './metrics'
 
 type Format = ReturnType<typeof useFormat>
 
@@ -35,6 +43,7 @@ const vehicleFeatures = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
   columnFilteringFeature,
+  globalFilteringFeature,
   filteredRowModel: createFilteredRowModel(),
   filterFns: { equals: filterFn_equals },
   rowExpandingFeature,
@@ -48,6 +57,18 @@ const deviceColumns = createColumnHelper<typeof deviceFeatures, DeviceHealth>()
 /** Worst first when sorted ascending. */
 const byStatus: SortFn<any, any> = (a, b, id) =>
   STATUS_ORDER.indexOf(a.getValue<HealthStatus>(id)) - STATUS_ORDER.indexOf(b.getValue<HealthStatus>(id))
+
+const EMPTY_DAYS: VehicleDay[] = []
+
+/**
+ * Search matches a vehicle's number, model, traction (as stored and as shown) and the
+ * firmware of its devices — whatever a dispatcher is likely to type.
+ */
+function searchText(t: TFunction, v: VehicleHealth) {
+  return [v.vehicleId, v.model ?? '', v.traction ?? '', v.traction ? tractionLabel(t, v.traction) : '', ...v.devices.map((d) => d.firmwareVersion ?? '')]
+    .join(' ')
+    .toLowerCase()
+}
 
 /** Phrases reason codes from the API in the current language, one per line. */
 function formatReasons(t: TFunction, reasons: HealthReason[]) {
@@ -255,10 +276,20 @@ function Rules({ th }: { th: HealthThresholds }) {
   )
 }
 
-function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
+function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; daily: VehicleDay[] }) {
   const { t, i18n } = useTranslation()
   const format = useFormat()
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [search, setSearch] = useState('')
+  const [metricId, setMetricId] = useState<MetricId>('negative')
+  const [groupBy, setGroupBy] = useState<'model' | 'firmware'>('model')
+  const metric = METRICS[metricId]
+
+  const searchFn = useMemo<FilterFn<any, VehicleHealth>>(
+    () => (row, _columnId, value: string) => searchText(t, row.original).includes(String(value).trim().toLowerCase()),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- depends on the language only
+    [i18n.resolvedLanguage],
+  )
   const columns = useMemo(
     () => buildVehicleColumns(t, report.thresholds, format),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
@@ -272,8 +303,12 @@ function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
     getRowId: (v) => String(v.vehicleId),
     getRowCanExpand: () => true,
     initialState: { sorting: [{ id: 'status', desc: false }] },
-    state: { columnFilters },
+    state: { columnFilters, globalFilter: search },
     onColumnFiltersChange: (updater) => setColumnFilters((previous) => functionalUpdate(updater, previous)),
+    onGlobalFilterChange: (updater) => setSearch((previous) => functionalUpdate(updater, previous) ?? ''),
+    globalFilterFn: searchFn,
+    // One eligible column is enough: the search function looks at the whole row.
+    getColumnCanGlobalFilter: (column) => column.id === 'vehicleId',
   })
 
   const all = report.vehicles
@@ -284,6 +319,37 @@ function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
   const statusFilter = (columnFilters.find((f) => f.id === 'status')?.value as HealthStatus | undefined) ?? ''
   const tractionFilter = (columnFilters.find((f) => f.id === 'traction')?.value as string | undefined) ?? 'all'
   const shown = table.getRowModel().rows
+
+  // Everything below the filter row sees the same slice: charts follow the table's filters and order.
+  const visible = shown.map((row) => row.original)
+  const dailyByKey = useMemo(() => new Map(daily.map((d) => [`${d.vehicleId}|${d.day}`, d])), [daily])
+  const days = useMemo(() => heatmapDays(report.from, report.to), [report.from, report.to])
+  const formatMetric = (value: number) => (metric.kind === 'share' ? format.percentWhole(value) : format.number(Math.round(value)))
+  const metricName = t(`charts.metrics.${metricId}`)
+  const thresholds = metric.thresholds?.(report.thresholds)
+  const histogramBins = binValues(
+    visible.map(metric.vehicle).filter((v): v is number => v !== null),
+    metric.histogramStep,
+    thresholds ? (thresholds.fault ?? thresholds.warning) * 1.2 : 0,
+    metric.kind === 'share' ? 1 : undefined,
+  )
+  const statusGroups: StatusGroup[] = (() => {
+    const groups = new Map<string, StatusGroup>()
+    const add = (key: string, label: string, status: HealthStatus) => {
+      const group = groups.get(key) ?? { key, label, counts: emptyCounts() }
+      group.counts[status]++
+      groups.set(key, group)
+    }
+    for (const v of visible) {
+      if (groupBy === 'model') add(v.model ?? '', v.model ?? t('charts.unknownModel'), v.status)
+      else for (const d of v.devices) add(d.firmwareVersion ?? '', d.firmwareVersion ?? t('charts.unknownFirmware'), d.status)
+    }
+    return [...groups.values()]
+  })()
+  const clearFilters = () => {
+    setColumnFilters([])
+    setSearch('')
+  }
 
   return (
     <div className="page">
@@ -338,18 +404,88 @@ function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
         </ToggleGroup.Root>
       </section>
 
-      <div className="filters">
+      <div className="filters" role="search">
+        <label className="search">
+          <span className="visually-hidden">{t('health.searchLabel')}</span>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input type="search" value={search} placeholder={t('health.searchPlaceholder')} onChange={(event) => setSearch(event.target.value)} />
+        </label>
         <Select
           label={t('health.traction')}
           value={tractionFilter}
           options={[{ value: 'all', label: t('health.allTractions') }, ...tractions.map((x) => ({ value: x, label: tractionLabel(t, x) }))]}
           onChange={(value) => table.getColumn('traction')?.setFilterValue(value === 'all' ? undefined : value)}
         />
-        {columnFilters.length > 0 && (
-          <button className="link-button" onClick={() => setColumnFilters([])}>
+        <Select
+          label={t('charts.metric')}
+          value={metricId}
+          options={METRIC_ORDER.map((id) => ({ value: id, label: t(`charts.metrics.${id}`) }))}
+          onChange={(value) => setMetricId(value as MetricId)}
+        />
+        {(columnFilters.length > 0 || search) && (
+          <button className="link-button" onClick={clearFilters}>
             {t('health.clearFilters')}
           </button>
         )}
+      </div>
+
+      <section className="analysis" aria-label={t('charts.analysis')}>
+        <ChartFigure
+          title={t('charts.heatmapTitle', { metric: metricName })}
+          subtitle={t('charts.heatmapSubtitle')}
+          legend={<HeatmapLegend metric={metric} formatValue={formatMetric} />}
+          chart={
+            <FleetHeatmap
+              vehicles={visible}
+              days={days}
+              daily={dailyByKey}
+              metric={metric}
+              formatValue={formatMetric}
+              onSelectVehicle={(id) => setSearch(String(id))}
+            />
+          }
+          table={<HeatmapTable vehicles={visible} days={days} daily={dailyByKey} metric={metric} formatValue={formatMetric} />}
+        />
+        <div className="analysis-grid">
+          <ChartFigure
+            title={t('charts.histogramTitle', { metric: metricName })}
+            subtitle={t(thresholds ? 'charts.histogramSubtitle' : 'charts.histogramSubtitleNoThresholds')}
+            chart={
+              <Histogram bins={histogramBins} thresholds={thresholds} formatValue={formatMetric} countLabel={(count) => t('charts.vehicles', { count })} />
+            }
+            table={<HistogramTable bins={histogramBins} formatValue={formatMetric} countHeader={t('charts.vehiclesHeader')} />}
+          />
+          <ChartFigure
+            title={t(groupBy === 'model' ? 'charts.statusByModel' : 'charts.statusByFirmware')}
+            subtitle={t(groupBy === 'model' ? 'charts.statusByModelSubtitle' : 'charts.statusByFirmwareSubtitle')}
+            controls={
+              <ToggleGroup.Root
+                type="single"
+                className="segmented"
+                value={groupBy}
+                aria-label={t('charts.groupBy')}
+                onValueChange={(value) => value && setGroupBy(value as 'model' | 'firmware')}
+              >
+                <ToggleGroup.Item value="model" className="segmented-item">
+                  {t('charts.byModel')}
+                </ToggleGroup.Item>
+                <ToggleGroup.Item value="firmware" className="segmented-item">
+                  {t('charts.byFirmware')}
+                </ToggleGroup.Item>
+              </ToggleGroup.Root>
+            }
+            legend={<StatusLegend />}
+            chart={<StatusBars groups={foldSmallGroups(statusGroups, 10, t('charts.other'))} countLabel={(count) => t(groupBy === 'model' ? 'charts.vehicles' : 'charts.devices', { count })} />}
+            table={<StatusBarsTable groups={statusGroups} groupHeader={t(groupBy === 'model' ? 'charts.model' : 'charts.firmware')} />}
+          />
+        </div>
+      </section>
+
+      <div className="section-head">
+        <h3>{t('health.vehiclesTitle')}</h3>
         <span className="muted small">{t('health.shown', { count: shown.length })}</span>
       </div>
 
@@ -408,9 +544,17 @@ function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
 export function DeviceHealthView() {
   const { t } = useTranslation()
   const report = useQuery(deviceHealthQuery)
+  const daily = useQuery(dailyQualityQuery)
   return (
     <QueryState query={report} loading={t('health.loading')}>
-      {(data) => (data.vehicles.length === 0 ? <p className="empty">{t('health.empty')}</p> : <VehicleHealthTable report={data} />)}
+      {(data) =>
+        data.vehicles.length === 0 ? (
+          <p className="empty">{t('health.empty')}</p>
+        ) : (
+          // The heatmap fills in when the per-day data arrives; the rest doesn't wait for it.
+          <VehicleHealthTable report={data} daily={daily.data ?? EMPTY_DAYS} />
+        )
+      }
     </QueryState>
   )
 }
