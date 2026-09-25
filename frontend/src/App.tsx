@@ -1,34 +1,21 @@
-import { useQuery } from '@tanstack/react-query'
 import { Tabs } from 'radix-ui'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LoginPage } from './auth/LoginPage'
 import { hasPermission, useSession, type Session } from './auth/session'
 import { UserMenu } from './auth/UserMenu'
-import { NetworkMapView } from './map/NetworkMapView'
-import { mapConfigQuery } from './queries'
-import { DeviceHealthView } from './quality/DeviceHealthView'
+import { SCREENS, type Screen, type ScreenId } from './screens'
 import { useDocumentTitle } from './ui/useDocumentTitle'
 import { Empty } from './ui/Empty'
 import { BrandMark } from './ui/icons'
 import { LanguageSwitch } from './ui/LanguageSwitch'
-import { QueryState } from './ui/QueryState'
 import { ThemeSwitch } from './ui/ThemeSwitch'
 
-// Two screens as Radix tabs, mirrored in the URL hash so each has a shareable link and
-// the browser's back button works — without a router for two routes.
-const VIEWS = ['mapa', 'jednotky'] as const
-type View = (typeof VIEWS)[number]
-
-/** The permission each screen needs; a screen the user can't open isn't shown at all. */
-const VIEW_PERMISSION: Record<View, string> = {
-  mapa: 'network:read',
-  jednotky: 'quality:read',
-}
-
-function viewFromHash(allowed: readonly View[]): View | undefined {
+// The screens as Radix tabs, mirrored in the URL hash so each has a shareable link and the
+// browser's back button works — without a router for two routes.
+function screenFromHash(allowed: readonly Screen[]): ScreenId | undefined {
   const hash = window.location.hash.replace(/^#\/?/, '')
-  return allowed.includes(hash as View) ? (hash as View) : allowed[0]
+  return (allowed.find((s) => s.id === hash) ?? allowed[0])?.id
 }
 
 export default function App() {
@@ -50,15 +37,15 @@ export default function App() {
 
 function Shell({ session }: { session: Session }) {
   const { t } = useTranslation()
-  const views = useMemo(() => VIEWS.filter((v) => hasPermission(session, VIEW_PERMISSION[v])), [session])
-  const [view, setView] = useState<View | undefined>(() => viewFromHash(views))
-  const mapConfig = useQuery({ ...mapConfigQuery, enabled: views.includes('mapa') })
+  // A screen the user has no permission for isn't shown at all.
+  const screens = useMemo(() => SCREENS.filter((s) => hasPermission(session, s.permission)), [session])
+  const [view, setView] = useState<ScreenId | undefined>(() => screenFromHash(screens))
 
   useEffect(() => {
-    const onHash = () => setView(viewFromHash(views))
+    const onHash = () => setView(screenFromHash(screens))
     window.addEventListener('hashchange', onHash)
     return () => window.removeEventListener('hashchange', onHash)
-  }, [views])
+  }, [screens])
 
   // The browser tab (and history, bookmarks, screen readers) name the screen, not just the app.
   useDocumentTitle(view ? t(`app.views.${view}`) : undefined)
@@ -85,13 +72,13 @@ function Shell({ session }: { session: Session }) {
           <span>AdaPlatform</span>
         </p>
         <Tabs.List className="order-3 flex h-[42px] w-full gap-1 self-stretch touch-target md:order-none md:h-auto md:w-auto" aria-label={t('app.screens')}>
-          {views.map((v) => (
+          {screens.map(({ id }) => (
             <Tabs.Trigger
-              key={v}
-              value={v}
+              key={id}
+              value={id}
               className="flex-1 cursor-pointer border-b-[3px] border-transparent px-2 font-medium whitespace-nowrap text-ink-2 hover:text-ink data-[state=active]:border-route data-[state=active]:font-semibold data-[state=active]:text-ink md:flex-none md:px-3"
             >
-              {t(`app.views.${v}`)}
+              {t(`app.views.${id}`)}
             </Tabs.Trigger>
           ))}
         </Tabs.List>
@@ -102,15 +89,14 @@ function Shell({ session }: { session: Session }) {
         </div>
       </header>
       <main id="main" ref={main} tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
-        {views.length === 0 && <Empty>{t('auth.noPermissions')}</Empty>}
-        <Tabs.Content value="mapa" className="flex min-h-0 flex-1">
-          <QueryState query={mapConfig} loading={t('app.loading')}>
-            {(config) => <NetworkMapView baseLayers={config.baseLayers} />}
-          </QueryState>
-        </Tabs.Content>
-        <Tabs.Content value="jednotky" className="flex min-h-0 flex-1">
-          <DeviceHealthView />
-        </Tabs.Content>
+        {screens.length === 0 && <Empty>{t('auth.noPermissions')}</Empty>}
+        {screens.map(({ id, Component, skeleton }) => (
+          <Tabs.Content key={id} value={id} className="flex min-h-0 flex-1">
+            <Suspense fallback={skeleton(t('app.loading'))}>
+              <Component />
+            </Suspense>
+          </Tabs.Content>
+        ))}
       </main>
     </Tabs.Root>
   )

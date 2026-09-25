@@ -6,6 +6,7 @@
 // and trades it for a new access token on POST /api/auth/refresh (see ADR 0005).
 
 import { useSyncExternalStore } from 'react'
+import type { Permission } from './permissions'
 
 export interface SessionUser {
   id: string
@@ -116,7 +117,7 @@ export function accessToken(): string | null {
   return state.status === 'signedIn' ? state.session.accessToken : null
 }
 
-export function hasPermission(session: Session, permission: string): boolean {
+export function hasPermission(session: Session, permission: Permission): boolean {
   return session.user.permissions.includes(permission)
 }
 
