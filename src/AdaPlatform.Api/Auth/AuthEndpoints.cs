@@ -129,15 +129,7 @@ public static class AuthEndpoints
             return Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: "The sign-in service is not available.");
         }
 
-        http.Response.Cookies.Append(RefreshCookie, tokens.RefreshToken, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Path = CookiePath,
-            MaxAge = options.SessionLifetime,
-            IsEssential = true,
-        });
+        http.Response.Cookies.Append(RefreshCookie, tokens.RefreshToken, RefreshCookieOptions(options.SessionLifetime));
 
         var user = new ClaimsPrincipal(validation.ClaimsIdentity);
         var permissions = AppAccess.For(user, options.Audience).Permissions;
@@ -151,13 +143,22 @@ public static class AuthEndpoints
     }
 
     private static void DeleteCookie(HttpContext http) =>
-        http.Response.Cookies.Delete(RefreshCookie, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.Strict,
-            Path = CookiePath,
-        });
+        http.Response.Cookies.Delete(RefreshCookie, RefreshCookieOptions());
+
+    /// <summary>
+    /// The refresh cookie's attributes, the same when setting and deleting it (a browser only
+    /// deletes a cookie whose path and flags match): JavaScript can't read it, it travels only
+    /// over HTTPS, never cross-site, and only to /api/auth.
+    /// </summary>
+    private static CookieOptions RefreshCookieOptions(TimeSpan? maxAge = null) => new()
+    {
+        HttpOnly = true,
+        Secure = true,
+        SameSite = SameSiteMode.Strict,
+        Path = CookiePath,
+        MaxAge = maxAge,
+        IsEssential = true,
+    };
 
     private static ValueTask<object?> RequireCsrfHeader(EndpointFilterInvocationContext context, EndpointFilterDelegate next) =>
         context.HttpContext.Request.Headers.ContainsKey(CsrfHeader)

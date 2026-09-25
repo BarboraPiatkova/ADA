@@ -94,8 +94,7 @@ public sealed class AuthenticationTests(PostgresFixture fixture) : IClassFixture
 
     private static async Task<HttpResponseMessage> Get(WebApplicationFactory<Program> api, string path, string token)
     {
-        using var client = api.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var client = api.CreateClientWithToken(token);
         return await client.GetAsync(path);
     }
 
@@ -107,5 +106,5 @@ public sealed class AuthenticationTests(PostgresFixture fixture) : IClassFixture
         return $"{header}.{token.Split('.')[1]}.";
     }
 
-    private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());
+    private ApiFactory NewApi() => fixture.NewApi();
 }

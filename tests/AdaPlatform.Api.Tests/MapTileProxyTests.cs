@@ -99,7 +99,7 @@ public sealed class MapTileProxyTests(PostgresFixture fixture) : IClassFixture<P
     }
 
     private WebApplicationFactory<Program> NewApi(string? apiKey) =>
-        new ApiFactory(fixture.Provider, fixture.NewDatabaseConnectionString()).WithWebHostBuilder(builder =>
+        fixture.NewApi().WithWebHostBuilder(builder =>
         {
             builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(new Dictionary<string, string?>
             {

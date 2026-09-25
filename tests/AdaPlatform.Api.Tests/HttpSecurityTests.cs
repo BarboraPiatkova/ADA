@@ -48,7 +48,5 @@ public sealed class HttpSecurityTests(PostgresFixture fixture) : IClassFixture<P
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/map/config")).StatusCode);
     }
 
-    private WebApplicationFactory<Program> NewApi() =>
-        new ApiFactory(fixture.Provider, fixture.NewDatabaseConnectionString()).WithWebHostBuilder(builder =>
-            builder.UseSetting("Map:MapyComApiKey", ""));
+    private ApiFactory NewApi() => fixture.NewApi();
 }

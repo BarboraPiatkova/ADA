@@ -52,5 +52,5 @@ public sealed class ReportingTests(PostgresFixture fixture) : IClassFixture<Post
         return report.RootElement.GetProperty("vehicles").GetArrayLength();
     }
 
-    private WebApplicationFactory<Program> NewApi() => new ApiFactory(fixture.Provider, fixture.NewDatabaseConnectionString());
+    private ApiFactory NewApi() => fixture.NewApi();
 }

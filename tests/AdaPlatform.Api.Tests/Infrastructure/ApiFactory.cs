@@ -35,14 +35,21 @@ public sealed class ApiFactory(DatabaseProvider provider, string connectionStrin
 
 public static class ApiClients
 {
+    /// <summary>The API on a fresh database of this fixture's engine.</summary>
+    public static ApiFactory NewApi(this DatabaseFixture fixture) => new(fixture.Provider, fixture.NewDatabaseConnectionString());
+
+    /// <summary>A client that sends this bearer token (valid or not).</summary>
+    public static HttpClient CreateClientWithToken(this WebApplicationFactory<Program> api, string token)
+    {
+        var client = api.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        return client;
+    }
+
     /// <summary>A client signed in as a user with all of AdaPlatform's permissions.</summary>
     public static HttpClient CreateSignedInClient(this WebApplicationFactory<Program> api) =>
         api.CreateSignedInClient([.. Permissions.All]);
 
-    public static HttpClient CreateSignedInClient(this WebApplicationFactory<Program> api, params string[] permissions)
-    {
-        var client = api.CreateClient();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TokariTokens.For(permissions));
-        return client;
-    }
+    public static HttpClient CreateSignedInClient(this WebApplicationFactory<Program> api, params string[] permissions) =>
+        api.CreateClientWithToken(TokariTokens.For(permissions));
 }

@@ -184,7 +184,7 @@ public sealed class LoginProxyTests(PostgresFixture fixture) : IClassFixture<Pos
         api.CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost"), HandleCookies = true });
 
     private WebApplicationFactory<Program> NewApi() =>
-        new ApiFactory(fixture.Provider, fixture.NewDatabaseConnectionString()).WithWebHostBuilder(builder =>
+        fixture.NewApi().WithWebHostBuilder(builder =>
             builder.ConfigureTestServices(services =>
                 services.AddHttpClient<TokariClient>().ConfigurePrimaryHttpMessageHandler(() => _tokari)));
 
