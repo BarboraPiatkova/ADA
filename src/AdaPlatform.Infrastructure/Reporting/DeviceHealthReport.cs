@@ -1,6 +1,9 @@
+using System.ComponentModel;
 using AdaPlatform.Domain.Raw;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Options;
 
 namespace AdaPlatform.Infrastructure.Reporting;
 
@@ -22,6 +25,9 @@ public enum HealthStatus
 /// </summary>
 public sealed record HealthThresholds
 {
+    /// <summary>Configuration section a deployment overrides them in.</summary>
+    public const string SectionName = "Quality:Thresholds";
+
     /// <summary>Minimum counted passengers before in/out balance is judged.</summary>
     public int MinPassengersForBalance { get; init; } = 100;
 
@@ -101,16 +107,23 @@ public sealed record VehicleHealthDto(
     IReadOnlyList<HealthReasonDto> Reasons,
     IReadOnlyList<DeviceHealthDto> Devices);
 
+// Immutable: the report cache hands out the same instance instead of a copy per request.
+[ImmutableObject(true)]
 public sealed record DeviceHealthReportDto(
     DateOnly? From,
     DateOnly? To,
     HealthThresholds Thresholds,
     IReadOnlyList<VehicleHealthDto> Vehicles);
 
-public sealed class DeviceHealthReport(AppDbContext db)
+public sealed class DeviceHealthReport(AppDbContext db, IOptions<HealthThresholds> options, HybridCache cache)
 {
-    public async Task<DeviceHealthReportDto> BuildAsync(HealthThresholds thresholds, CancellationToken ct = default)
+    /// <summary>The report for the current data, from the cache when it's still valid.</summary>
+    public Task<DeviceHealthReportDto> GetAsync(CancellationToken ct = default) =>
+        ReportCache.GetAsync(db, cache, "quality/devices", BuildAsync, ct);
+
+    public async Task<DeviceHealthReportDto> BuildAsync(CancellationToken ct = default)
     {
+        var thresholds = options.Value;
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
         var days = await db.SourceFiles.AsNoTracking()

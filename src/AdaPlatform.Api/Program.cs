@@ -8,13 +8,13 @@ using AdaPlatform.Infrastructure;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddMemoryCache();
 
 // Enums as text in JSON ("Fault", not 2) — readable, and stable if the enum is reordered.
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // Engine (Postgres or SQL Server) comes from Database:Provider — see ADR 0003.
 builder.Services.AddAdaPlatformDatabase(builder.Configuration);
+builder.Services.AddAdaPlatformReporting(builder.Configuration);
 
 // Base maps: Mapy.com through a caching proxy (key stays server-side), OSM as fallback.
 builder.Services.AddMapTiles(builder.Configuration);

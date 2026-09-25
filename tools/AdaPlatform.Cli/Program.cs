@@ -36,6 +36,7 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
     ContentRootPath = AppContext.BaseDirectory,
 });
 builder.Services.AddAdaPlatformDatabase(builder.Configuration);
+builder.Services.AddAdaPlatformReporting(builder.Configuration);
 using var host = builder.Build();
 
 var source = builder.Configuration["source"];
@@ -56,7 +57,7 @@ try
     {
         "import-ada" => await new AdaSqliteImporter(db).ImportAsync(source!),
         "import-ucp" => await new UcpLogIngestor(db).IngestAsync(source!),
-        "profile" => await new DatasetProfiler(db, new HealthThresholds()).ProfileAsync(output!, CodeVersion()),
+        "profile" => await scope.ServiceProvider.GetRequiredService<DatasetProfiler>().ProfileAsync(output!, CodeVersion()),
         _ => throw new ArgumentException($"Unknown command '{command}'."),
     };
     Console.WriteLine(report);

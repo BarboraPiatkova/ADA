@@ -21,6 +21,9 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.12" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
 
+    <!-- Report cache: one computation shared by concurrent first requests -->
+    <PackageVersion Include="Microsoft.Extensions.Caching.Hybrid" Version="10.10.0" />
+
     <!-- Legacy ADA import -->
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
 

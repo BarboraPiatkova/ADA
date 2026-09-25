@@ -5,6 +5,7 @@ using AdaPlatform.Domain.Quality;
 using AdaPlatform.Domain.Raw;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace AdaPlatform.Infrastructure.Reporting;
 
@@ -17,7 +18,7 @@ namespace AdaPlatform.Infrastructure.Reporting;
 /// Re-running on the same data gives the same numbers; the dataset fingerprint proves it's
 /// the same data.
 /// </summary>
-public sealed class DatasetProfiler(AppDbContext db, HealthThresholds thresholds)
+public sealed class DatasetProfiler(AppDbContext db, IOptions<HealthThresholds> options)
 {
     private static readonly CultureInfo Cs = CultureInfo.GetCultureInfo("cs-CZ");
 
@@ -249,7 +250,7 @@ public sealed class DatasetProfiler(AppDbContext db, HealthThresholds thresholds
 
         var vehicleDays = perVehicleDay.Select(kv => new { kv.Key.VehicleId, kv.Key.Day, kv.Value.In, kv.Value.Out }).ToList();
         // The same minimum as the health report, so F8 and the UI judge balance alike.
-        var minPassengers = thresholds.MinPassengersForBalance;
+        var minPassengers = options.Value.MinPassengersForBalance;
         var traction = await db.Vehicles.AsNoTracking().ToDictionaryAsync(v => v.Id, v => v.Traction ?? "(neuvedeno)", ct);
         var balance = vehicleDays
             .Select(v => new { v.VehicleId, v.Day, v.In, v.Out, Imbalance = QualityMetrics.Imbalance(v.In, v.Out, minPassengers), Traction = traction.GetValueOrDefault(v.VehicleId, "(neuvedeno)") })

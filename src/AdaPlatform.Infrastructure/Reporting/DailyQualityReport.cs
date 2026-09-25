@@ -1,6 +1,9 @@
+using System.ComponentModel;
 using AdaPlatform.Domain.Raw;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Hybrid;
+using Microsoft.Extensions.Options;
 
 namespace AdaPlatform.Infrastructure.Reporting;
 
@@ -24,10 +27,19 @@ public sealed record VehicleDayDto(
 /// <see cref="DeviceHealthReport"/>, but by calendar day, so a reader can see when a
 /// problem started and whether it is one vehicle or one day.
 /// </summary>
-public sealed class DailyQualityReport(AppDbContext db)
+public sealed class DailyQualityReport(AppDbContext db, IOptions<HealthThresholds> options, HybridCache cache)
 {
-    public async Task<IReadOnlyList<VehicleDayDto>> BuildAsync(HealthThresholds thresholds, CancellationToken ct = default)
+    // Immutable wrapper: the cache hands out the same list instead of a copy per request.
+    [ImmutableObject(true)]
+    private sealed record Days(IReadOnlyList<VehicleDayDto> Rows);
+
+    /// <summary>The report for the current data, from the cache when it's still valid.</summary>
+    public async Task<IReadOnlyList<VehicleDayDto>> GetAsync(CancellationToken ct = default) =>
+        (await ReportCache.GetAsync(db, cache, "quality/daily", async token => new Days(await BuildAsync(token)), ct)).Rows;
+
+    public async Task<IReadOnlyList<VehicleDayDto>> BuildAsync(CancellationToken ct = default)
     {
+        var thresholds = options.Value;
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
         var summaries = await db.DeviceEvents.AsNoTracking()

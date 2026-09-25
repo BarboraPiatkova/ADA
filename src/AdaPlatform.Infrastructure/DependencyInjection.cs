@@ -1,4 +1,5 @@
 using AdaPlatform.Infrastructure.Persistence;
+using AdaPlatform.Infrastructure.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,6 +31,20 @@ public static class DependencyInjection
         // "can we reach the database", whichever engine it is.
         services.AddHealthChecks().AddDbContextCheck<AppDbContext>(name: "database");
 
+        return services;
+    }
+
+    /// <summary>
+    /// The quality reports, their thresholds (the "Quality:Thresholds" section; defaults in
+    /// <see cref="HealthThresholds"/>) and the cache they keep their results in.
+    /// </summary>
+    public static IServiceCollection AddAdaPlatformReporting(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<HealthThresholds>().Bind(configuration.GetSection(HealthThresholds.SectionName));
+        services.AddHybridCache();
+        services.AddScoped<DeviceHealthReport>();
+        services.AddScoped<DailyQualityReport>();
+        services.AddScoped<DatasetProfiler>();
         return services;
     }
 
