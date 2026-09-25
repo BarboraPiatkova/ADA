@@ -6,7 +6,9 @@ using AdaPlatform.Domain.Fleet;
 using AdaPlatform.Domain.Network;
 using AdaPlatform.Domain.Operations;
 using AdaPlatform.Domain.Quality;
+using AdaPlatform.Domain.Raw;
 using AdaPlatform.Infrastructure.Import.Ada;
+using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -155,6 +157,46 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         finally
         {
             File.Delete(sqlitePath);
+        }
+    }
+
+    [Fact]
+    public async Task Ucp_ingestion_stores_every_line_and_is_idempotent()
+    {
+        var folder = UcpLogFixture.WriteToNewFolder();
+        try
+        {
+            await using var api = NewApi();
+            await using var scope = api.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+            var first = await new UcpLogIngestor(db).IngestAsync(folder);
+            var second = await new UcpLogIngestor(db).IngestAsync(folder);
+
+            Assert.Equal((1, 12, 1), (first.FilesIngested, first.Events, first.MalformedLines));
+            Assert.Equal((0, 1), (second.FilesIngested, second.FilesSkippedDuplicate));
+
+            db.ChangeTracker.Clear();
+            Assert.Equal(12, await db.DeviceEvents.CountAsync());
+
+            var file = await db.SourceFiles.SingleAsync();
+            Assert.Equal(new DateOnly(2022, 8, 2), file.ServiceDate);
+            Assert.Equal(1, file.MalformedLineCount);
+
+            var vehicle = await db.Vehicles.SingleAsync();
+            Assert.Equal((UcpLogFixture.VehicleId, "tramvaj", "Vario LF2R.E"), (vehicle.Id, vehicle.Traction, vehicle.Model));
+
+            var devices = await db.CountingDevices.OrderBy(d => d.DeviceNumber).ToListAsync();
+            Assert.Equal([41, 42], devices.Select(d => d.DeviceNumber));
+            Assert.Equal("201913121247", devices[0].FirmwareVersion);
+
+            // The typed columns are queryable on both engines — what fault detection relies on.
+            Assert.Equal(1, await db.DeviceEvents.CountAsync(e => e.Type == DeviceEventType.Heartbeat && e.Alive == false));
+            Assert.Equal(3, await db.DeviceEvents.Where(e => e.Type == DeviceEventType.CountingStopped).SumAsync(e => e.Boardings));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
         }
     }
 
