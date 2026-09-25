@@ -1,5 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
 import { Tabs } from 'radix-ui'
 import { useEffect, useState } from 'react'
+import { NetworkMapView } from './map/NetworkMapView'
+import { mapConfigQuery } from './queries'
+import { QueryState } from './ui/QueryState'
 
 // Two screens as Radix tabs, mirrored in the URL hash so each has a shareable link and
 // the browser's back button works — without a router for two routes.
@@ -16,6 +20,7 @@ function viewFromHash(): View {
 
 export default function App() {
   const [view, setView] = useState<View>(viewFromHash)
+  const mapConfig = useQuery(mapConfigQuery)
 
   useEffect(() => {
     const onHash = () => setView(viewFromHash())
@@ -36,7 +41,9 @@ export default function App() {
         </Tabs.List>
       </header>
       <Tabs.Content value="mapa" className="content">
-        <p className="empty">Připravuje se.</p>
+        <QueryState query={mapConfig} loading="Načítám…">
+          {(config) => <NetworkMapView baseLayers={config.baseLayers} />}
+        </QueryState>
       </Tabs.Content>
       <Tabs.Content value="jednotky" className="content">
         <p className="empty">Připravuje se.</p>
