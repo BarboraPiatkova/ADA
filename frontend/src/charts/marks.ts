@@ -1,7 +1,7 @@
 // Chart chrome and mark styles, shared by the SVG charts. Marks stay thin, axes and grid
 // stay recessive; the data is the only loud thing.
 
-export const AXIS_LABEL = 'fill-ink-2 text-[11px] tabular-nums'
+export const AXIS_LABEL = 'fill-ink-2 text-xs tabular-nums'
 export const AXIS_LABEL_STRONG = 'fill-ink text-xs font-medium'
 export const GRIDLINE = 'stroke-gridline'
 export const BASELINE = 'stroke-axis'

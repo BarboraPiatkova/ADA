@@ -144,7 +144,7 @@ export function Histogram({
             {lines.map((line) => (
               <g key={line.status}>
                 <line x1={x(line.value)} x2={x(line.value)} y1={TOP - 6} y2={TOP + PLOT_HEIGHT} className={cn('stroke-2', line.status === 'Fault' ? 'stroke-fault' : 'stroke-warning')} />
-                <text x={x(line.value) + 5} y={TOP - 10} className="fill-ink-2 text-[11px] font-semibold">
+                <text x={x(line.value) + 5} y={TOP - 10} className="fill-ink-2 text-xs font-semibold">
                   {line.label} {formatValue(line.value)}
                 </text>
               </g>
