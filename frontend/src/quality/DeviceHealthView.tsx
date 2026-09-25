@@ -22,6 +22,7 @@ import type { DeviceHealth, DeviceHealthReport, HealthReason, HealthStatus, Heal
 import { useFormat } from '../i18n/format'
 import { deviceHealthQuery } from '../queries'
 import { Hint } from '../ui/Hint'
+import { StatusIcon, TractionIcon } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { Select } from '../ui/Select'
 
@@ -48,10 +49,16 @@ const deviceColumns = createColumnHelper<typeof deviceFeatures, DeviceHealth>()
 const byStatus: SortFn<any, any> = (a, b, id) =>
   STATUS_ORDER.indexOf(a.getValue<HealthStatus>(id)) - STATUS_ORDER.indexOf(b.getValue<HealthStatus>(id))
 
-/** Phrases a reason code from the API in the current language. */
+/** Phrases reason codes from the API in the current language, one per line. */
 function formatReasons(t: TFunction, reasons: HealthReason[]) {
   if (reasons.length === 0) return <span className="muted">—</span>
-  return reasons.map((r) => t(`health.reasons.${r.code}`, { count: r.value ?? 0, value: r.value ?? 0 })).join(' · ')
+  return (
+    <ul className="reason-list">
+      {reasons.map((r) => (
+        <li key={r.code}>{t(`health.reasons.${r.code}`, { count: r.value ?? 0, value: r.value ?? 0 })}</li>
+      ))}
+    </ul>
+  )
 }
 
 /** Traction comes from the vehicle's own log (in Czech); show it in the UI language. */
@@ -61,7 +68,12 @@ function tractionLabel(t: TFunction, traction: string) {
 
 function StatusPill({ status }: { status: HealthStatus }) {
   const { t } = useTranslation()
-  return <span className={`pill pill-${status.toLowerCase()}`}>{t(`health.status.${status}`)}</span>
+  return (
+    <span className={`pill pill-${status.toLowerCase()}`}>
+      <StatusIcon status={status} size={14} />
+      {t(`health.status.${status}`)}
+    </span>
+  )
 }
 
 /** A share cell coloured by the same thresholds the backend used. */
@@ -87,15 +99,18 @@ function buildVehicleColumns(t: TFunction, th: HealthThresholds, format: Format)
       sortFn: byStatus,
       filterFn: 'equals',
     }),
-    vehicleColumns.accessor('vehicleId', { header: t('health.columns.vehicle'), cell: (info) => <strong>{info.getValue()}</strong> }),
+    vehicleColumns.accessor('vehicleId', { header: t('health.columns.vehicle'), cell: (info) => <span className="vehicle-number">{info.getValue()}</span> }),
     vehicleColumns.accessor((v) => v.traction ?? '', {
       id: 'traction',
       header: t('health.columns.traction'),
       filterFn: 'equals',
       cell: (info) => (
-        <>
-          {tractionLabel(t, info.getValue())} <span className="muted small">{info.row.original.model ?? ''}</span>
-        </>
+        <span className="traction">
+          <TractionIcon traction={info.getValue()} />
+          <span>
+            {tractionLabel(t, info.getValue())} <span className="model">{info.row.original.model ?? ''}</span>
+          </span>
+        </span>
       ),
     }),
     vehicleColumns.accessor('boardings', { header: t('health.columns.boardings'), cell: (info) => format.number(info.getValue()) }),
@@ -274,30 +289,54 @@ function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
     <div className="page">
       <header className="page-header">
         <h2>{t('health.title')}</h2>
-        <p className="muted">
-          {t('health.summary', {
-            from: report.from ? format.date(report.from) : '?',
-            to: report.to ? format.date(report.to) : '?',
-            vehicles: t('health.vehicles', { count: all.length }),
-            devices: t('health.devices', { count: deviceTotal }),
-          })}
-        </p>
+        <dl className="facts">
+          <div>
+            <dt>{t('health.facts.period')}</dt>
+            <dd>
+              {report.from ? format.date(report.from) : '?'} – {report.to ? format.date(report.to) : '?'}
+            </dd>
+          </div>
+          <div>
+            <dt>{t('health.facts.vehicles')}</dt>
+            <dd>{format.number(all.length)}</dd>
+          </div>
+          <div>
+            <dt>{t('health.facts.devices')}</dt>
+            <dd>{format.number(deviceTotal)}</dd>
+          </div>
+        </dl>
+        <p className="page-note">{t('health.note')}</p>
       </header>
 
-      <ToggleGroup.Root
-        type="single"
-        className="tiles"
-        aria-label={t('health.statusFilter')}
-        value={statusFilter}
-        onValueChange={(value) => table.getColumn('status')?.setFilterValue(value || undefined)}
-      >
-        {STATUS_ORDER.map((s) => (
-          <ToggleGroup.Item key={s} value={s} className={`tile tile-${s.toLowerCase()}`}>
-            <span className="tile-value">{format.number(counts[s])}</span>
-            <span className="tile-label">{t(`health.status.${s}`)}</span>
-          </ToggleGroup.Item>
-        ))}
-      </ToggleGroup.Root>
+      <section className="fleet-status" aria-label={t('health.fleetStatus')}>
+        {/* Decorative summary of the counts below; the toggle buttons carry the same numbers as text. */}
+        <div className={`status-bar${statusFilter ? ' filtered' : ''}`} aria-hidden="true">
+          {STATUS_ORDER.filter((s) => counts[s] > 0).map((s) => (
+            <span
+              key={s}
+              className={`status-bar-segment ${s.toLowerCase()}${statusFilter === s ? ' active' : ''}`}
+              style={{ flexGrow: counts[s] }}
+            />
+          ))}
+        </div>
+        <ToggleGroup.Root
+          type="single"
+          className="status-filter"
+          aria-label={t('health.statusFilter')}
+          value={statusFilter}
+          onValueChange={(value) => table.getColumn('status')?.setFilterValue(value || undefined)}
+        >
+          {STATUS_ORDER.map((s) => (
+            <ToggleGroup.Item key={s} value={s} className="status-filter-item">
+              <span className={`pill pill-${s.toLowerCase()}`}>
+                <StatusIcon status={s} size={14} />
+                {t(`health.status.${s}`)}
+              </span>
+              <span className="status-filter-count">{format.number(counts[s])}</span>
+            </ToggleGroup.Item>
+          ))}
+        </ToggleGroup.Root>
+      </section>
 
       <div className="filters">
         <Select

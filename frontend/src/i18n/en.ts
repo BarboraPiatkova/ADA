@@ -62,11 +62,6 @@ export const en = {
     loading: 'Computing device health from raw data…',
     empty: 'No raw logs have been imported yet.',
     title: 'Counting device health',
-    vehicles_one: '{{count, number}} vehicle',
-    vehicles_other: '{{count, number}} vehicles',
-    devices_one: '{{count, number}} device',
-    devices_other: '{{count, number}} devices',
-    summary: '{{from}} – {{to}} · {{vehicles}} · {{devices}}. Evaluated from raw messages using provisional rules (below).',
     facts: {
       period: 'Period',
       vehicles: 'Vehicles',
