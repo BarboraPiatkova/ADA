@@ -1,0 +1,17 @@
+kod,typ,pocet
+1,Init,3542
+2,VehicleInfo,3542
+3,SystemShutdown,3466
+5,Heartbeat,44507
+7,TripStart,9695
+8,Arrival,145679
+9,Departure,136494
+10,CountingStarted,785072
+11,CountingStopped,813625
+12,DeviceRestart,57328
+15,StopSummary,145048
+100,DoorState,362932
+110,TripPhase,29135
+120,StopPassed,20348
+125,StopChangedManually,526
+200,VehicleLayout,3569
