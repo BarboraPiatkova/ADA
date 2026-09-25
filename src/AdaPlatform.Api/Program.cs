@@ -25,6 +25,7 @@ builder.Services.AddAdaPlatformRateLimits();
 
 // Sign-in through Tokari (Herman's token issuer) — see ADR 0005.
 builder.Services.AddTokariAuthentication(builder.Configuration);
+builder.Services.AddTokariLogin();
 
 var app = builder.Build();
 
@@ -51,6 +52,7 @@ app.UseRateLimiter();
 // Liveness/readiness probe — verifies the API is up AND can reach the database.
 app.MapHealthChecks("/health").AllowAnonymous();
 
+app.MapAuthEndpoints();
 app.MapNetworkEndpoints();
 app.MapMapEndpoints();
 app.MapQualityEndpoints();

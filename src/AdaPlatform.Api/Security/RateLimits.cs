@@ -11,6 +11,12 @@ public static class RateLimits
 {
     public const string Tiles = "tiles";
 
+    /// <summary>Password guessing: Tokari itself doesn't limit login attempts.</summary>
+    public const string Login = "login";
+
+    /// <summary>A page refreshes about once per access-token lifetime (5 min); this is plenty.</summary>
+    public const string Refresh = "refresh";
+
     public static IServiceCollection AddAdaPlatformRateLimits(this IServiceCollection services) =>
         services.AddRateLimiter(options =>
         {
@@ -27,5 +33,13 @@ public static class RateLimits
                     Window = TimeSpan.FromMinutes(1),
                     QueueLimit = 0,
                 }));
+
+            options.AddPolicy(Login, context => PerClient(context, permits: 10, TimeSpan.FromMinutes(1)));
+            options.AddPolicy(Refresh, context => PerClient(context, permits: 30, TimeSpan.FromMinutes(1)));
         });
+
+    private static RateLimitPartition<string> PerClient(HttpContext context, int permits, TimeSpan window) =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = permits, Window = window, QueueLimit = 0 });
 }
