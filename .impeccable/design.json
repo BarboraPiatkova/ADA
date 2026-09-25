@@ -1,0 +1,708 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T13:15:22+00:00",
+  "title": "Design System: AdaPlatform",
+  "extensions": {
+    "colorMeta": {
+      "route-petrol": {
+        "role": "primary",
+        "displayName": "Route Petrol",
+        "cssVar": "--route",
+        "canonical": "#0b6e6e",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#52b5b0"
+      },
+      "route-petrol-strong": {
+        "role": "primary",
+        "displayName": "Route Petrol Strong",
+        "cssVar": "--route-strong",
+        "canonical": "#075656",
+        "tonalRamp": [
+          "oklch(15% 0.068 195)",
+          "oklch(26% 0.068 195)",
+          "oklch(37% 0.068 195)",
+          "oklch(48% 0.068 195)",
+          "oklch(59% 0.068 195)",
+          "oklch(70% 0.068 195)",
+          "oklch(82% 0.068 195)",
+          "oklch(95% 0.068 195)"
+        ],
+        "dark": "#7fd0cb"
+      },
+      "route-petrol-soft": {
+        "role": "primary",
+        "displayName": "Route Petrol Soft",
+        "cssVar": "--route-soft",
+        "canonical": "#e0efee",
+        "tonalRamp": [
+          "oklch(15% 0.016 192)",
+          "oklch(26% 0.016 192)",
+          "oklch(37% 0.016 192)",
+          "oklch(48% 0.016 192)",
+          "oklch(59% 0.016 192)",
+          "oklch(70% 0.016 192)",
+          "oklch(82% 0.016 192)",
+          "oklch(95% 0.016 192)"
+        ],
+        "dark": "rgba(82, 181, 176, 0.16)"
+      },
+      "on-route": {
+        "role": "primary",
+        "displayName": "On Route",
+        "cssVar": "--on-route",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(37% 0.000 90)",
+          "oklch(48% 0.000 90)",
+          "oklch(59% 0.000 90)",
+          "oklch(70% 0.000 90)",
+          "oklch(82% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ],
+        "dark": "#0a2323"
+      },
+      "timetable-ink": {
+        "role": "neutral",
+        "displayName": "Timetable Ink",
+        "cssVar": "--ink",
+        "canonical": "#1b2430",
+        "tonalRamp": [
+          "oklch(15% 0.026 256)",
+          "oklch(26% 0.026 256)",
+          "oklch(37% 0.026 256)",
+          "oklch(48% 0.026 256)",
+          "oklch(59% 0.026 256)",
+          "oklch(70% 0.026 256)",
+          "oklch(82% 0.026 256)",
+          "oklch(95% 0.026 256)"
+        ],
+        "dark": "#e6ecec"
+      },
+      "secondary-ink": {
+        "role": "neutral",
+        "displayName": "Secondary Ink",
+        "cssVar": "--ink-2",
+        "canonical": "#566170",
+        "tonalRamp": [
+          "oklch(15% 0.028 256)",
+          "oklch(26% 0.028 256)",
+          "oklch(37% 0.028 256)",
+          "oklch(48% 0.028 256)",
+          "oklch(59% 0.028 256)",
+          "oklch(70% 0.028 256)",
+          "oklch(82% 0.028 256)",
+          "oklch(95% 0.028 256)"
+        ],
+        "dark": "#a2adb6"
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "cssVar": "--paper",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(37% 0.000 90)",
+          "oklch(48% 0.000 90)",
+          "oklch(59% 0.000 90)",
+          "oklch(70% 0.000 90)",
+          "oklch(82% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ],
+        "dark": "#111a1f"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "cssVar": "--surface",
+        "canonical": "#f3f5f5",
+        "tonalRamp": [
+          "oklch(15% 0.002 197)",
+          "oklch(26% 0.002 197)",
+          "oklch(37% 0.002 197)",
+          "oklch(48% 0.002 197)",
+          "oklch(59% 0.002 197)",
+          "oklch(70% 0.002 197)",
+          "oklch(82% 0.002 197)",
+          "oklch(95% 0.002 197)"
+        ],
+        "dark": "#17232a"
+      },
+      "surface-raised": {
+        "role": "neutral",
+        "displayName": "Surface Raised",
+        "cssVar": "--surface-2",
+        "canonical": "#e7ecec",
+        "tonalRamp": [
+          "oklch(15% 0.005 197)",
+          "oklch(26% 0.005 197)",
+          "oklch(37% 0.005 197)",
+          "oklch(48% 0.005 197)",
+          "oklch(59% 0.005 197)",
+          "oklch(70% 0.005 197)",
+          "oklch(82% 0.005 197)",
+          "oklch(95% 0.005 197)"
+        ],
+        "dark": "#203039"
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "cssVar": "--rule",
+        "canonical": "#d4dbdb",
+        "tonalRamp": [
+          "oklch(15% 0.008 197)",
+          "oklch(26% 0.008 197)",
+          "oklch(37% 0.008 197)",
+          "oklch(48% 0.008 197)",
+          "oklch(59% 0.008 197)",
+          "oklch(70% 0.008 197)",
+          "oklch(82% 0.008 197)",
+          "oklch(95% 0.008 197)"
+        ],
+        "dark": "#2d3d46"
+      },
+      "fault": {
+        "role": "status",
+        "displayName": "Fault",
+        "cssVar": "--fault",
+        "canonical": "#b42318",
+        "tonalRamp": [
+          "oklch(15% 0.160 30)",
+          "oklch(26% 0.160 30)",
+          "oklch(37% 0.160 30)",
+          "oklch(48% 0.160 30)",
+          "oklch(59% 0.160 30)",
+          "oklch(70% 0.160 30)",
+          "oklch(82% 0.160 30)",
+          "oklch(95% 0.160 30)"
+        ],
+        "dark": "#ff8b7b"
+      },
+      "fault-soft": {
+        "role": "status",
+        "displayName": "Fault Soft",
+        "cssVar": "--fault-soft",
+        "canonical": "#fce9e7",
+        "tonalRamp": [
+          "oklch(15% 0.021 25)",
+          "oklch(26% 0.021 25)",
+          "oklch(37% 0.021 25)",
+          "oklch(48% 0.021 25)",
+          "oklch(59% 0.021 25)",
+          "oklch(70% 0.021 25)",
+          "oklch(82% 0.021 25)",
+          "oklch(95% 0.021 25)"
+        ],
+        "dark": "rgba(255, 139, 123, 0.14)"
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Warning",
+        "cssVar": "--warning",
+        "canonical": "#945400",
+        "tonalRamp": [
+          "oklch(15% 0.117 62)",
+          "oklch(26% 0.117 62)",
+          "oklch(37% 0.117 62)",
+          "oklch(48% 0.117 62)",
+          "oklch(59% 0.117 62)",
+          "oklch(70% 0.117 62)",
+          "oklch(82% 0.117 62)",
+          "oklch(95% 0.117 62)"
+        ],
+        "dark": "#f0b54a"
+      },
+      "warning-soft": {
+        "role": "status",
+        "displayName": "Warning Soft",
+        "cssVar": "--warning-soft",
+        "canonical": "#fdf0d9",
+        "tonalRamp": [
+          "oklch(15% 0.033 82)",
+          "oklch(26% 0.033 82)",
+          "oklch(37% 0.033 82)",
+          "oklch(48% 0.033 82)",
+          "oklch(59% 0.033 82)",
+          "oklch(70% 0.033 82)",
+          "oklch(82% 0.033 82)",
+          "oklch(95% 0.033 82)"
+        ],
+        "dark": "rgba(240, 181, 74, 0.14)"
+      },
+      "ok": {
+        "role": "status",
+        "displayName": "OK",
+        "cssVar": "--ok",
+        "canonical": "#1d7a46",
+        "tonalRamp": [
+          "oklch(15% 0.118 154)",
+          "oklch(26% 0.118 154)",
+          "oklch(37% 0.118 154)",
+          "oklch(48% 0.118 154)",
+          "oklch(59% 0.118 154)",
+          "oklch(70% 0.118 154)",
+          "oklch(82% 0.118 154)",
+          "oklch(95% 0.118 154)"
+        ],
+        "dark": "#5dca8b"
+      },
+      "ok-soft": {
+        "role": "status",
+        "displayName": "OK Soft",
+        "cssVar": "--ok-soft",
+        "canonical": "#e4f3e9",
+        "tonalRamp": [
+          "oklch(15% 0.021 157)",
+          "oklch(26% 0.021 157)",
+          "oklch(37% 0.021 157)",
+          "oklch(48% 0.021 157)",
+          "oklch(59% 0.021 157)",
+          "oklch(70% 0.021 157)",
+          "oklch(82% 0.021 157)",
+          "oklch(95% 0.021 157)"
+        ],
+        "dark": "rgba(93, 202, 139, 0.14)"
+      },
+      "unknown": {
+        "role": "status",
+        "displayName": "Too Little Data",
+        "cssVar": "--unknown",
+        "canonical": "#566170",
+        "tonalRamp": [
+          "oklch(15% 0.028 256)",
+          "oklch(26% 0.028 256)",
+          "oklch(37% 0.028 256)",
+          "oklch(48% 0.028 256)",
+          "oklch(59% 0.028 256)",
+          "oklch(70% 0.028 256)",
+          "oklch(82% 0.028 256)",
+          "oklch(95% 0.028 256)"
+        ],
+        "dark": "#a2adb6"
+      },
+      "unknown-soft": {
+        "role": "status",
+        "displayName": "Too Little Data Soft",
+        "cssVar": "--unknown-soft",
+        "canonical": "#edf0f2",
+        "tonalRamp": [
+          "oklch(15% 0.004 236)",
+          "oklch(26% 0.004 236)",
+          "oklch(37% 0.004 236)",
+          "oklch(48% 0.004 236)",
+          "oklch(59% 0.004 236)",
+          "oklch(70% 0.004 236)",
+          "oklch(82% 0.004 236)",
+          "oklch(95% 0.004 236)"
+        ],
+        "dark": "rgba(162, 173, 182, 0.14)"
+      },
+      "seq-1": {
+        "role": "chart",
+        "displayName": "Sequential 1",
+        "cssVar": "--seq-1",
+        "canonical": "#c1f7f6",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#104040"
+      },
+      "seq-2": {
+        "role": "chart",
+        "displayName": "Sequential 2",
+        "cssVar": "--seq-2",
+        "canonical": "#77dcdb",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#006161"
+      },
+      "seq-3": {
+        "role": "chart",
+        "displayName": "Sequential 3",
+        "cssVar": "--seq-3",
+        "canonical": "#25bcbc",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#008282"
+      },
+      "seq-4": {
+        "role": "chart",
+        "displayName": "Sequential 4",
+        "cssVar": "--seq-4",
+        "canonical": "#009999",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#18a4a4"
+      },
+      "seq-5": {
+        "role": "chart",
+        "displayName": "Sequential 5",
+        "cssVar": "--seq-5",
+        "canonical": "#007575",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#67c1c1"
+      },
+      "seq-6": {
+        "role": "chart",
+        "displayName": "Sequential 6",
+        "cssVar": "--seq-6",
+        "canonical": "#1d5151",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#acdcdb"
+      },
+      "series-1": {
+        "role": "chart",
+        "displayName": "Series Petrol",
+        "cssVar": "--series-1",
+        "canonical": "#009090",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ],
+        "dark": "#119999"
+      },
+      "gridline": {
+        "role": "chart",
+        "displayName": "Gridline",
+        "cssVar": "--gridline",
+        "canonical": "#e6eaea",
+        "tonalRamp": [
+          "oklch(15% 0.004 197)",
+          "oklch(26% 0.004 197)",
+          "oklch(37% 0.004 197)",
+          "oklch(48% 0.004 197)",
+          "oklch(59% 0.004 197)",
+          "oklch(70% 0.004 197)",
+          "oklch(82% 0.004 197)",
+          "oklch(95% 0.004 197)"
+        ],
+        "dark": "#23323a"
+      },
+      "axis": {
+        "role": "chart",
+        "displayName": "Axis",
+        "cssVar": "--axis",
+        "canonical": "#c3cccc",
+        "tonalRamp": [
+          "oklch(15% 0.010 197)",
+          "oklch(26% 0.010 197)",
+          "oklch(37% 0.010 197)",
+          "oklch(48% 0.010 197)",
+          "oklch(59% 0.010 197)",
+          "oklch(70% 0.010 197)",
+          "oklch(82% 0.010 197)",
+          "oklch(95% 0.010 197)"
+        ],
+        "dark": "#3a4b55"
+      },
+      "map-route": {
+        "role": "map",
+        "displayName": "Map Route (fixed)",
+        "cssVar": "--map-route",
+        "canonical": "#0b6e6e",
+        "tonalRamp": [
+          "#1d5151",
+          "#007575",
+          "#009999",
+          "#25bcbc",
+          "#77dcdb",
+          "#c1f7f6"
+        ]
+      },
+      "map-casing": {
+        "role": "map",
+        "displayName": "Map Casing (fixed)",
+        "cssVar": "--map-casing",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(37% 0.000 90)",
+          "oklch(48% 0.000 90)",
+          "oklch(59% 0.000 90)",
+          "oklch(70% 0.000 90)",
+          "oklch(82% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ]
+      },
+      "map-stop": {
+        "role": "map",
+        "displayName": "Map Stop (fixed)",
+        "cssVar": "--map-stop",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.000 90)",
+          "oklch(26% 0.000 90)",
+          "oklch(37% 0.000 90)",
+          "oklch(48% 0.000 90)",
+          "oklch(59% 0.000 90)",
+          "oklch(70% 0.000 90)",
+          "oklch(82% 0.000 90)",
+          "oklch(95% 0.000 90)"
+        ]
+      },
+      "map-no-data": {
+        "role": "map",
+        "displayName": "Map No Data (fixed)",
+        "cssVar": "--map-no-data",
+        "canonical": "#7a8591",
+        "tonalRamp": [
+          "oklch(15% 0.022 251)",
+          "oklch(26% 0.022 251)",
+          "oklch(37% 0.022 251)",
+          "oklch(48% 0.022 251)",
+          "oklch(59% 0.022 251)",
+          "oklch(70% 0.022 251)",
+          "oklch(82% 0.022 251)",
+          "oklch(95% 0.022 251)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The screen title (h1)."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section headings, dialog titles, the brand name."
+      },
+      "subtitle": {
+        "displayName": "Subtitle",
+        "purpose": "Chart titles, rule headings, large counts in the status filter."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text and table values; tabular figures."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Table headers, segmented options, pills, form labels."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Hints, counts, chart axis and legend text; the minimum size."
+      },
+      "vehicle-number": {
+        "displayName": "Vehicle number",
+        "purpose": "The vehicle id in tables, set like a fleet number."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 1px 2px rgba(27, 36, 48, 0.12), 0 6px 20px rgba(27, 36, 48, 0.14)",
+        "dark": "0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45)",
+        "purpose": "Only for things that float: menus, popovers, tooltips, the map layer card, the login card."
+      }
+    ],
+    "motion": [
+      {
+        "name": "sheet-in",
+        "value": "180ms ease-out, translateX(24px) + fade",
+        "purpose": "The rules side panel slides in when opened; disabled under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px",
+        "purpose": "Header tabs move inline; the line list becomes a 300 px sidebar."
+      },
+      {
+        "name": "coarse-pointer",
+        "value": "(pointer: coarse)",
+        "purpose": "Touch screens: every control grows to 44 px (touch-target)."
+      }
+    ],
+    "focus": {
+      "value": "2px solid var(--route), offset 2px",
+      "purpose": "One focus style everywhere."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single main action of a view, e.g. signing in.",
+      "html": "<button class=\"ds-btn-primary\">Přihlásit se</button>",
+      "css": ".ds-btn-primary { height: 40px; padding: 0 20px; border: none; border-radius: 8px; background: var(--route); color: var(--on-route); font-family: var(--display, 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif); font-weight: 600; font-size: 14px; cursor: pointer; } .ds-btn-primary:hover { background: var(--route-strong); } .ds-btn-primary:focus-visible { outline: 2px solid var(--route); outline-offset: 2px; } .ds-btn-primary:disabled { opacity: .5; cursor: default; }"
+    },
+    {
+      "name": "Link Button",
+      "kind": "button",
+      "refersTo": "button-link",
+      "description": "Secondary actions in running text.",
+      "html": "<button class=\"ds-btn-link\">zkusit znovu</button>",
+      "css": ".ds-btn-link { padding: 0; border: none; background: none; color: var(--route); font-family: var(--text, 'Barlow', system-ui, sans-serif); font-weight: 600; font-size: 14px; cursor: pointer; } .ds-btn-link:hover { color: var(--route-strong); text-decoration: underline; } .ds-btn-link:focus-visible { outline: 2px solid var(--route); outline-offset: 2px; }"
+    },
+    {
+      "name": "Segmented Toggle",
+      "kind": "custom",
+      "refersTo": "segmented-item",
+      "description": "Choosing between views: Graf / Tabulka; the selected option is filled petrol.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\"><button class=\"ds-seg-item is-on\" role=\"radio\" aria-checked=\"true\">Graf</button><button class=\"ds-seg-item\" role=\"radio\" aria-checked=\"false\">Tabulka</button></div>",
+      "css": ".ds-seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); } .ds-seg-item { height: 26px; min-width: 30px; padding: 0 9px; border: none; border-radius: 6px; background: none; color: var(--ink-2); font-family: var(--display, 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif); font-weight: 600; font-size: 13px; cursor: pointer; } .ds-seg-item:hover { background: var(--surface); color: var(--ink); } .ds-seg-item:focus-visible { outline: 2px solid var(--route); outline-offset: 1px; } .ds-seg-item.is-on { background: var(--route); color: var(--on-route); cursor: default; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill-fault",
+      "description": "Every health verdict as colour, icon and word together; never colour alone.",
+      "html": "<span class=\"ds-pill ds-pill-fault\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M9 9l6 6M15 9l-6 6\"/></svg>Porucha</span> <span class=\"ds-pill ds-pill-warning\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 4 2.5 20h19L12 4z\"/><path d=\"M12 10v4M12 17h.01\"/></svg>Varování</span> <span class=\"ds-pill ds-pill-ok\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m8 12 3 3 5-6\"/></svg>V pořádku</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px 2px 6px; border-radius: 9999px; font-family: var(--text, 'Barlow', system-ui, sans-serif); font-weight: 600; font-size: 13px; white-space: nowrap; } .ds-pill-fault { background: var(--fault-soft); color: var(--fault); } .ds-pill-warning { background: var(--warning-soft); color: var(--warning); } .ds-pill-ok { background: var(--ok-soft); color: var(--ok); }"
+    },
+    {
+      "name": "Filter Chip",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "An active filter above the charts, removable.",
+      "html": "<span class=\"ds-chip\"><span class=\"ds-chip-label\">Stav:</span><strong>Porucha</strong><button class=\"ds-chip-x\" aria-label=\"Zrušit filtr Stav: Porucha\"><svg viewBox=\"0 0 24 24\" width=\"14\" height=\"14\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" aria-hidden=\"true\"><path d=\"M7 7l10 10M17 7 7 17\"/></svg></button></span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 4px 0 10px; border: 1px solid var(--route); border-radius: 9999px; background: var(--route-soft); color: var(--ink); font-family: var(--text, 'Barlow', system-ui, sans-serif); font-size: 14px; } .ds-chip-label { color: var(--ink-2); } .ds-chip-x { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; border-radius: 9999px; background: none; color: var(--ink-2); cursor: pointer; } .ds-chip-x:hover { background: var(--paper); color: var(--ink); } .ds-chip-x:focus-visible { outline: 2px solid var(--route); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Filter-bar search: hairline frame, petrol ring on focus.",
+      "html": "<label class=\"ds-search\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/></svg><input type=\"search\" placeholder=\"Vůz, typ nebo firmware\" aria-label=\"Hledat\"></label>",
+      "css": ".ds-search { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); color: var(--ink-2); } .ds-search:focus-within { border-color: var(--route); box-shadow: 0 0 0 1px var(--route); } .ds-search input { width: 220px; border: none; outline: none; background: transparent; color: var(--ink); font-family: var(--text, 'Barlow', system-ui, sans-serif); font-size: 14px; }"
+    },
+    {
+      "name": "Screen Tabs",
+      "kind": "nav",
+      "refersTo": "nav-tab",
+      "description": "Header navigation between screens; the active one is underlined in petrol.",
+      "html": "<nav class=\"ds-tabs\" role=\"tablist\"><button class=\"ds-tab\" role=\"tab\" aria-selected=\"false\">Mapa sítě</button><button class=\"ds-tab is-active\" role=\"tab\" aria-selected=\"true\">Stav jednotek</button></nav>",
+      "css": ".ds-tabs { display: flex; gap: 4px; height: 56px; border-bottom: 1px solid var(--rule); } .ds-tab { padding: 0 12px; border: none; border-bottom: 3px solid transparent; background: none; color: var(--ink-2); font-family: var(--text, 'Barlow', system-ui, sans-serif); font-weight: 500; font-size: 14px; cursor: pointer; } .ds-tab:hover { color: var(--ink); } .ds-tab:focus-visible { outline: 2px solid var(--route); outline-offset: -2px; } .ds-tab.is-active { border-bottom-color: var(--route); color: var(--ink); font-weight: 600; }"
+    },
+    {
+      "name": "Chart Card",
+      "kind": "card",
+      "refersTo": "chart-card",
+      "description": "The frame every chart sits in: flat, hairline, title and subtitle.",
+      "html": "<figure class=\"ds-card\"><figcaption><h3 class=\"ds-card-title\">Záporná obsazenost po dnech</h3><p class=\"ds-card-sub\">Sloupec je vozidlo, řádek je den.</p></figcaption><div class=\"ds-card-plot\"><span></span><span></span><span></span><span></span><span></span><span></span></div></figure>",
+      "css": ".ds-card { margin: 0; padding: 16px 18px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); } .ds-card-title { margin: 0; font-family: var(--display, 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif); font-weight: 600; font-size: 17px; color: var(--ink); } .ds-card-sub { margin: 2px 0 10px; font-family: var(--text, 'Barlow', system-ui, sans-serif); font-size: 13px; color: var(--ink-2); } .ds-card-plot { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; height: 24px; } .ds-card-plot span { border-radius: 2px; } .ds-card-plot span:nth-child(1) { background: var(--seq-1); } .ds-card-plot span:nth-child(2) { background: var(--seq-2); } .ds-card-plot span:nth-child(3) { background: var(--seq-3); } .ds-card-plot span:nth-child(4) { background: var(--seq-4); } .ds-card-plot span:nth-child(5) { background: var(--seq-5); } .ds-card-plot span:nth-child(6) { background: var(--seq-6); }"
+    },
+    {
+      "name": "Route Mark",
+      "kind": "custom",
+      "refersTo": "brand-mark",
+      "description": "The product mark: a route line with three stops, as on a line diagram.",
+      "html": "<span class=\"ds-brand\"><svg viewBox=\"0 0 34 20\" width=\"34\" height=\"20\" aria-hidden=\"true\"><path d=\"M4 15h9l7-10h10\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/><circle cx=\"4\" cy=\"15\" r=\"3.2\" fill=\"var(--paper)\" stroke=\"currentColor\" stroke-width=\"2.2\"/><circle cx=\"16.5\" cy=\"10\" r=\"3.2\" fill=\"var(--paper)\" stroke=\"currentColor\" stroke-width=\"2.2\"/><circle cx=\"30\" cy=\"5\" r=\"3.2\" fill=\"var(--paper)\" stroke=\"currentColor\" stroke-width=\"2.2\"/></svg>AdaPlatform</span>",
+      "css": ".ds-brand { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); font-family: var(--display, 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif); font-weight: 700; font-size: 20px; } .ds-brand svg { color: var(--route); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Timetable Sheet",
+    "overview": "AdaPlatform reads like printed public-transport matter: timetable ink on white paper, a signage face in two widths, and one colour, Route Petrol, drawn like the line on a network diagram. The page is a working document for an analyst, not a display: factual, calm and legible, with a lot of numbers held in a strict rhythm. Nothing competes for attention until something is wrong, and then the status colour says so, always with an icon and a word.\n\nDensity is high and deliberate. Tables, a fleet × day heatmap and small charts sit together on one screen at 14 px body text with tabular figures, because analysts compare values side by side. Order comes from hairline rules, one type scale and consistent card frames rather than from boxes, colour or size.\n\nIt must never look like a flashy BI tool: no walls of multicoloured charts, no decorative colour, no chart without a reason. Colour appears where it carries meaning (product navigation, status, magnitude on one sequential ramp) and nowhere else. Light and dark themes are designed as a pair; the map, whose tiles stay light, keeps its own fixed ink.",
+    "keyCharacteristics": [
+      "Timetable ink on paper, Route Petrol for wayfinding, status colour only for status.",
+      "Barlow for reading, Barlow Semi Condensed for headings, labels and vehicle numbers.",
+      "Flat at rest; hairline rules divide; a single shadow lifts only what floats.",
+      "Dense, tabular, aligned figures; one type scale (ratio 1.2 from 14 px).",
+      "Every verdict pairs colour with an icon and a word.",
+      "A route line with stops as the product mark and the recurring motif."
+    ],
+    "rules": [
+      {
+        "name": "The Status Means Status Rule",
+        "body": "Fault, Warning, OK and Too-little-data colours are used only for a health verdict, never for a chart series, a decoration or a brand accent.",
+        "section": "colors"
+      },
+      {
+        "name": "The Petrol Is Wayfinding Rule",
+        "body": "Route Petrol marks where you are and what is selected. It never signals a status, good or bad.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fixed Map Ink Rule",
+        "body": "Anything drawn on the map uses the map tokens, not the theme tokens; the tiles don't change with the theme.",
+        "section": "colors"
+      },
+      {
+        "name": "The Aligned Figures Rule",
+        "body": "Numbers are always tabular (`tnum`) and right-aligned in columns, so digits line up across rows.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two Widths Rule",
+        "body": "Only Barlow and Barlow Semi Condensed; no third family, no monospace for data.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-at-Rest Rule",
+        "body": "A card on the page gets a border, never a shadow. A shadow means \"this is on top of the page\".",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** pair every status colour with its icon and word (Status pill), in tables, legends and filters alike.",
+      "**Do** keep Route Petrol for navigation, selection, primary actions and the route line.",
+      "**Do** use tabular, right-aligned figures in every column of numbers.",
+      "**Do** separate content with 1 px Rule borders and tone, and keep the Float shadow for things that float.",
+      "**Do** design both themes: every colour comes from a token with a light and a dark value; map overlays use the fixed map tokens.",
+      "**Do** keep the minimum text size at 12 px, and targets at 24 px (44 px on touch)."
+    ],
+    "donts": [
+      "**Don't** make it a flashy BI tool: no walls of multicoloured charts, no colour that carries no meaning.",
+      "**Don't** use a status colour for a chart series, a decoration or the brand.",
+      "**Don't** show a status by colour alone.",
+      "**Don't** put shadows on cards or other elements at rest on the page.",
+      "**Don't** introduce a third typeface or a monospace for data."
+    ]
+  }
+}
