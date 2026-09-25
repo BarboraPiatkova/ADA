@@ -27,9 +27,14 @@ each cache miss spends the operator's map credits.
 counts, no personal data). It runs inside the operator's own network, with one
 deployment per operator ([ADR 0002](docs/adr/0002-single-tenant-per-deployment.md)).
 
+**Sign-in.** Users sign in with their Tokari account (Herman's token issuer). Every API
+endpoint needs a signed-in user unless it is explicitly public (`/health`, `/api/auth/*`,
+map tiles). Each screen needs its permission from a Tokari role. The access token lives
+only in memory, and the refresh token only in an HttpOnly, SameSite=Strict cookie. See
+[ADR 0005](docs/adr/0005-sign-in-through-tokari.md).
+
 ## Not yet in place
-- **Authentication.** The API is currently open inside the deployment's network. Sign-in
-  against the operator's identity provider (Entra ID / AD FS over OpenID Connect) is
-  planned before the first real deployment.
-- **Forwarded headers.** Behind a reverse proxy, the per-client rate limit needs the
+- **Forwarded headers.** Behind a reverse proxy, the per-client rate limits need the
   forwarded-headers middleware configured for that proxy.
+- **Asymmetric token signing.** Tokari signs with a key shared by every application
+  that trusts it (see ADR 0005, Consequences).

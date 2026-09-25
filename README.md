@@ -20,6 +20,10 @@ switchable between **PostgreSQL** and **SQL Server**
 ```bash
 docker compose up -d                                  # API + PostgreSQL
 docker compose -f docker-compose.sqlserver.yml up -d  # API + SQL Server (same image)
+
+# With a local Tokari for sign-in (built from ../Tokari), then register AdaPlatform in it once:
+docker compose -f docker-compose.yml -f docker-compose.tokari.yml up -d --build
+./tools/tokari/seed-dev.ps1                           # user "dispecer", password "Dispecer-dev-1"
 ```
 
 The API listens on `http://localhost:8080`. `/health` checks that it can actually
@@ -66,7 +70,26 @@ falls back to OpenStreetMap.
 # dotnet run: stored in the user-secrets store, outside the repo
 dotnet user-secrets set "Map:MapyComApiKey" "<key>" --project src/AdaPlatform.Api
 # docker compose: a gitignored .env file next to docker-compose.yml
-echo MAPY_API_KEY=<key> > .env
+echo MAPY_API_KEY=<key> >> .env
+```
+
+### Sign-in (Tokari)
+
+Users sign in with their Tokari account, as in Herman's other applications. The API
+checks Tokari's tokens with Tokari's signing key and proxies login, so the refresh token
+stays in an HttpOnly cookie (see [ADR 0005](docs/adr/0005-sign-in-through-tokari.md)).
+Access comes from a role in Tokari's **AdaPlatform** application that grants
+`network:read` (network map) and/or `quality:read` (device health).
+
+```bash
+# .env (gitignored) for docker compose: Tokari's JwtSettings:SigningKey, and the key that
+# lifts Tokari's per-IP refresh limit. docker-compose.tokari.yml uses the same values.
+TOKARI_SIGNING_KEY=<at least 32 characters>
+TOKARI_API_KEY=<random>
+TOKARI_DB_PASSWORD=<random, for the local Tokari's SQL Server>
+
+# dotnet run: the same key in user-secrets; Tokari:BaseUrl defaults to localhost:8091
+dotnet user-secrets set "Tokari:SigningKey" "<key>" --project src/AdaPlatform.Api
 ```
 
 ### Frontend
