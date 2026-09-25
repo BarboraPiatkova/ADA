@@ -1,6 +1,6 @@
 # Profil datové sady
 
-Vygenerováno 2026-09-25 09:37 příkazem `AdaPlatform.Cli profile` z databáze platformy, verze kódu `fba53c0-dirty`.
+Vygenerováno 2026-09-25 10:01 příkazem `AdaPlatform.Cli profile` z databáze platformy, verze kódu `2bd658d`.
 Každý údaj má identifikátor (F1, F2, …) a uvádí, z jakých dat a jak byl spočten. V textu práce stačí odkázat na identifikátor, např. „(vlastní analýza, F4)“.
 
 ## Surové záznamy jednotek UCP (DPMB)
