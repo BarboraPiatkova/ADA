@@ -1,3 +1,4 @@
+import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
@@ -6,7 +7,7 @@ import { defineConfig } from 'vite'
 const apiTarget = process.env.API_URL ?? 'http://localhost:8080'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [tailwindcss(), react()],
   server: {
     proxy: {
       '/api': apiTarget,
