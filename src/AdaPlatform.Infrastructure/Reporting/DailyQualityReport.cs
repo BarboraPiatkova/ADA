@@ -44,32 +44,24 @@ public sealed class DailyQualityReport(AppDbContext db)
             .ToDictionaryAsync(s => (s.VehicleId, DateOnly.FromDateTime(s.Day)), ct);
 
         // Passengers per stop are counter differences (see DoorStopPairing).
-        var passengers = new Dictionary<(int Vehicle, DateOnly Day), (int In, int Out)>();
-        await foreach (var count in DoorStopPairing.StreamAsync(db, new DoorStopPairing(), ct))
-        {
-            var key = (count.VehicleId, DateOnly.FromDateTime(count.Time));
-            var (boardings, alightings) = passengers.GetValueOrDefault(key);
-            passengers[key] = (boardings + count.Boardings, alightings + count.Alightings);
-        }
+        var passengers = await DoorStopPairing.SumAsync(db, c => (c.VehicleId, DateOnly.FromDateTime(c.Time)), ct);
 
         return summaries.Keys.Union(passengers.Keys)
             .Order()
             .Select(key =>
             {
-                var (boardings, alightings) = passengers.GetValueOrDefault(key);
+                var door = passengers.GetValueOrDefault(key);
                 var summary = summaries.GetValueOrDefault(key);
                 var total = summary?.Total ?? 0;
                 return new VehicleDayDto(
                     key.Item1,
                     key.Item2,
-                    boardings,
-                    alightings,
-                    boardings + alightings >= thresholds.MinPassengersForBalance
-                        ? Math.Abs(boardings - alightings) / (double)(boardings + alightings)
-                        : null,
+                    door.Boardings,
+                    door.Alightings,
+                    QualityMetrics.Imbalance(door.Boardings, door.Alightings, thresholds.MinPassengersForBalance),
                     total,
-                    total > 0 ? summary!.Negative / (double)total : null,
-                    total > 0 ? summary!.Flagged / (double)total : null);
+                    QualityMetrics.Share(summary?.Negative ?? 0, total),
+                    QualityMetrics.Share(summary?.Flagged ?? 0, total));
             })
             .ToList();
     }

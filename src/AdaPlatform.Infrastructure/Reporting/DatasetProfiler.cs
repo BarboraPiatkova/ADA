@@ -17,7 +17,7 @@ namespace AdaPlatform.Infrastructure.Reporting;
 /// Re-running on the same data gives the same numbers; the dataset fingerprint proves it's
 /// the same data.
 /// </summary>
-public sealed class DatasetProfiler(AppDbContext db)
+public sealed class DatasetProfiler(AppDbContext db, HealthThresholds thresholds)
 {
     private static readonly CultureInfo Cs = CultureInfo.GetCultureInfo("cs-CZ");
 
@@ -225,9 +225,10 @@ public sealed class DatasetProfiler(AppDbContext db)
         }
         var deviceTotals = perDoor.Select(kv => new { kv.Key.VehicleId, kv.Key.DeviceNumber, kv.Value.In, kv.Value.Out, kv.Value.Stops }).ToList();
 
-        var silent = deviceTotals.Where(d => d.In + d.Out == 0).ToList();
+        var silent = deviceTotals.Where(d => QualityMetrics.IsSilent(d.Stops, d.In, d.Out)).ToList();
+        var devicesPerVehicle = deviceTotals.CountBy(d => d.VehicleId).ToDictionary();
         var silentVehicles = silent.GroupBy(d => d.VehicleId)
-            .Where(g => g.Count() == deviceTotals.Count(d => d.VehicleId == g.Key))
+            .Where(g => g.Count() == devicesPerVehicle[g.Key])
             .Select(g => g.Key).ToList();
 
         md.AppendLine("### F7 Jednotky, které za celé období nenapočítaly nikoho");
@@ -247,10 +248,13 @@ public sealed class DatasetProfiler(AppDbContext db)
                 .Select(d => $"{d.VehicleId},{d.DeviceNumber},{d.In},{d.Out},{d.Stops}"));
 
         var vehicleDays = perVehicleDay.Select(kv => new { kv.Key.VehicleId, kv.Key.Day, kv.Value.In, kv.Value.Out }).ToList();
-        const int minPassengers = 100;
+        // The same minimum as the health report, so F8 and the UI judge balance alike.
+        var minPassengers = thresholds.MinPassengersForBalance;
         var traction = await db.Vehicles.AsNoTracking().ToDictionaryAsync(v => v.Id, v => v.Traction ?? "(neuvedeno)", ct);
-        var balance = vehicleDays.Where(v => v.In + v.Out >= minPassengers)
-            .Select(v => new { v.VehicleId, v.Day, v.In, v.Out, Imbalance = Math.Abs(v.In - v.Out) / (double)(v.In + v.Out), Traction = traction.GetValueOrDefault(v.VehicleId, "(neuvedeno)") })
+        var balance = vehicleDays
+            .Select(v => new { v.VehicleId, v.Day, v.In, v.Out, Imbalance = QualityMetrics.Imbalance(v.In, v.Out, minPassengers), Traction = traction.GetValueOrDefault(v.VehicleId, "(neuvedeno)") })
+            .Where(v => v.Imbalance is not null)
+            .Select(v => new { v.VehicleId, v.Day, v.In, v.Out, Imbalance = v.Imbalance!.Value, v.Traction })
             .OrderBy(v => v.Imbalance).ToList();
 
         md.AppendLine("### F8 Bilance nástupů a výstupů vozidla za den");

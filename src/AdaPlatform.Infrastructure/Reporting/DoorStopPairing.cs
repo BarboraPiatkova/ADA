@@ -91,10 +91,14 @@ public sealed class DoorStopPairing
         }
     }
 
-    /// <summary>Streams all counter readings from the database through a new pairing.</summary>
+    /// <summary>
+    /// Streams all counter readings from the database through a pairing: a new one unless
+    /// the caller wants its statistics afterwards (report F11).
+    /// </summary>
     public static async IAsyncEnumerable<DoorStopCount> StreamAsync(
-        AppDbContext db, DoorStopPairing pairing, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        AppDbContext db, DoorStopPairing? pairing = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
+        pairing ??= new DoorStopPairing();
         var readings = db.DeviceEvents.AsNoTracking()
             .Where(e => e.DeviceNumber > 0 && (e.Type == DeviceEventType.CountingStarted
                                                || e.Type == DeviceEventType.CountingStopped
@@ -111,4 +115,22 @@ public sealed class DoorStopPairing
             }
         }
     }
+
+    /// <summary>Door counts added up by <paramref name="keyOf"/>: stops, boardings and alightings per key.</summary>
+    public static async Task<Dictionary<TKey, DoorTotals>> SumAsync<TKey>(
+        AppDbContext db, Func<DoorStopCount, TKey> keyOf, CancellationToken ct = default)
+        where TKey : notnull
+    {
+        var totals = new Dictionary<TKey, DoorTotals>();
+        await foreach (var count in StreamAsync(db, ct: ct))
+        {
+            var key = keyOf(count);
+            var t = totals.GetValueOrDefault(key);
+            totals[key] = new DoorTotals(t.Stops + 1, t.Boardings + count.Boardings, t.Alightings + count.Alightings);
+        }
+        return totals;
+    }
 }
+
+/// <summary>Stops counted and passengers counted, summed over some grouping.</summary>
+public readonly record struct DoorTotals(int Stops, int Boardings, int Alightings);

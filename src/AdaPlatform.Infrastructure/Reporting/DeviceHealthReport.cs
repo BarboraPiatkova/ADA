@@ -131,13 +131,7 @@ public sealed class DeviceHealthReport(AppDbContext db)
 
         // Passengers per door: counter readings are running totals, so pair start → stop
         // and take the difference (see DoorStopPairing).
-        var doors = new Dictionary<(int Vehicle, int Device), (int Stops, int In, int Out)>();
-        await foreach (var count in DoorStopPairing.StreamAsync(db, new DoorStopPairing(), ct))
-        {
-            var key = (count.VehicleId, count.DeviceNumber);
-            var (stops, boardings, alightings) = doors.GetValueOrDefault(key);
-            doors[key] = (stops + 1, boardings + count.Boardings, alightings + count.Alightings);
-        }
+        var doors = await DoorStopPairing.SumAsync(db, c => (c.VehicleId, c.DeviceNumber), ct);
 
         var summaries = await db.DeviceEvents.AsNoTracking()
             .Where(e => e.Type == DeviceEventType.StopSummary)
@@ -151,8 +145,9 @@ public sealed class DeviceHealthReport(AppDbContext db)
                 .Select(e => new { e.VehicleId, e.InvalidDevices })
                 .ToListAsync(ct))
             .SelectMany(e => e.InvalidDevices!.Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                .Select(d => int.TryParse(d, out var n) ? (e.VehicleId, Device: n) : (e.VehicleId, Device: -1)))
-            .Where(k => k.Device > 0)
+                .Select(d => int.TryParse(d, out var n) ? n : 0)
+                .Where(n => n > 0)
+                .Select(n => (e.VehicleId, Device: n)))
             .GroupBy(k => k)
             .ToDictionary(g => g.Key, g => g.Count());
 
@@ -160,100 +155,50 @@ public sealed class DeviceHealthReport(AppDbContext db)
             .ToDictionaryAsync(d => (d.VehicleId, d.DeviceNumber), d => d.FirmwareVersion, ct);
         var vehicles = await db.Vehicles.AsNoTracking().ToDictionaryAsync(v => v.Id, ct);
 
+        // Lookups instead of scanning every device's rows once per vehicle.
+        var eventCounts = perDevice.ToDictionary(p => (p.VehicleId, p.DeviceNumber, p.Type));
+        var devicesOf = perDevice.Select(p => (p.VehicleId, p.DeviceNumber))
+            .Concat(doors.Keys)
+            .Distinct()
+            .ToLookup(k => k.VehicleId, k => k.DeviceNumber);
+
         var rows = new List<VehicleHealthDto>();
         foreach (var vehicle in days.OrderBy(d => d.VehicleId))
         {
-            var events = perDevice.Where(p => p.VehicleId == vehicle.VehicleId).ToList();
-            var deviceNumbers = events.Select(p => p.DeviceNumber)
-                .Concat(doors.Keys.Where(k => k.Vehicle == vehicle.VehicleId).Select(k => k.Device))
-                .Distinct().Order();
-            var devices = deviceNumbers.Select(number =>
+            var devices = devicesOf[vehicle.VehicleId].Order().Select(number =>
             {
-                var heartbeats = events.FirstOrDefault(p => p.DeviceNumber == number && p.Type == DeviceEventType.Heartbeat);
-                var restarts = events.FirstOrDefault(p => p.DeviceNumber == number && p.Type == DeviceEventType.DeviceRestart);
-                var (stops, doorIn, doorOut) = doors.GetValueOrDefault((vehicle.VehicleId, number));
+                var heartbeats = eventCounts.GetValueOrDefault((vehicle.VehicleId, number, DeviceEventType.Heartbeat));
+                var restarts = eventCounts.GetValueOrDefault((vehicle.VehicleId, number, DeviceEventType.DeviceRestart));
+                var door = doors.GetValueOrDefault((vehicle.VehicleId, number));
                 var flagged = flaggedPerDevice.GetValueOrDefault((vehicle.VehicleId, number));
+                var verdict = HealthRules.Device(
+                    new DeviceStats(door.Stops, door.Boardings, door.Alightings, flagged, heartbeats?.Count ?? 0, heartbeats?.NotAlive ?? 0),
+                    thresholds);
 
-                var reasons = new List<HealthReasonDto>();
-                var status = stops == 0 ? HealthStatus.Unknown : HealthStatus.Ok;
-                if (stops > 0 && doorIn + doorOut == 0)
-                {
-                    reasons.Add(new(HealthReason.DeviceSilent, stops));
-                    status = HealthStatus.Fault;
-                }
-                if (stops > 0 && flagged / (double)stops >= thresholds.FlaggedStopsWarning)
-                {
-                    reasons.Add(new(HealthReason.DeviceFlagged, flagged / (double)stops));
-                    status = Worse(status, HealthStatus.Warning);
-                }
-                if (heartbeats is { Count: > 0 } && heartbeats.NotAlive / (double)heartbeats.Count >= thresholds.NotAliveWarning)
-                {
-                    reasons.Add(new(HealthReason.DeviceNotAlive, heartbeats.NotAlive / (double)heartbeats.Count));
-                    status = Worse(status, HealthStatus.Warning);
-                }
-
-                return new DeviceHealthDto(number, firmware.GetValueOrDefault((vehicle.VehicleId, number)), stops,
-                    doorIn, doorOut, heartbeats?.Count ?? 0, heartbeats?.NotAlive ?? 0,
-                    restarts?.Count ?? 0, flagged, status, reasons);
+                return new DeviceHealthDto(number, firmware.GetValueOrDefault((vehicle.VehicleId, number)), door.Stops,
+                    door.Boardings, door.Alightings, heartbeats?.Count ?? 0, heartbeats?.NotAlive ?? 0,
+                    restarts?.Count ?? 0, flagged, verdict.Status, verdict.Reasons);
             }).ToList();
 
             var boardings = devices.Sum(d => d.Boardings);
             var alightings = devices.Sum(d => d.Alightings);
-            double? imbalance = boardings + alightings >= thresholds.MinPassengersForBalance
-                ? Math.Abs(boardings - alightings) / (double)(boardings + alightings)
-                : null;
+            var imbalance = QualityMetrics.Imbalance(boardings, alightings, thresholds.MinPassengersForBalance);
             var summary = summaries.GetValueOrDefault(vehicle.VehicleId);
-            double? negativeShare = summary is { Total: > 0 } ? summary.Negative / (double)summary.Total : null;
-            double? flaggedShare = summary is { Total: > 0 } ? summary.Flagged / (double)summary.Total : null;
-            var silent = devices.Count(d => d.StopsCounted > 0 && d.Boardings + d.Alightings == 0);
+            var negativeShare = QualityMetrics.Share(summary?.Negative ?? 0, summary?.Total ?? 0);
+            var flaggedShare = QualityMetrics.Share(summary?.Flagged ?? 0, summary?.Total ?? 0);
+            var silent = devices.Count(d => QualityMetrics.IsSilent(d.StopsCounted, d.Boardings, d.Alightings));
 
-            var vehicleReasons = new List<HealthReasonDto>();
-            var vehicleStatus = devices.Any(d => d.StopsCounted > 0) ? HealthStatus.Ok : HealthStatus.Unknown;
-            if (silent > 0)
-            {
-                var all = silent == devices.Count(d => d.StopsCounted > 0);
-                vehicleReasons.Add(all ? new(HealthReason.AllDevicesSilent) : new(HealthReason.SomeDevicesSilent, silent));
-                vehicleStatus = Worse(vehicleStatus, all ? HealthStatus.Fault : HealthStatus.Warning);
-            }
-            if (imbalance is { } i && i >= thresholds.ImbalanceWarning)
-            {
-                vehicleReasons.Add(new(HealthReason.Imbalance, i));
-                vehicleStatus = Worse(vehicleStatus, i >= thresholds.ImbalanceFault ? HealthStatus.Fault : HealthStatus.Warning);
-            }
-            if (negativeShare is { } n && n >= thresholds.NegativeOccupancyWarning)
-            {
-                vehicleReasons.Add(new(HealthReason.NegativeOccupancy, n));
-                vehicleStatus = Worse(vehicleStatus, n >= thresholds.NegativeOccupancyFault ? HealthStatus.Fault : HealthStatus.Warning);
-            }
-            if (flaggedShare is { } f && f >= thresholds.FlaggedStopsWarning)
-            {
-                vehicleReasons.Add(new(HealthReason.FlaggedStops, f));
-                vehicleStatus = Worse(vehicleStatus, HealthStatus.Warning);
-            }
-            if (devices.Any(d => d.Status == HealthStatus.Warning) && vehicleStatus == HealthStatus.Ok)
-            {
-                vehicleReasons.Add(new(HealthReason.DeviceWarning));
-                vehicleStatus = HealthStatus.Warning;
-            }
+            var assessment = HealthRules.Vehicle(
+                new VehicleStats(devices.Count(d => d.StopsCounted > 0), silent, imbalance, negativeShare, flaggedShare,
+                    devices.Any(d => d.Status == HealthStatus.Warning)),
+                thresholds);
 
             vehicles.TryGetValue(vehicle.VehicleId, out var info);
             rows.Add(new VehicleHealthDto(vehicle.VehicleId, info?.Traction, info?.Model, vehicle.Days,
                 boardings, alightings, imbalance, summary?.Total ?? 0, negativeShare, flaggedShare, silent,
-                vehicleStatus, vehicleReasons, devices));
+                assessment.Status, assessment.Reasons, devices));
         }
 
         return new DeviceHealthReportDto(days.Min(d => d.From), days.Max(d => d.To), thresholds, rows);
     }
-
-    private static HealthStatus Worse(HealthStatus current, HealthStatus candidate) =>
-        Rank(candidate) > Rank(current) ? candidate : current;
-
-    private static int Rank(HealthStatus s) => s switch
-    {
-        HealthStatus.Unknown => 0,
-        HealthStatus.Ok => 1,
-        HealthStatus.Warning => 2,
-        HealthStatus.Fault => 3,
-        _ => 0,
-    };
 }

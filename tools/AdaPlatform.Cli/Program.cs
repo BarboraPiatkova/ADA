@@ -56,7 +56,7 @@ try
     {
         "import-ada" => await new AdaSqliteImporter(db).ImportAsync(source!),
         "import-ucp" => await new UcpLogIngestor(db).IngestAsync(source!),
-        "profile" => await new DatasetProfiler(db).ProfileAsync(output!, CodeVersion()),
+        "profile" => await new DatasetProfiler(db, new HealthThresholds()).ProfileAsync(output!, CodeVersion()),
         _ => throw new ArgumentException($"Unknown command '{command}'."),
     };
     Console.WriteLine(report);
