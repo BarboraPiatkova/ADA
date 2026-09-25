@@ -198,6 +198,8 @@ export const cs = {
     page: 'Stránka {{page}}',
   },
   charts: {
+    histogramKeys: 'Sloupce grafu: šipkami vlevo a vpravo přecházíte mezi rozmezími, Enter podle rozmezí filtruje.',
+    statusBarsKeys: 'Pruhy grafu: šipkami nahoru a dolů přecházíte mezi typy, vlevo a vpravo mezi stavy, Enter filtruje.',
     analysis: 'Analýza',
     metric: 'Ukazatel',
     metrics: {

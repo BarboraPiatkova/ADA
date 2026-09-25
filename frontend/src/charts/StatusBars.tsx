@@ -5,9 +5,10 @@ import { cn } from '../ui/cn'
 import { STATUS_BG, STATUS_FILL, STATUS_TEXT } from '../ui/status'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import type { StatusGroup } from './data'
-import { AXIS_LABEL, AXIS_LABEL_STRONG, CHART_BOX, DIMMED, HIT_AREA, LEGEND, SWATCH, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
+import { AXIS_LABEL, AXIS_LABEL_STRONG, CHART_BOX, DIMMED, FOCUS_RING, HIT_AREA, LEGEND, SWATCH, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
 import { useElementWidth, useTooltip } from './useChart'
+import { useRovingFocus } from './useRovingFocus'
 
 const STATUSES: HealthStatus[] = ['Fault', 'Warning', 'Ok', 'Unknown']
 const ROW = 30
@@ -15,14 +16,6 @@ const BAR = 16
 const LABEL_WIDTH = 168
 const TOTAL_WIDTH = 44
 const GAP = 2
-
-/** Enter or Space activates a focusable chart mark, like a button. */
-const onActivate = (action: () => void) => (event: React.KeyboardEvent) => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    action()
-  }
-}
 
 /** The folded tail ("other") is not a real group, so it can't be filtered by. */
 const OTHER = '__other'
@@ -61,12 +54,18 @@ export function StatusBars({
   const maxTotal = Math.max(1, ...sorted.map(total))
   const plotWidth = Math.max(0, width - LABEL_WIDTH - TOTAL_WIDTH)
   const scale = (n: number) => (n / maxTotal) * plotWidth
+  // Per row: the type label (when it filters), then one mark per status present.
+  const marks = sorted.flatMap((group, row) => [
+    ...(onSelectGroup && group.key !== OTHER ? [[row, 0] as const] : []),
+    ...STATUSES.filter((s) => group.counts[s] > 0).map((_, i) => [row, i + 1] as const),
+  ])
+  const roving = useRovingFocus(marks)
 
   return (
     <div ref={wrap} className="min-w-0">
       <div ref={box} className={CHART_BOX}>
         {width > 0 && (
-          <svg width={width} height={sorted.length * ROW} >
+          <svg width={width} height={sorted.length * ROW} role="group" aria-label={t('charts.statusBarsKeys')}>
             {sorted.map((group, row) => {
               const y = row * ROW + (ROW - BAR) / 2
               const present = STATUSES.filter((s) => group.counts[s] > 0)
@@ -77,19 +76,23 @@ export function StatusBars({
               return (
                 <g key={group.key} className={groupDimmed ? 'opacity-30' : undefined}>
                   {onSelectGroup && selectable && (
-                    <rect
-                      x={0}
-                      y={row * ROW}
-                      width={LABEL_WIDTH - 4}
-                      height={ROW}
-                      className={cn(HIT_AREA, 'cursor-pointer')}
-                      tabIndex={0}
-                      role="button"
-                      aria-pressed={selectedKey === group.key}
-                      aria-label={group.label}
-                      onClick={selectGroup}
-                      onKeyDown={onActivate(selectGroup)}
-                    />
+                    <>
+                      <rect
+                        x={0}
+                        y={row * ROW}
+                        width={LABEL_WIDTH - 4}
+                        height={ROW}
+                        className={cn(HIT_AREA, 'cursor-pointer')}
+                        {...roving.itemProps(row, 0, selectGroup)}
+                        role="button"
+                        aria-pressed={selectedKey === group.key}
+                        aria-label={group.label}
+                        onClick={selectGroup}
+                      />
+                      {roving.isFocused(row, 0) && (
+                        <rect x={2} y={row * ROW + 2} width={LABEL_WIDTH - 8} height={ROW - 4} rx={4} className={FOCUS_RING} />
+                      )}
+                    </>
                   )}
                   <text
                     x={LABEL_WIDTH - 10}
@@ -118,26 +121,46 @@ export function StatusBars({
                         </span>
                       </>
                     )
+                    const canSelect = selectable && !!onSelectSegment
+                    const focus = roving.itemProps(row, i + 1, canSelect ? selectSegment : undefined)
                     return (
-                      <path
-                        key={status}
-                        className={cn(
-                          'outline-none hover:opacity-80 focus-visible:opacity-80',
-                          STATUS_FILL[status],
-                          segmentDimmed && DIMMED,
-                          selectable && onSelectSegment && 'cursor-pointer',
+                      <g key={status} className="group/segment">
+                        <path
+                          className={cn(
+                            'pointer-events-none group-hover/segment:opacity-80',
+                            STATUS_FILL[status],
+                            segmentDimmed && DIMMED,
+                          )}
+                          d={`M${x0},${y} H${x0 + w - r} Q${x0 + w},${y} ${x0 + w},${y + r} V${y + BAR - r} Q${x0 + w},${y + BAR} ${x0 + w - r},${y + BAR} H${x0} Z`}
+                        />
+                        {/* Hit area the full row tall (30px ≥ 24px). A segment narrower than 24px
+                            falls under WCAG 2.5.8's "equivalent" exception: the type label and the
+                            status filter pills reach the same filter with full-size targets. */}
+                        <rect
+                          x={x0}
+                          y={row * ROW}
+                          width={w}
+                          height={ROW}
+                          className={cn(HIT_AREA, canSelect && 'cursor-pointer')}
+                          {...focus}
+                          role={canSelect ? 'button' : 'img'}
+                          aria-label={`${group.label}, ${t(`health.status.${status}`)}: ${countLabel(group.counts[status])}`}
+                          onPointerMove={(event) => show(event, content)}
+                          onPointerLeave={hide}
+                          onFocus={(event) => {
+                            focus.onFocus(event)
+                            show(event.currentTarget.getBoundingClientRect(), content)
+                          }}
+                          onBlur={() => {
+                            focus.onBlur()
+                            hide()
+                          }}
+                          onClick={selectSegment}
+                        />
+                        {roving.isFocused(row, i + 1) && (
+                          <rect x={x0 - 2} y={y - 3} width={w + 4} height={BAR + 6} rx={5} className={FOCUS_RING} />
                         )}
-                        tabIndex={0}
-                        role={selectable && onSelectSegment ? 'button' : undefined}
-                        aria-label={`${group.label}, ${t(`health.status.${status}`)}: ${countLabel(group.counts[status])}`}
-                        d={`M${x0},${y} H${x0 + w - r} Q${x0 + w},${y} ${x0 + w},${y + r} V${y + BAR - r} Q${x0 + w},${y + BAR} ${x0 + w - r},${y + BAR} H${x0} Z`}
-                        onPointerMove={(event) => show(event, content)}
-                        onPointerLeave={hide}
-                        onFocus={(event) => show(event.currentTarget.getBoundingClientRect(), content)}
-                        onBlur={hide}
-                        onClick={selectSegment}
-                        onKeyDown={onActivate(selectSegment)}
-                      />
+                      </g>
                     )
                   })}
                   <text x={LABEL_WIDTH + scale(total(group)) + 8} y={row * ROW + ROW / 2} className={AXIS_LABEL} dominantBaseline="middle">

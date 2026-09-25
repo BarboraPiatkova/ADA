@@ -192,6 +192,8 @@ export const en = {
     page: 'Page {{page}}',
   },
   charts: {
+    histogramKeys: 'Chart bars: Left and Right move between ranges, Enter filters by a range.',
+    statusBarsKeys: 'Chart bars: Up and Down move between types, Left and Right between statuses, Enter filters.',
     analysis: 'Analysis',
     metric: 'Measure',
     metrics: {

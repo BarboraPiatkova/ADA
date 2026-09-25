@@ -2,9 +2,10 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../ui/cn'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import type { HistogramBin } from './data'
-import { AXIS_LABEL, BASELINE, CHART_BOX, DIMMED, GRIDLINE, HIT_AREA, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
+import { AXIS_LABEL, BASELINE, CHART_BOX, DIMMED, FOCUS_RING, GRIDLINE, HIT_AREA, MIN_TARGET, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
 import { useElementWidth, useTooltip } from './useChart'
+import { useRovingFocus } from './useRovingFocus'
 
 const PLOT_HEIGHT = 190
 const LEFT = 40
@@ -12,14 +13,6 @@ const RIGHT = 12
 const TOP = 26 // room for threshold labels
 const AXIS_HEIGHT = 28
 const MAX_BAR = 24
-
-/** Enter or Space activates a focusable chart mark, like a button. */
-const onActivate = (action: () => void) => (event: React.KeyboardEvent) => {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault()
-    action()
-  }
-}
 
 /** Round tick step for a 0..max count axis (1, 2, 5, 10, 20, …). */
 function niceStep(max: number) {
@@ -51,8 +44,11 @@ export function Histogram({
   onSelect?: (bin: HistogramBin, isLast: boolean) => void
 }) {
   const { t } = useTranslation()
-  const [wrap, width] = useElementWidth<HTMLDivElement>()
+  const [wrap, available] = useElementWidth<HTMLDivElement>()
   const { box, tooltip, show, hide } = useTooltip()
+  const roving = useRovingFocus(bins.map((_, i) => [0, i] as const))
+  // Each column stays a usable target; on a narrow screen the chart scrolls in its card.
+  const width = available > 0 ? Math.max(available, LEFT + RIGHT + bins.length * MIN_TARGET) : 0
 
   const top = bins.length ? bins[bins.length - 1].to : 1
   const plotWidth = Math.max(0, width - LEFT - RIGHT)
@@ -77,7 +73,7 @@ export function Histogram({
     <div ref={wrap} className="min-w-0">
       <div ref={box} className={CHART_BOX}>
         {width > 0 && (
-          <svg width={width} height={TOP + PLOT_HEIGHT + AXIS_HEIGHT} >
+          <svg width={width} height={TOP + PLOT_HEIGHT + AXIS_HEIGHT} role="group" aria-label={t('charts.histogramKeys')}>
             {ticks.map((tick) => (
               <g key={tick}>
                 <line x1={LEFT} x2={width - RIGHT} y1={y(tick)} y2={y(tick)} className={tick === 0 ? BASELINE : GRIDLINE} />
@@ -93,6 +89,7 @@ export function Histogram({
               const x0 = cx - barWidth / 2
               const dimmed = selectedFrom !== undefined && selectedFrom !== bin.from
               const select = () => onSelect?.(bin, i === bins.length - 1)
+              const focus = roving.itemProps(0, i, onSelect ? select : undefined)
               const content = (
                 <>
                   <strong className={TOOLTIP_VALUE}>{countLabel(bin.count)}</strong>
@@ -110,17 +107,25 @@ export function Histogram({
                     width={band}
                     height={PLOT_HEIGHT}
                     className={cn(HIT_AREA, onSelect && 'cursor-pointer')}
-                    tabIndex={0}
-                    role={onSelect ? 'button' : undefined}
+                    {...focus}
+                    role={onSelect ? 'button' : 'img'}
                     aria-pressed={onSelect ? selectedFrom === bin.from : undefined}
                     aria-label={`${formatValue(bin.from)} – ${formatValue(bin.to)}: ${countLabel(bin.count)}`}
                     onClick={select}
-                    onKeyDown={onActivate(select)}
                     onPointerMove={(event) => show(event, content)}
                     onPointerLeave={hide}
-                    onFocus={(event) => show(event.currentTarget.getBoundingClientRect(), content)}
-                    onBlur={hide}
+                    onFocus={(event) => {
+                      focus.onFocus(event)
+                      show(event.currentTarget.getBoundingClientRect(), content)
+                    }}
+                    onBlur={() => {
+                      focus.onBlur()
+                      hide()
+                    }}
                   />
+                  {roving.isFocused(0, i) && (
+                    <rect x={LEFT + i * band + 1} y={TOP - 2} width={band - 2} height={PLOT_HEIGHT + 3} rx={4} className={FOCUS_RING} />
+                  )}
                   {bin.count > 0 && (
                     // 4px rounded data end, square at the baseline.
                     <path
