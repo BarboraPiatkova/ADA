@@ -2,8 +2,9 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../ui/cn'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import type { HistogramBin } from './data'
-import { AXIS_LABEL, BASELINE, CHART_BOX, DIMMED, FOCUS_RING, GRIDLINE, HIT_AREA, MIN_TARGET, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
+import { AXIS_LABEL, BASELINE, CHART_BOX, DIMMED, GRIDLINE, HIT_AREA, MIN_TARGET, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
+import { FocusRing } from './FocusRing'
 import { useElementWidth, useTooltip } from './useChart'
 import { useRovingFocus } from './useRovingFocus'
 
@@ -89,7 +90,6 @@ export function Histogram({
               const x0 = cx - barWidth / 2
               const dimmed = selectedFrom !== undefined && selectedFrom !== bin.from
               const select = () => onSelect?.(bin, i === bins.length - 1)
-              const focus = roving.itemProps(0, i, onSelect ? select : undefined)
               const content = (
                 <>
                   <strong className={TOOLTIP_VALUE}>{countLabel(bin.count)}</strong>
@@ -98,6 +98,11 @@ export function Histogram({
                   </span>
                 </>
               )
+              const focus = roving.itemProps(0, i, {
+                activate: onSelect ? select : undefined,
+                onFocus: (el) => show(el.getBoundingClientRect(), content),
+                onBlur: hide,
+              })
               return (
                 <g key={bin.from}>
                   {/* Hit area: the whole band, taller than the bar, so small bars are easy to hover. */}
@@ -114,18 +119,8 @@ export function Histogram({
                     onClick={select}
                     onPointerMove={(event) => show(event, content)}
                     onPointerLeave={hide}
-                    onFocus={(event) => {
-                      focus.onFocus(event)
-                      show(event.currentTarget.getBoundingClientRect(), content)
-                    }}
-                    onBlur={() => {
-                      focus.onBlur()
-                      hide()
-                    }}
                   />
-                  {roving.isFocused(0, i) && (
-                    <rect x={LEFT + i * band + 1} y={TOP - 2} width={band - 2} height={PLOT_HEIGHT + 3} rx={4} className={FOCUS_RING} />
-                  )}
+                  <FocusRing show={roving.isFocused(0, i)} x={LEFT + i * band + 1} y={TOP - 2} width={band - 2} height={PLOT_HEIGHT + 3} />
                   {bin.count > 0 && (
                     // 4px rounded data end, square at the baseline.
                     <path

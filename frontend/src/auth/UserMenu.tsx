@@ -15,7 +15,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
   return (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger
-        className="inline-flex size-8 cursor-pointer items-center pointer-coarse:size-11 justify-center rounded-full bg-route-soft font-display text-sm font-bold text-route hover:shadow-[0_0_0_2px_var(--route)] data-[state=open]:shadow-[0_0_0_2px_var(--route)]"
+        className="inline-flex size-8 cursor-pointer items-center touch-target justify-center rounded-full bg-route-soft font-display text-sm font-bold text-route hover:shadow-[0_0_0_2px_var(--route)] data-[state=open]:shadow-[0_0_0_2px_var(--route)]"
         aria-label={t('auth.account', { name: user.name })}
         title={user.name}
       >
@@ -34,7 +34,7 @@ export function UserMenu({ user }: { user: SessionUser }) {
           </div>
           <DropdownMenu.Separator className="my-1 h-px bg-rule" />
           <DropdownMenu.Item
-            className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-ink pointer-coarse:py-3 outline-none data-[highlighted]:bg-surface"
+            className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-2 text-ink touch-target outline-none data-[highlighted]:bg-surface"
             onSelect={() => void logout()}
           >
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

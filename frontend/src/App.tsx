@@ -84,7 +84,7 @@ function Shell({ session }: { session: Session }) {
           <BrandMark />
           <span>AdaPlatform</span>
         </p>
-        <Tabs.List className="order-3 flex h-[42px] w-full gap-1 self-stretch pointer-coarse:h-11 md:order-none md:h-auto md:w-auto" aria-label={t('app.screens')}>
+        <Tabs.List className="order-3 flex h-[42px] w-full gap-1 self-stretch touch-target md:order-none md:h-auto md:w-auto" aria-label={t('app.screens')}>
           {views.map((v) => (
             <Tabs.Trigger
               key={v}

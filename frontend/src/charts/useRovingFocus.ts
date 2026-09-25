@@ -24,11 +24,9 @@ export function useRovingFocus(marks: readonly MarkKey[]) {
   const ids = marks.map(id)
   const tabStop = active && ids.includes(active) ? active : ids[0]
 
+  // Focusing the element runs its onFocus, which makes it the Tab stop.
   const moveTo = (mark: MarkKey | undefined) => {
-    if (!mark) return
-    const key = id(mark)
-    setActive(key)
-    elements.current.get(key)?.focus()
+    if (mark) elements.current.get(id(mark))?.focus()
   }
 
   const onKeyDown = (row: number, col: number, activate?: () => void) => (event: React.KeyboardEvent) => {
@@ -54,7 +52,7 @@ export function useRovingFocus(marks: readonly MarkKey[]) {
         moveTo(inRow(rows[r + 1]))
         break
       case 'ArrowUp':
-        moveTo(inRow(r > 0 ? rows[r - 1] : undefined))
+        moveTo(inRow(rows[r - 1]))
         break
       case 'Home':
         moveTo([row, cols[0]])
@@ -73,8 +71,15 @@ export function useRovingFocus(marks: readonly MarkKey[]) {
     event.preventDefault()
   }
 
-  /** Props for one focusable mark; it must be one of `marks`. */
-  const itemProps = (row: number, col: number, activate?: () => void) => {
+  /**
+   * Props for one focusable mark; it must be one of `marks`. `activate` runs on Enter/Space;
+   * `onFocus`/`onBlur` run alongside the hook's own (e.g. to show and hide a tooltip).
+   */
+  const itemProps = (
+    row: number,
+    col: number,
+    { activate, onFocus, onBlur }: { activate?: () => void; onFocus?: (el: SVGElement) => void; onBlur?: () => void } = {},
+  ) => {
     const key = id([row, col])
     return {
       ref: (el: SVGElement | null) => {
@@ -86,8 +91,12 @@ export function useRovingFocus(marks: readonly MarkKey[]) {
       onFocus: (event: React.FocusEvent<SVGElement>) => {
         setActive(key)
         setFocused(event.currentTarget.matches(':focus-visible') ? key : null)
+        onFocus?.(event.currentTarget)
       },
-      onBlur: () => setFocused(null),
+      onBlur: () => {
+        setFocused(null)
+        onBlur?.()
+      },
     }
   }
 

@@ -3,7 +3,7 @@ import { useFormat } from '../i18n/format'
 import { Select } from './Select'
 
 const PAGE_BUTTON =
-  'inline-flex h-8 min-w-8 pointer-coarse:h-11 pointer-coarse:min-w-11 cursor-pointer items-center justify-center rounded-lg border border-rule bg-paper px-2 font-display font-semibold text-ink tabular-nums hover:enabled:border-ink-2 hover:enabled:bg-surface disabled:cursor-default disabled:text-ink-2 disabled:opacity-45 aria-[current=page]:cursor-default aria-[current=page]:border-route aria-[current=page]:bg-route aria-[current=page]:text-on-route'
+  'inline-flex h-8 min-w-8 touch-target cursor-pointer items-center justify-center rounded-lg border border-rule bg-paper px-2 font-display font-semibold text-ink tabular-nums hover:enabled:border-ink-2 hover:enabled:bg-surface disabled:cursor-default disabled:text-ink-2 disabled:opacity-45 aria-[current=page]:cursor-default aria-[current=page]:border-route aria-[current=page]:bg-route aria-[current=page]:text-on-route'
 
 /** Page-size choices; the table starts on the first. */
 const PAGE_SIZES = [25, 50, 100]

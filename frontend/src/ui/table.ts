@@ -17,5 +17,8 @@ export const TD_COMPACT = 'border-b border-rule px-2.5 py-[5px] text-sm whitespa
 /** Numbers align right so their digits line up. */
 export const NUM = 'text-right'
 
+/** A sortable column header: 24px tall for any pointer (WCAG 2.5.8), 44px on touch. */
+export const SORT_BUTTON = 'inline-flex min-h-6 cursor-pointer items-center gap-0.5 hover:text-ink touch-target'
+
 /** A free-text cell that may wrap. */
 export const WRAP = 'min-w-[240px] whitespace-normal'

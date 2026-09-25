@@ -5,8 +5,9 @@ import { cn } from '../ui/cn'
 import { STATUS_BG, STATUS_FILL, STATUS_TEXT } from '../ui/status'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import type { StatusGroup } from './data'
-import { AXIS_LABEL, AXIS_LABEL_STRONG, CHART_BOX, DIMMED, FOCUS_RING, HIT_AREA, LEGEND, SWATCH, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
+import { AXIS_LABEL, AXIS_LABEL_STRONG, CHART_BOX, DIMMED, HIT_AREA, LEGEND, SWATCH, TOOLTIP_LABEL, TOOLTIP_VALUE } from './marks'
 import { ChartTooltip } from './ChartTooltip'
+import { FocusRing } from './FocusRing'
 import { useElementWidth, useTooltip } from './useChart'
 import { useRovingFocus } from './useRovingFocus'
 
@@ -54,23 +55,30 @@ export function StatusBars({
   const maxTotal = Math.max(1, ...sorted.map(total))
   const plotWidth = Math.max(0, width - LABEL_WIDTH - TOTAL_WIDTH)
   const scale = (n: number) => (n / maxTotal) * plotWidth
-  // Per row: the type label (when it filters), then one mark per status present.
-  const marks = sorted.flatMap((group, row) => [
-    ...(onSelectGroup && group.key !== OTHER ? [[row, 0] as const] : []),
-    ...STATUSES.filter((s) => group.counts[s] > 0).map((_, i) => [row, i + 1] as const),
-  ])
-  const roving = useRovingFocus(marks)
+  // Per row, computed once for both the focus order and the drawing: the statuses present,
+  // and whether the row filters (the folded "other" tail doesn't).
+  const rows = sorted.map((group) => ({
+    group,
+    present: STATUSES.filter((s) => group.counts[s] > 0),
+    selectable: group.key !== OTHER,
+  }))
+  // Focusable marks per row: the type label (when it filters), then one per status present.
+  const roving = useRovingFocus(
+    rows.flatMap(({ present, selectable }, row) => [
+      ...(onSelectGroup && selectable ? [[row, 0] as const] : []),
+      ...present.map((_, i) => [row, i + 1] as const),
+    ]),
+  )
 
   return (
     <div ref={wrap} className="min-w-0">
       <div ref={box} className={CHART_BOX}>
         {width > 0 && (
           <svg width={width} height={sorted.length * ROW} role="group" aria-label={t('charts.statusBarsKeys')}>
-            {sorted.map((group, row) => {
+            {rows.map(({ group, present, selectable }, row) => {
               const y = row * ROW + (ROW - BAR) / 2
-              const present = STATUSES.filter((s) => group.counts[s] > 0)
               let x = LABEL_WIDTH
-              const selectable = group.key !== OTHER
+              const canSelect = selectable && !!onSelectSegment
               const groupDimmed = selectedKey !== undefined && selectedKey !== group.key
               const selectGroup = () => selectable && onSelectGroup?.(group.key)
               return (
@@ -83,15 +91,13 @@ export function StatusBars({
                         width={LABEL_WIDTH - 4}
                         height={ROW}
                         className={cn(HIT_AREA, 'cursor-pointer')}
-                        {...roving.itemProps(row, 0, selectGroup)}
+                        {...roving.itemProps(row, 0, { activate: selectGroup })}
                         role="button"
                         aria-pressed={selectedKey === group.key}
                         aria-label={group.label}
                         onClick={selectGroup}
                       />
-                      {roving.isFocused(row, 0) && (
-                        <rect x={2} y={row * ROW + 2} width={LABEL_WIDTH - 8} height={ROW - 4} rx={4} className={FOCUS_RING} />
-                      )}
+                      <FocusRing show={roving.isFocused(row, 0)} x={2} y={row * ROW + 2} width={LABEL_WIDTH - 8} height={ROW - 4} />
                     </>
                   )}
                   <text
@@ -121,8 +127,11 @@ export function StatusBars({
                         </span>
                       </>
                     )
-                    const canSelect = selectable && !!onSelectSegment
-                    const focus = roving.itemProps(row, i + 1, canSelect ? selectSegment : undefined)
+                    const focus = roving.itemProps(row, i + 1, {
+                      activate: canSelect ? selectSegment : undefined,
+                      onFocus: (el) => show(el.getBoundingClientRect(), content),
+                      onBlur: hide,
+                    })
                     return (
                       <g key={status} className="group/segment">
                         <path
@@ -147,19 +156,9 @@ export function StatusBars({
                           aria-label={`${group.label}, ${t(`health.status.${status}`)}: ${countLabel(group.counts[status])}`}
                           onPointerMove={(event) => show(event, content)}
                           onPointerLeave={hide}
-                          onFocus={(event) => {
-                            focus.onFocus(event)
-                            show(event.currentTarget.getBoundingClientRect(), content)
-                          }}
-                          onBlur={() => {
-                            focus.onBlur()
-                            hide()
-                          }}
                           onClick={selectSegment}
                         />
-                        {roving.isFocused(row, i + 1) && (
-                          <rect x={x0 - 2} y={y - 3} width={w + 4} height={BAR + 6} rx={5} className={FOCUS_RING} />
-                        )}
+                        <FocusRing show={roving.isFocused(row, i + 1)} x={x0 - 2} y={y - 3} width={w + 4} height={BAR + 6} />
                       </g>
                     )
                   })}

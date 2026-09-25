@@ -15,7 +15,7 @@ export function SegmentedItem({ className, ...props }: ComponentProps<typeof Tog
   return (
     <ToggleGroup.Item
       className={cn(
-        'inline-flex h-[26px] min-w-[30px] pointer-coarse:h-11 pointer-coarse:min-w-11 cursor-pointer items-center justify-center rounded-md px-[9px] font-display text-sm font-semibold text-ink-2',
+        'inline-flex h-[26px] min-w-[30px] touch-target cursor-pointer items-center justify-center rounded-md px-[9px] font-display text-sm font-semibold text-ink-2',
         'hover:bg-surface hover:text-ink focus-visible:outline-offset-1',
         'data-[state=on]:cursor-default data-[state=on]:bg-route data-[state=on]:text-on-route',
         className,

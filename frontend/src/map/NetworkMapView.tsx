@@ -55,7 +55,7 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
             <Accordion.Item key={line.id} value={String(line.id)}>
               <Accordion.Header asChild>
                 <h3 className="font-sans text-base font-normal">
-                  <Accordion.Trigger className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-1.5 py-[7px] text-left pointer-coarse:py-2.5 hover:bg-surface">
+                  <Accordion.Trigger className="group flex w-full cursor-pointer items-center gap-3 rounded-lg px-1.5 py-[7px] text-left touch-target hover:bg-surface">
                     <span className="min-w-[46px] rounded-md bg-route px-2 py-[3px] text-center font-display text-lg leading-[1.1] font-bold text-on-route">{line.id}</span>
                     <span className="text-sm text-ink-2">{t('map.patternsWithTrips', { count: withTrips.length })}</span>
                     <span className="ml-auto text-ink-2 transition-transform duration-150 group-data-[state=open]:rotate-180">
@@ -90,6 +90,9 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
 
 /** Radius of the invisible tap area around a stop on touch screens: a 24px target. */
 const TOUCH_HIT_RADIUS = 12
+// Invisible, but a transparent fill still receives pointer events. A constant, so
+// react-leaflet doesn't restyle every hit circle on each render.
+const TOUCH_HIT_STYLE = { stroke: false, fillColor: '#000', fillOpacity: 0 }
 
 function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number> }) {
   const { t } = useTranslation()
@@ -107,40 +110,31 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
           : t('map.stopActivity', { count: s.visits, boardings: s.boardings / s.visits, alightings: s.alightings / s.visits })}
       </>
     )
-    const tooltip = <Tooltip>{details}</Tooltip>
-    const marker = (
-      <CircleMarker
-        key={s.code}
-        center={[s.latitude, s.longitude]}
-        radius={radius}
-        interactive={!coarse}
-        pathOptions={{
-          color: s.visits === 0 ? 'var(--map-no-data)' : 'var(--map-route)',
-          weight: highlighted ? 3.5 : 2,
-          fillColor: 'var(--map-stop)',
-          fillOpacity: dimmed ? 0.5 : 0.95,
-          opacity: dimmed ? 0.3 : s.visits === 0 ? 0.6 : 1,
-        }}
-      >
-        {!coarse && tooltip}
-      </CircleMarker>
-    )
-    if (!coarse) return marker
-    // Touch: a finger can't hit a 4px circle. An invisible, larger circle takes the tap
-    // (a transparent fill still receives pointer events); the drawn marker is unchanged.
-    // A tap has no hover, so the details open as a popup that stays until dismissed.
     return (
       <Fragment key={s.code}>
-        {marker}
         <CircleMarker
           center={[s.latitude, s.longitude]}
-          radius={Math.max(TOUCH_HIT_RADIUS, radius)}
-          pathOptions={{ stroke: false, fillColor: '#000', fillOpacity: 0 }}
+          radius={radius}
+          interactive={!coarse}
+          pathOptions={{
+            color: s.visits === 0 ? 'var(--map-no-data)' : 'var(--map-route)',
+            weight: highlighted ? 3.5 : 2,
+            fillColor: 'var(--map-stop)',
+            fillOpacity: dimmed ? 0.5 : 0.95,
+            opacity: dimmed ? 0.3 : s.visits === 0 ? 0.6 : 1,
+          }}
         >
-          <Popup closeButton autoPan>
-            {details}
-          </Popup>
+          {!coarse && <Tooltip>{details}</Tooltip>}
         </CircleMarker>
+        {/* Touch: a finger can't hit a 4px circle, so a larger invisible one takes the tap.
+            A tap has no hover, so the details open as a popup that stays until dismissed. */}
+        {coarse && (
+          <CircleMarker center={[s.latitude, s.longitude]} radius={Math.max(TOUCH_HIT_RADIUS, radius)} pathOptions={TOUCH_HIT_STYLE}>
+            <Popup closeButton autoPan>
+              {details}
+            </Popup>
+          </CircleMarker>
+        )}
       </Fragment>
     )
   })

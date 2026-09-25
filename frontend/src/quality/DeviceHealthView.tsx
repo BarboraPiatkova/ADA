@@ -35,7 +35,7 @@ import { SegmentedItem, SegmentedRoot } from '../ui/Segmented'
 import { Select } from '../ui/Select'
 import { STATUS_BG } from '../ui/status'
 import { StatusPill } from '../ui/StatusPill'
-import { NUM, TABLE, TD, TH, WRAP } from '../ui/table'
+import { NUM, SORT_BUTTON, TABLE, TD, TH, WRAP } from '../ui/table'
 import { ActiveFilters } from './ActiveFilters'
 import { matches, NO_FILTERS, type FilterKey, type Filters } from './filters'
 import { METRIC_ORDER, METRICS, type MetricId } from './metrics'
@@ -216,7 +216,7 @@ function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
             {group.headers.map((header) => (
               <th key={header.id} className={cn(TH, DEVICE_NUMERIC.has(header.column.id) && NUM)}>
                 {header.column.getCanSort() ? (
-                  <button className="inline-flex min-h-6 cursor-pointer items-center gap-0.5 hover:text-ink pointer-coarse:min-h-11 pointer-coarse:min-w-11" onClick={header.column.getToggleSortingHandler()}>
+                  <button className={SORT_BUTTON} onClick={header.column.getToggleSortingHandler()}>
                     <table.FlexRender header={header} />
                     <SortIndicator sorted={header.column.getIsSorted()} />
                   </button>
@@ -447,7 +447,7 @@ function VehicleHealthTable({ report, daily, dailyPending }: { report: DeviceHea
             <ToggleGroup.Item
               key={s}
               value={s}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-rule bg-paper py-[5px] pr-3 pl-2 pointer-coarse:min-h-11 hover:bg-surface data-[state=on]:border-ink data-[state=on]:bg-surface-2"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-rule bg-paper py-[5px] pr-3 pl-2 touch-target hover:bg-surface data-[state=on]:border-ink data-[state=on]:bg-surface-2"
             >
               <StatusPill status={s} />
               <span className="font-display text-lg leading-none font-bold">{format.number(counts[s])}</span>
@@ -457,7 +457,7 @@ function VehicleHealthTable({ report, daily, dailyPending }: { report: DeviceHea
       </section>
 
       <div className="mb-3 flex flex-wrap items-center gap-4" role="search">
-        <label className="inline-flex h-8 items-center gap-1.5 rounded-lg pointer-coarse:h-11 border border-rule bg-paper px-2.5 text-ink-2 focus-within:border-route focus-within:shadow-[0_0_0_1px_var(--route)]">
+        <label className="inline-flex h-8 items-center gap-1.5 rounded-lg touch-target border border-rule bg-paper px-2.5 text-ink-2 focus-within:border-route focus-within:shadow-[0_0_0_1px_var(--route)]">
           <span className="sr-only">{t('health.searchLabel')}</span>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" />
@@ -580,7 +580,7 @@ function VehicleHealthTable({ report, daily, dailyPending }: { report: DeviceHea
                     aria-sort={header.column.getIsSorted() === 'asc' ? 'ascending' : header.column.getIsSorted() === 'desc' ? 'descending' : 'none'}
                   >
                     {header.column.getCanSort() ? (
-                      <button className="inline-flex min-h-6 cursor-pointer items-center gap-0.5 hover:text-ink pointer-coarse:min-h-11 pointer-coarse:min-w-11" onClick={header.column.getToggleSortingHandler()}>
+                      <button className={SORT_BUTTON} onClick={header.column.getToggleSortingHandler()}>
                         <table.FlexRender header={header} />
                         <SortIndicator sorted={header.column.getIsSorted()} />
                       </button>
