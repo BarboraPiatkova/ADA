@@ -1,11 +1,13 @@
 // AdaPlatform command-line tool.
 //
 //   dotnet run --project tools/AdaPlatform.Cli -- import-ada --source C:\Projects\ADA\ADA.dbFile
+//   dotnet run --project tools/AdaPlatform.Cli -- import-ucp --source T:\Projects\DPMB\ADA\ADA_20220808\APC_Logs.zip
 //
 // Target engine and connection come from appsettings.json / environment, exactly as for the API.
 
 using AdaPlatform.Infrastructure;
 using AdaPlatform.Infrastructure.Import.Ada;
+using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,6 +16,7 @@ using Microsoft.Extensions.Hosting;
 const string Usage = """
     Usage:
       AdaPlatform.Cli import-ada --source <ADA.dbFile>          seed from a legacy ADA database (empty target only)
+      AdaPlatform.Cli import-ucp --source <folder or .zip>      ingest raw UCP logs (APC_*.csv); safe to re-run
     """;
 
 if (args.Length == 0)
@@ -49,6 +52,7 @@ try
     object report = command switch
     {
         "import-ada" => await new AdaSqliteImporter(db).ImportAsync(source!),
+        "import-ucp" => await new UcpLogIngestor(db).IngestAsync(source!),
         _ => throw new ArgumentException($"Unknown command '{command}'."),
     };
     Console.WriteLine(report);
