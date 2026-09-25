@@ -1,0 +1,147 @@
+# Build, test and security checks for the backend, the frontend and the container image.
+# Third-party actions and images are pinned to a commit SHA / digest (the tag is in the
+# comment), so a moved or hijacked tag can't change what runs; Dependabot bumps the pins.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly, so a CVE published against an unchanged dependency still fails a run.
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+# Least privilege: the jobs only read the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  backend:
+    name: Backend (.NET)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      # ContinuousIntegrationBuild turns on locked-mode restore (Directory.Build.props):
+      # a package that doesn't match packages.lock.json fails here.
+      - name: Restore (locked)
+        run: dotnet restore AdaPlatform.slnx
+
+      - name: Check formatting
+        run: dotnet format AdaPlatform.slnx --verify-no-changes --no-restore
+
+      # Warnings are errors, and NuGet audit warnings are among them.
+      - name: Build
+        run: dotnet build AdaPlatform.slnx -c Release --no-restore
+
+      - name: Vulnerable packages (incl. transitive)
+        run: |
+          dotnet list AdaPlatform.slnx package --vulnerable --include-transitive | tee vulnerable.txt
+          if grep -q "has the following vulnerable packages" vulnerable.txt; then exit 1; fi
+
+      - name: Deprecated packages
+        run: dotnet list AdaPlatform.slnx package --deprecated
+
+      # The contract tests start Postgres and SQL Server with Testcontainers;
+      # the hosted runner has Docker.
+      - name: Test
+        run: >
+          dotnet test AdaPlatform.slnx -c Release --no-build
+          --logger trx --results-directory test-results
+          --collect "XPlat Code Coverage"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: backend-test-results
+          path: test-results
+          retention-days: 14
+
+  frontend:
+    name: Frontend (React)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # Exactly package-lock.json; install scripts are off (.npmrc).
+      - name: Install (ci)
+        run: npm ci
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=moderate
+
+      # Checks the registry signatures (and provenance, where published) of every package.
+      - name: Verify package signatures
+        run: npm audit signatures
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check and build
+        run: npm run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the whole history, not just the last commit
+          persist-credentials: false
+
+      - name: Gitleaks
+        run: >
+          docker run --rm -v "$PWD:/repo"
+          zricethezav/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          git /repo --redact --no-banner
+
+  image:
+    name: Container image
+    needs: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build API image
+        run: docker build -f src/AdaPlatform.Api/Dockerfile -t adaplatform-api:ci .
+
+      # OS packages and .NET runtime in the image; fails on a fixable HIGH/CRITICAL CVE.
+      - name: Trivy scan
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock
+          aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969
+          image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress
+          adaplatform-api:ci
