@@ -1,0 +1,148 @@
+/*
+ * AdaPlatform visual identity.
+ *
+ * Grounded in public-transport print: timetable ink on white paper, Barlow (a DIN-like
+ * signage face) in two widths, and petrol as the product colour — used for navigation,
+ * selection and the route-line motif, never for status. Status colours mean status only
+ * and always come with an icon and a word, never colour alone.
+ */
+
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow-semi-condensed/500.css';
+@import '@fontsource/barlow-semi-condensed/600.css';
+@import '@fontsource/barlow-semi-condensed/700.css';
+@import 'tailwindcss';
+@import './styles/tokens.css';
+
+/* Design tokens exposed as Tailwind theme values. `inline` keeps the var() references, so
+   utilities such as bg-paper or text-fault follow the light/dark switch automatically. */
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-rule: var(--rule);
+  --color-route: var(--route);
+  --color-route-strong: var(--route-strong);
+  --color-route-soft: var(--route-soft);
+  --color-on-route: var(--on-route);
+
+  --color-fault: var(--fault);
+  --color-fault-soft: var(--fault-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-unknown: var(--unknown);
+  --color-unknown-soft: var(--unknown-soft);
+
+  --color-seq-1: var(--seq-1);
+  --color-seq-2: var(--seq-2);
+  --color-seq-3: var(--seq-3);
+  --color-seq-4: var(--seq-4);
+  --color-seq-5: var(--seq-5);
+  --color-seq-6: var(--seq-6);
+  --color-series-1: var(--series-1);
+  --color-gridline: var(--gridline);
+  --color-axis: var(--axis);
+
+  --color-map-route: var(--map-route);
+  --color-map-casing: var(--map-casing);
+  --color-map-stop: var(--map-stop);
+  --color-map-no-data: var(--map-no-data);
+
+  --font-sans: var(--text);
+  --font-display: var(--display);
+
+  /* The product type scale (ratio 1.2 from 14px) replaces Tailwind's default sizes. */
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+
+  --shadow-float: var(--shadow-float);
+}
+
+@layer base {
+  body {
+    font-size: var(--text-base);
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--display);
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  /* One focus style everywhere: keyboard users always see where they are. */
+  :focus-visible {
+    outline: 2px solid var(--route);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
+
+/* Motion that answers an action: the rules panel slides in when opened. */
+@theme {
+  --animate-sheet-in: sheet-in 180ms ease-out;
+
+  @keyframes sheet-in {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * Touch targets. Controls keep their compact desktop sizes; on a touch-first device
+ * (coarse pointer) each grows to 44px — one definition instead of a size per component.
+ * min-height/min-width win over a component's fixed height, so no other class changes.
+ */
+:root {
+  --touch-target: 2.75rem;
+}
+
+@utility touch-target {
+  @media (pointer: coarse) {
+    /* Doubled class: outranks a component's own single-class min-width (e.g. min-w-[30px]),
+       whatever order Tailwind emits them in. */
+    &.touch-target {
+      min-height: var(--touch-target);
+      min-width: var(--touch-target);
+    }
+  }
+}
+
+/* Leaflet's zoom buttons (its own CSS, not a component here) get the same size. As specific
+   as Leaflet's ".leaflet-touch .leaflet-bar a", which would otherwise win. */
+@media (pointer: coarse) {
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-in,
+  .leaflet-touch .leaflet-bar a.leaflet-control-zoom-out {
+    width: var(--touch-target);
+    height: var(--touch-target);
+    line-height: var(--touch-target);
+  }
+}
+
+/* Leaflet builds its own tooltip DOM; give it the app's type. */
+.leaflet-tooltip,
+.leaflet-popup-content {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}

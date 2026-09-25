@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- The product mark (src/ui/icons.tsx BrandMark): a route line with three stops, in the
+       product colour. Tabs on a dark browser theme get the lighter dark-mode petrol. -->
+  <style>
+    .line { stroke: #0B6E6E; }
+    .stop { fill: #FFFFFF; stroke: #0B6E6E; }
+    @media (prefers-color-scheme: dark) {
+      .line { stroke: #52B5B0; }
+      .stop { fill: #111A1F; stroke: #52B5B0; }
+    }
+  </style>
+  <path class="line" d="M5 23h9l7-12h6" fill="none" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+  <circle class="stop" cx="5" cy="23" r="3.6" stroke-width="2.4" />
+  <circle class="stop" cx="17.5" cy="17" r="3.6" stroke-width="2.4" />
+  <circle class="stop" cx="27" cy="11" r="3.6" stroke-width="2.4" />
+</svg>

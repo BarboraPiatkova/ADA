@@ -1,6 +1,13 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/AdaPlatform.Domain/AdaPlatform.Domain.csproj" />
+    <Project Path="src/AdaPlatform.Infrastructure/AdaPlatform.Infrastructure.csproj" />
+    <Project Path="src/AdaPlatform.Migrations.Postgres/AdaPlatform.Migrations.Postgres.csproj" />
+    <Project Path="src/AdaPlatform.Migrations.SqlServer/AdaPlatform.Migrations.SqlServer.csproj" />
     <Project Path="src/AdaPlatform.Api/AdaPlatform.Api.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/AdaPlatform.Cli/AdaPlatform.Cli.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/AdaPlatform.Api.Tests/AdaPlatform.Api.Tests.csproj" />

@@ -1,19 +1,23 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Local secrets (e.g. Map:MapyComApiKey) live in the user-secrets store, never in the repo. -->
+    <UserSecretsId>56b3f5a4-8d95-4252-9c70-0155e48c670f</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.11" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AdaPlatform.Infrastructure\AdaPlatform.Infrastructure.csproj" />
+    <!--
+      Both migration sets ship with the API so one build can run on either engine;
+      Database:Provider picks which one is applied at runtime.
+    -->
+    <ProjectReference Include="..\AdaPlatform.Migrations.Postgres\AdaPlatform.Migrations.Postgres.csproj" />
+    <ProjectReference Include="..\AdaPlatform.Migrations.SqlServer\AdaPlatform.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
 </Project>

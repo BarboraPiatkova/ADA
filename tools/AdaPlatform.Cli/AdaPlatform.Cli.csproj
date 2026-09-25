@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\AdaPlatform.Infrastructure\AdaPlatform.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\AdaPlatform.Migrations.Postgres\AdaPlatform.Migrations.Postgres.csproj" />
+    <ProjectReference Include="..\..\src\AdaPlatform.Migrations.SqlServer\AdaPlatform.Migrations.SqlServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

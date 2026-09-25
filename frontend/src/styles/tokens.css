@@ -1,0 +1,96 @@
+/* Raw design tokens: light by default, dark under <html data-theme="dark">. The theme script resolves "follow the system" into that attribute, so the dark palette is written once. Tailwind utilities read these through @theme in index.css, so every utility switches theme with no dark: variant. */
+
+:root {
+  --ink: #1b2430;
+  --ink-2: #566170;
+  --paper: #ffffff;
+  --surface: #f3f5f5;
+  --surface-2: #e7ecec;
+  --rule: #d4dbdb;
+  --route: #0b6e6e;
+  --route-strong: #075656;
+  --route-soft: #e0efee;
+  --on-route: #ffffff;
+
+  --fault: #b42318;
+  --fault-soft: #fce9e7;
+  --warning: #945400;
+  --warning-soft: #fdf0d9;
+  --ok: #1d7a46;
+  --ok-soft: #e4f3e9;
+  --unknown: #566170;
+  --unknown-soft: #edf0f2;
+
+  --shadow-float: 0 1px 2px rgba(27, 36, 48, 0.12), 0 6px 20px rgba(27, 36, 48, 0.14);
+
+  /* Drawn on map tiles, which stay light in both themes — so these don't switch with it. */
+  --map-route: #0b6e6e;
+  --map-casing: #ffffff;
+  --map-stop: #ffffff;
+  --map-no-data: #7a8591;
+
+  /* Charts. Sequential = one petrol hue, light → dark (validated: monotone L, ΔL ≥ 0.06). */
+  --seq-1: #c1f7f6;
+  --seq-2: #77dcdb;
+  --seq-3: #25bcbc;
+  --seq-4: #009999;
+  --seq-5: #007575;
+  --seq-6: #1d5151;
+  --series-1: #009090; /* single-series marks: passes band, chroma and contrast checks */
+  --gridline: #e6eaea;
+  --axis: #c3cccc;
+
+  --text: 'Barlow', system-ui, sans-serif;
+  --display: 'Barlow Semi Condensed', 'Barlow', system-ui, sans-serif;
+
+  /* Type scale, ratio 1.2 from 14px. */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+
+  color-scheme: light;
+  /* The root keeps the browser font size (1rem = 16px by default, larger if the user set it),
+     so Tailwind's rem spacing is right; body text is 14px (see index.css). */
+  font-family: var(--text);
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme='dark'] {
+  --ink: #e6ecec;
+  --ink-2: #a2adb6;
+  --paper: #111a1f;
+  --surface: #17232a;
+  --surface-2: #203039;
+  --rule: #2d3d46;
+  --route: #52b5b0;
+  --route-strong: #7fd0cb;
+  --route-soft: rgba(82, 181, 176, 0.16);
+  --on-route: #0a2323;
+  --fault: #ff8b7b;
+  --fault-soft: rgba(255, 139, 123, 0.14);
+  --warning: #f0b54a;
+  --warning-soft: rgba(240, 181, 74, 0.14);
+  --ok: #5dca8b;
+  --ok-soft: rgba(93, 202, 139, 0.14);
+  --unknown: #a2adb6;
+  --unknown-soft: rgba(162, 173, 182, 0.14);
+  --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
+  --seq-1: #104040;
+  --seq-2: #006161;
+  --seq-3: #008282;
+  --seq-4: #18a4a4;
+  --seq-5: #67c1c1;
+  --seq-6: #acdcdb;
+  --series-1: #119999;
+  --gridline: #23323a;
+  --axis: #3a4b55;
+  color-scheme: dark;
+}
+

@@ -1,0 +1,45 @@
+# Dependency updates as pull requests, so each one goes through CI and review.
+# Related packages are grouped (EF Core + providers must move together, see
+# Directory.Packages.props); security fixes are raised immediately regardless.
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      ef-core:
+        patterns: ['Microsoft.EntityFrameworkCore*', 'Npgsql.EntityFrameworkCore*']
+      aspnet-core:
+        patterns: ['Microsoft.AspNetCore*', 'Microsoft.Extensions*']
+      test:
+        patterns: ['xunit*', 'Microsoft.NET.Test.Sdk', 'coverlet*', 'Testcontainers*']
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # Wait a few days after a release: most hijacked npm versions are pulled within hours.
+    cooldown:
+      default-days: 3
+    groups:
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      tanstack:
+        patterns: ['@tanstack/*']
+      build-tools:
+        patterns: ['vite', '@vitejs/*', 'tailwindcss', '@tailwindcss/*', 'typescript', 'oxlint']
+      i18n:
+        patterns: ['i18next*', 'react-i18next']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker
+    directory: /src/AdaPlatform.Api
+    schedule:
+      interval: weekly

@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/node_modules/
+.git/
+.vs/
+frontend/
+tests/
+**/tile-cache/
+.env

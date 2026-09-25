@@ -1,40 +1,61 @@
-using AdaPlatform.Api.Data;
-using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
+using AdaPlatform.Api.Auth;
+using AdaPlatform.Api.Endpoints;
+using AdaPlatform.Api.Map;
+using AdaPlatform.Api.Security;
+using AdaPlatform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
 
-// Connection string is resolved lazily from IConfiguration per DbContext instance
-// (not captured once at startup) so it always reflects the final, fully-merged
-// configuration — including overrides applied in integration tests.
-builder.Services.AddDbContext<AppDbContext>((sp, options) =>
-{
-    var connectionString = sp.GetRequiredService<IConfiguration>().GetConnectionString("Default")
-        ?? throw new InvalidOperationException(
-            "Connection string 'Default' is not configured. Set ConnectionStrings:Default " +
-            "(appsettings.Development.json for local dev, or the ConnectionStrings__Default " +
-            "environment variable when running via docker-compose).");
-    options.UseNpgsql(connectionString);
-});
+// Enums as text in JSON ("Fault", not 2) — readable, and stable if the enum is reordered.
+builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// Tied to the same DbContext/connection above, rather than a separately configured
-// connection string — one source of truth for "can we reach Postgres".
-builder.Services
-    .AddHealthChecks()
-    .AddDbContextCheck<AppDbContext>(name: "postgres");
+// Engine (Postgres or SQL Server) comes from Database:Provider — see ADR 0003.
+builder.Services.AddAdaPlatformDatabase(builder.Configuration);
+builder.Services.AddAdaPlatformReporting(builder.Configuration);
+
+// Base maps: Mapy.com through a caching proxy (key stays server-side), OSM as fallback.
+builder.Services.AddMapTiles(builder.Configuration);
+
+// Errors as RFC 9457 problem details: a status and a title, never a stack trace.
+builder.Services.AddProblemDetails();
+builder.Services.AddAdaPlatformRateLimits();
+
+// Sign-in through Tokari (Herman's token issuer) — see ADR 0005.
+builder.Services.AddTokariAuthentication(builder.Configuration);
+builder.Services.AddTokariLogin();
 
 var app = builder.Build();
 
+await app.Services.MigrateAdaPlatformDatabaseAsync();
+
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 }
 
-app.UseHttpsRedirection();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+app.UseSecurityHeaders();
 
-// Liveness/readiness probe — verifies the API is up AND can reach Postgres.
-app.MapHealthChecks("/health");
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseRateLimiter();
+
+// Liveness/readiness probe — verifies the API is up AND can reach the database.
+app.MapHealthChecks("/health").AllowAnonymous();
+
+app.MapAuthEndpoints();
+app.MapNetworkEndpoints();
+app.MapMapEndpoints();
+app.MapQualityEndpoints();
 
 app.Run();
 

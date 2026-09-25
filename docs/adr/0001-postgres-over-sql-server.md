@@ -1,7 +1,10 @@
 # ADR 0001: PostgreSQL over SQL Server for the platform's own datastore
 
 ## Status
-Decided.
+**Superseded by [ADR 0003](0003-switchable-database-provider.md).** Its main argument,
+Row-Level Security as a multi-tenancy backstop, no longer applies once each operator
+gets its own deployment ([ADR 0002](0002-single-tenant-per-deployment.md)). Kept as a
+record of the reasoning.
 
 ## Context
 The backend needs one relational datastore of its own for the multi-tenant domain
