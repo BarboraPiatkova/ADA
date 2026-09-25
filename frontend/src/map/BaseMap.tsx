@@ -1,9 +1,9 @@
 import 'leaflet/dist/leaflet.css'
 import { Control, DomUtil, type LatLngBoundsExpression } from 'leaflet'
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { LayersControl, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { BaseLayer } from '../api'
-import { LAYER_NAMES } from '../quality/reasons'
 
 const STORAGE_KEY = 'adaplatform.baseLayer'
 
@@ -44,10 +44,10 @@ function MapyLogo() {
   return null
 }
 
-function BaseLayerTracker({ layers, onChange }: { layers: BaseLayer[]; onChange: (layer: BaseLayer) => void }) {
+function BaseLayerTracker({ layers, nameOf, onChange }: { layers: BaseLayer[]; nameOf: (layer: BaseLayer) => string; onChange: (layer: BaseLayer) => void }) {
   useMapEvents({
     baselayerchange: (event) => {
-      const layer = layers.find((l) => (LAYER_NAMES[l.id] ?? l.id) === event.name)
+      const layer = layers.find((l) => nameOf(l) === event.name)
       if (layer) onChange(layer)
     },
   })
@@ -59,20 +59,24 @@ function BaseLayerTracker({ layers, onChange }: { layers: BaseLayer[]; onChange:
  * switcher. The chosen layer is remembered per browser.
  */
 export function BaseMap({ layers, bounds, children }: { layers: BaseLayer[]; bounds: LatLngBoundsExpression; children?: ReactNode }) {
-  const initial = layers.find((l) => l.id === rememberedLayer()) ?? layers[0]
-  const [active, setActive] = useState<BaseLayer | undefined>(initial)
+  const { t, i18n } = useTranslation()
+  const [active, setActive] = useState<BaseLayer | undefined>(() => layers.find((l) => l.id === rememberedLayer()) ?? layers[0])
+  // Unknown ids (a layer added to the API later) show their id rather than nothing.
+  const nameOf = (layer: BaseLayer) => t(`map.layers.${layer.id}` as 'map.layers.osm', { defaultValue: layer.id })
 
   return (
     <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} className="map">
-      <LayersControl position="topright">
+      {/* Re-created on language change: Leaflet's control keeps the labels it was built with. */}
+      <LayersControl key={i18n.resolvedLanguage} position="topright">
         {layers.map((layer) => (
-          <LayersControl.BaseLayer key={layer.id} name={LAYER_NAMES[layer.id] ?? layer.id} checked={layer.id === initial?.id}>
+          <LayersControl.BaseLayer key={layer.id} name={nameOf(layer)} checked={layer.id === active?.id}>
             <TileLayer url={layer.url} attribution={layer.attribution} maxZoom={layer.maxZoom} />
           </LayersControl.BaseLayer>
         ))}
       </LayersControl>
       <BaseLayerTracker
         layers={layers}
+        nameOf={nameOf}
         onChange={(layer) => {
           setActive(layer)
           rememberLayer(layer.id)

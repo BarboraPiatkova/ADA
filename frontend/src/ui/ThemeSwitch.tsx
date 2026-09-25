@@ -1,5 +1,6 @@
 import { ToggleGroup } from 'radix-ui'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { applyTheme, readTheme, type ThemeChoice } from '../theme'
 
 const ICONS: Record<ThemeChoice, string> = {
@@ -8,20 +9,15 @@ const ICONS: Record<ThemeChoice, string> = {
   dark: 'M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z',
 }
 
-const LABELS: Record<ThemeChoice, string> = {
-  system: 'Podle systému',
-  light: 'Světlý režim',
-  dark: 'Tmavý režim',
-}
-
 export function ThemeSwitch() {
+  const { t } = useTranslation()
   const [choice, setChoice] = useState<ThemeChoice>(readTheme)
 
   return (
     <ToggleGroup.Root
       type="single"
       className="segmented"
-      aria-label="Barevný režim"
+      aria-label={t('theme.label')}
       value={choice}
       onValueChange={(value) => {
         if (!value) return // clicking the active item would otherwise clear the choice
@@ -31,7 +27,7 @@ export function ThemeSwitch() {
       }}
     >
       {(Object.keys(ICONS) as ThemeChoice[]).map((c) => (
-        <ToggleGroup.Item key={c} value={c} className="segmented-item" aria-label={LABELS[c]} title={LABELS[c]}>
+        <ToggleGroup.Item key={c} value={c} className="segmented-item" aria-label={t(`theme.${c}`)} title={t(`theme.${c}`)}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d={ICONS[c]} />
           </svg>

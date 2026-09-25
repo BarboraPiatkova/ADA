@@ -14,26 +14,20 @@ import {
   type ColumnFiltersState,
   type SortFn,
 } from '@tanstack/react-table'
+import type { TFunction } from 'i18next'
 import { Collapsible, ToggleGroup } from 'radix-ui'
 import { Fragment, useMemo, useState } from 'react'
-import type { DeviceHealth, DeviceHealthReport, HealthStatus, HealthThresholds, VehicleHealth } from '../api'
+import { Trans, useTranslation } from 'react-i18next'
+import type { DeviceHealth, DeviceHealthReport, HealthReason, HealthStatus, HealthThresholds, VehicleHealth } from '../api'
+import { useFormat } from '../i18n/format'
 import { deviceHealthQuery } from '../queries'
 import { Hint } from '../ui/Hint'
 import { QueryState } from '../ui/QueryState'
 import { Select } from '../ui/Select'
-import { formatReason } from './reasons'
 
-const nf = new Intl.NumberFormat('cs-CZ')
-const pf = new Intl.NumberFormat('cs-CZ', { style: 'percent', maximumFractionDigits: 1 })
+type Format = ReturnType<typeof useFormat>
 
-const STATUS_LABEL: Record<HealthStatus, string> = {
-  Fault: 'Porucha',
-  Warning: 'Varování',
-  Ok: 'V pořádku',
-  Unknown: 'Málo dat',
-}
 const STATUS_ORDER: HealthStatus[] = ['Fault', 'Warning', 'Ok', 'Unknown']
-const EMPTY_VEHICLES: VehicleHealth[] = []
 
 // Only the features these tables use are registered (TanStack Table v9 is opt-in per feature).
 const vehicleFeatures = tableFeatures({
@@ -54,15 +48,27 @@ const deviceColumns = createColumnHelper<typeof deviceFeatures, DeviceHealth>()
 const byStatus: SortFn<any, any> = (a, b, id) =>
   STATUS_ORDER.indexOf(a.getValue<HealthStatus>(id)) - STATUS_ORDER.indexOf(b.getValue<HealthStatus>(id))
 
+/** Phrases a reason code from the API in the current language. */
+function formatReasons(t: TFunction, reasons: HealthReason[]) {
+  if (reasons.length === 0) return <span className="muted">—</span>
+  return reasons.map((r) => t(`health.reasons.${r.code}`, { count: r.value ?? 0, value: r.value ?? 0 })).join(' · ')
+}
+
+/** Traction comes from the vehicle's own log (in Czech); show it in the UI language. */
+function tractionLabel(t: TFunction, traction: string) {
+  return traction ? t(`health.tractions.${traction}` as 'health.tractions.tramvaj', { defaultValue: traction }) : '—'
+}
+
 function StatusPill({ status }: { status: HealthStatus }) {
-  return <span className={`pill pill-${status.toLowerCase()}`}>{STATUS_LABEL[status]}</span>
+  const { t } = useTranslation()
+  return <span className={`pill pill-${status.toLowerCase()}`}>{t(`health.status.${status}`)}</span>
 }
 
 /** A share cell coloured by the same thresholds the backend used. */
-function Share({ value, warning, fault }: { value: number | undefined; warning: number; fault?: number }) {
+function Share({ value, warning, fault, format }: { value: number | undefined; warning: number; fault?: number; format: Format }) {
   if (value === undefined) return <span className="muted">—</span>
   const level = fault !== undefined && value >= fault ? 'fault' : value >= warning ? 'warning' : ''
-  return <span className={level ? `share share-${level}` : 'share'}>{pf.format(value)}</span>
+  return <span className={level ? `share share-${level}` : 'share'}>{format.percent(value)}</span>
 }
 
 function HeaderHint({ label, hint }: { label: string; hint: string }) {
@@ -73,75 +79,77 @@ function HeaderHint({ label, hint }: { label: string; hint: string }) {
   )
 }
 
-function buildVehicleColumns(t: HealthThresholds) {
+function buildVehicleColumns(t: TFunction, th: HealthThresholds, format: Format) {
   return vehicleColumns.columns([
     vehicleColumns.accessor('status', {
-      header: 'Stav',
+      header: t('health.columns.status'),
       cell: (info) => <StatusPill status={info.getValue()} />,
       sortFn: byStatus,
       filterFn: 'equals',
     }),
-    vehicleColumns.accessor('vehicleId', { header: 'Vůz', cell: (info) => <strong>{info.getValue()}</strong> }),
+    vehicleColumns.accessor('vehicleId', { header: t('health.columns.vehicle'), cell: (info) => <strong>{info.getValue()}</strong> }),
     vehicleColumns.accessor((v) => v.traction ?? '', {
       id: 'traction',
-      header: 'Trakce',
+      header: t('health.columns.traction'),
       filterFn: 'equals',
       cell: (info) => (
         <>
-          {info.getValue() || '—'} <span className="muted small">{info.row.original.model ?? ''}</span>
+          {tractionLabel(t, info.getValue())} <span className="muted small">{info.row.original.model ?? ''}</span>
         </>
       ),
     }),
-    vehicleColumns.accessor('boardings', { header: 'Nástupy', cell: (info) => nf.format(info.getValue()) }),
-    vehicleColumns.accessor('alightings', { header: 'Výstupy', cell: (info) => nf.format(info.getValue()) }),
+    vehicleColumns.accessor('boardings', { header: t('health.columns.boardings'), cell: (info) => format.number(info.getValue()) }),
+    vehicleColumns.accessor('alightings', { header: t('health.columns.alightings'), cell: (info) => format.number(info.getValue()) }),
     vehicleColumns.accessor((v) => v.imbalance ?? undefined, {
       id: 'imbalance',
-      header: () => <HeaderHint label="Nesoulad" hint="|nástupy − výstupy| / (nástupy + výstupy) za celé období" />,
+      header: () => <HeaderHint label={t('health.columns.imbalance')} hint={t('health.hints.imbalance')} />,
       sortUndefined: 'last',
-      cell: (info) => <Share value={info.getValue()} warning={t.imbalanceWarning} fault={t.imbalanceFault} />,
+      cell: (info) => <Share value={info.getValue()} warning={th.imbalanceWarning} fault={th.imbalanceFault} format={format} />,
     }),
     vehicleColumns.accessor((v) => v.negativeOccupancyShare ?? undefined, {
       id: 'negative',
-      header: () => <HeaderHint label="Záporná obsaz." hint="Podíl zastavení, po kterých vůz vede méně než nula cestujících" />,
+      header: () => <HeaderHint label={t('health.columns.negative')} hint={t('health.hints.negative')} />,
       sortUndefined: 'last',
-      cell: (info) => <Share value={info.getValue()} warning={t.negativeOccupancyWarning} fault={t.negativeOccupancyFault} />,
+      cell: (info) => <Share value={info.getValue()} warning={th.negativeOccupancyWarning} fault={th.negativeOccupancyFault} format={format} />,
     }),
     vehicleColumns.accessor((v) => v.flaggedStopShare ?? undefined, {
       id: 'flagged',
-      header: () => <HeaderHint label="Příznak chyby" hint="Podíl zastavení, kdy vůz označil některou jednotku jako chybnou (chyba)" />,
+      header: () => <HeaderHint label={t('health.columns.flagged')} hint={t('health.hints.flagged')} />,
       sortUndefined: 'last',
-      cell: (info) => <Share value={info.getValue()} warning={t.flaggedStopsWarning} />,
+      cell: (info) => <Share value={info.getValue()} warning={th.flaggedStopsWarning} format={format} />,
     }),
     vehicleColumns.display({
       id: 'reasons',
-      header: 'Důvod',
-      cell: (info) => info.row.original.reasons.map(formatReason).join(' · ') || <span className="muted">—</span>,
+      header: t('health.columns.reasons'),
+      cell: (info) => formatReasons(t, info.row.original.reasons),
     }),
   ])
 }
 
 const NUMERIC = new Set(['vehicleId', 'boardings', 'alightings', 'imbalance', 'negative', 'flagged'])
 
-const deviceColumnDefs = deviceColumns.columns([
-  deviceColumns.accessor('status', { header: 'Stav', cell: (info) => <StatusPill status={info.getValue()} />, sortFn: byStatus }),
-  deviceColumns.accessor('deviceNumber', { header: 'Jednotka', cell: (info) => <strong>{info.getValue()}</strong> }),
-  deviceColumns.accessor((d) => d.firmwareVersion ?? '', { id: 'firmware', header: 'Firmware', cell: (info) => info.getValue() || '—' }),
-  deviceColumns.accessor('stopsCounted', { header: 'Zastavení', cell: (info) => nf.format(info.getValue()) }),
-  deviceColumns.accessor('boardings', { header: 'Nástupy', cell: (info) => nf.format(info.getValue()) }),
-  deviceColumns.accessor('alightings', { header: 'Výstupy', cell: (info) => nf.format(info.getValue()) }),
-  deviceColumns.accessor('notAliveHeartbeats', {
-    header: 'alive=false',
-    cell: (info) =>
-      info.row.original.heartbeats === 0 ? '—' : `${nf.format(info.getValue())} / ${nf.format(info.row.original.heartbeats)}`,
-  }),
-  deviceColumns.accessor('restarts', { header: 'Restarty', cell: (info) => nf.format(info.getValue()) }),
-  deviceColumns.accessor('flaggedStops', { header: 'Příznak chyby', cell: (info) => nf.format(info.getValue()) }),
-  deviceColumns.display({
-    id: 'reasons',
-    header: 'Důvod',
-    cell: (info) => info.row.original.reasons.map(formatReason).join(' · ') || <span className="muted">—</span>,
-  }),
-])
+function buildDeviceColumns(t: TFunction, format: Format) {
+  return deviceColumns.columns([
+    deviceColumns.accessor('status', { header: t('health.columns.status'), cell: (info) => <StatusPill status={info.getValue()} />, sortFn: byStatus }),
+    deviceColumns.accessor('deviceNumber', { header: t('health.columns.device'), cell: (info) => <strong>{info.getValue()}</strong> }),
+    deviceColumns.accessor((d) => d.firmwareVersion ?? '', { id: 'firmware', header: t('health.columns.firmware'), cell: (info) => info.getValue() || '—' }),
+    deviceColumns.accessor('stopsCounted', { header: t('health.columns.stops'), cell: (info) => format.number(info.getValue()) }),
+    deviceColumns.accessor('boardings', { header: t('health.columns.boardings'), cell: (info) => format.number(info.getValue()) }),
+    deviceColumns.accessor('alightings', { header: t('health.columns.alightings'), cell: (info) => format.number(info.getValue()) }),
+    deviceColumns.accessor('notAliveHeartbeats', {
+      header: t('health.columns.notAlive'),
+      cell: (info) =>
+        info.row.original.heartbeats === 0 ? '—' : `${format.number(info.getValue())} / ${format.number(info.row.original.heartbeats)}`,
+    }),
+    deviceColumns.accessor('restarts', { header: t('health.columns.restarts'), cell: (info) => format.number(info.getValue()) }),
+    deviceColumns.accessor('flaggedStops', { header: t('health.columns.flaggedStops'), cell: (info) => format.number(info.getValue()) }),
+    deviceColumns.display({
+      id: 'reasons',
+      header: t('health.columns.reasons'),
+      cell: (info) => formatReasons(t, info.row.original.reasons),
+    }),
+  ])
+}
 const DEVICE_NUMERIC = new Set(['deviceNumber', 'stopsCounted', 'boardings', 'alightings', 'notAliveHeartbeats', 'restarts', 'flaggedStops'])
 
 function SortIndicator({ sorted }: { sorted: false | 'asc' | 'desc' }) {
@@ -149,9 +157,13 @@ function SortIndicator({ sorted }: { sorted: false | 'asc' | 'desc' }) {
 }
 
 function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
+  const { t, i18n } = useTranslation()
+  const format = useFormat()
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
+  const columns = useMemo(() => buildDeviceColumns(t, format), [i18n.resolvedLanguage])
   const table = useTable({
     features: deviceFeatures,
-    columns: deviceColumnDefs,
+    columns,
     data: devices,
     initialState: { sorting: [{ id: 'deviceNumber', desc: false }] },
   })
@@ -191,31 +203,37 @@ function DeviceTable({ devices }: { devices: DeviceHealth[] }) {
   )
 }
 
-function Rules({ t }: { t: HealthThresholds }) {
+function Rules({ th }: { th: HealthThresholds }) {
+  const { t } = useTranslation()
+  const format = useFormat()
+  const markup = { strong: <strong />, code: <code /> }
   return (
     <Collapsible.Root className="rules">
-      <Collapsible.Trigger className="link-button">Pravidla vyhodnocení (předběžná) ▾</Collapsible.Trigger>
+      <Collapsible.Trigger className="link-button">{t('health.rules.title')} ▾</Collapsible.Trigger>
       <Collapsible.Content>
         <ul>
           <li>
-            <strong>Nesoulad</strong> = |nástupy − výstupy| / (nástupy + výstupy) za celé období, jen při alespoň {t.minPassengersForBalance}{' '}
-            cestujících. Varování od {pf.format(t.imbalanceWarning)}, porucha od {pf.format(t.imbalanceFault)}.
+            <Trans
+              i18nKey="health.rules.imbalance"
+              values={{ min: th.minPassengersForBalance, warning: format.percent(th.imbalanceWarning), fault: format.percent(th.imbalanceFault) }}
+              components={markup}
+            />
           </li>
           <li>
-            <strong>Záporná obsazenost</strong> = podíl zastavení, po kterých palubní počítač vede ve voze méně než nula cestujících. Varování od{' '}
-            {pf.format(t.negativeOccupancyWarning)}, porucha od {pf.format(t.negativeOccupancyFault)}.
+            <Trans
+              i18nKey="health.rules.negative"
+              values={{ warning: format.percent(th.negativeOccupancyWarning), fault: format.percent(th.negativeOccupancyFault) }}
+              components={markup}
+            />
           </li>
           <li>
-            <strong>Příznak chyby</strong> = podíl zastavení, kdy vůz označil některou jednotku jako chybnou (<code>chyba</code>). Varování od{' '}
-            {pf.format(t.flaggedStopsWarning)}.
+            <Trans i18nKey="health.rules.flagged" values={{ warning: format.percent(th.flaggedStopsWarning) }} components={markup} />
           </li>
           <li>
-            <strong>Mlčící jednotka</strong> = dokončovala sčítání, ale za celé období nenapočítala nikoho — porucha, pokud mlčí všechny jednotky vozu.
+            <Trans i18nKey="health.rules.silent" components={markup} />
           </li>
-          <li>
-            Počty na zastávce = rozdíl stavu čítače mezi zahájením a ukončením sčítání (hodnoty v logu jsou průběžné stavy, viz report F11).
-          </li>
-          <li>Restarty se nehodnotí: v datech jsou běžnou provozní událostí (viz report F5).</li>
+          <li>{t('health.rules.counts')}</li>
+          <li>{t('health.rules.restarts')}</li>
         </ul>
       </Collapsible.Content>
     </Collapsible.Root>
@@ -223,13 +241,19 @@ function Rules({ t }: { t: HealthThresholds }) {
 }
 
 function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
+  const { t, i18n } = useTranslation()
+  const format = useFormat()
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const columns = useMemo(() => buildVehicleColumns(report.thresholds), [report.thresholds])
+  const columns = useMemo(
+    () => buildVehicleColumns(t, report.thresholds, format),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
+    [report.thresholds, i18n.resolvedLanguage],
+  )
 
   const table = useTable({
     features: vehicleFeatures,
     columns,
-    data: report.vehicles ?? EMPTY_VEHICLES,
+    data: report.vehicles,
     getRowId: (v) => String(v.vehicleId),
     getRowCanExpand: () => true,
     initialState: { sorting: [{ id: 'status', desc: false }] },
@@ -249,41 +273,45 @@ function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
   return (
     <div className="page">
       <header className="page-header">
-        <h2>Stav sčítacích jednotek</h2>
+        <h2>{t('health.title')}</h2>
         <p className="muted">
-          {report.from} – {report.to} · {nf.format(all.length)} vozidel · {nf.format(deviceTotal)} jednotek. Vyhodnoceno ze surových zpráv
-          podle předběžných pravidel (níže).
+          {t('health.summary', {
+            from: report.from ? format.date(report.from) : '?',
+            to: report.to ? format.date(report.to) : '?',
+            vehicles: t('health.vehicles', { count: all.length }),
+            devices: t('health.devices', { count: deviceTotal }),
+          })}
         </p>
       </header>
 
       <ToggleGroup.Root
         type="single"
         className="tiles"
-        aria-label="Filtr stavu"
+        aria-label={t('health.statusFilter')}
         value={statusFilter}
         onValueChange={(value) => table.getColumn('status')?.setFilterValue(value || undefined)}
       >
         {STATUS_ORDER.map((s) => (
           <ToggleGroup.Item key={s} value={s} className={`tile tile-${s.toLowerCase()}`}>
-            <span className="tile-value">{counts[s]}</span>
-            <span className="tile-label">{STATUS_LABEL[s]}</span>
+            <span className="tile-value">{format.number(counts[s])}</span>
+            <span className="tile-label">{t(`health.status.${s}`)}</span>
           </ToggleGroup.Item>
         ))}
       </ToggleGroup.Root>
 
       <div className="filters">
         <Select
-          label="Trakce"
+          label={t('health.traction')}
           value={tractionFilter}
-          options={[{ value: 'all', label: 'všechny' }, ...tractions.map((x) => ({ value: x, label: x }))]}
+          options={[{ value: 'all', label: t('health.allTractions') }, ...tractions.map((x) => ({ value: x, label: tractionLabel(t, x) }))]}
           onChange={(value) => table.getColumn('traction')?.setFilterValue(value === 'all' ? undefined : value)}
         />
         {columnFilters.length > 0 && (
           <button className="link-button" onClick={() => setColumnFilters([])}>
-            zrušit filtry
+            {t('health.clearFilters')}
           </button>
         )}
-        <span className="muted small">{shown.length} zobrazeno · kliknutím na řádek zobrazíte jednotky</span>
+        <span className="muted small">{t('health.shown', { count: shown.length })}</span>
       </div>
 
       <div className="table-wrap">
@@ -333,18 +361,17 @@ function VehicleHealthTable({ report }: { report: DeviceHealthReport }) {
         </table>
       </div>
 
-      <Rules t={report.thresholds} />
+      <Rules th={report.thresholds} />
     </div>
   )
 }
 
 export function DeviceHealthView() {
+  const { t } = useTranslation()
   const report = useQuery(deviceHealthQuery)
   return (
-    <QueryState query={report} loading="Počítám stav jednotek ze surových dat…">
-      {(data) =>
-        data.vehicles.length === 0 ? <p className="empty">Zatím nejsou importované žádné surové logy.</p> : <VehicleHealthTable report={data} />
-      }
+    <QueryState query={report} loading={t('health.loading')}>
+      {(data) => (data.vehicles.length === 0 ? <p className="empty">{t('health.empty')}</p> : <VehicleHealthTable report={data} />)}
     </QueryState>
   )
 }

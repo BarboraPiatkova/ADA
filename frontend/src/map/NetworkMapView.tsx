@@ -2,13 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { latLngBounds } from 'leaflet'
 import { Accordion } from 'radix-ui'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet'
 import type { BaseLayer, Line, PatternSummary, Stop } from '../api'
 import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
 import { QueryState } from '../ui/QueryState'
 import { BaseMap } from './BaseMap'
-
-const nf = new Intl.NumberFormat('cs-CZ', { maximumFractionDigits: 1 })
 
 /** Marker radius grows with the square root of mean boardings, so area tracks volume. */
 function radiusFor(stop: Stop) {
@@ -29,10 +28,11 @@ function patternLabel(p: PatternSummary) {
 }
 
 function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: number | null; onSelect: (code: number | null) => void }) {
+  const { t } = useTranslation()
   return (
-    <nav className="sidebar" aria-label="Linky">
-      <h2>Linky</h2>
-      <p className="muted small">Trasy seřazené podle počtu jízd v datech. Trasy bez jízd jsou skryté.</p>
+    <nav className="sidebar" aria-label={t('map.lines')}>
+      <h2>{t('map.lines')}</h2>
+      <p className="muted small">{t('map.linesHint')}</p>
       <Accordion.Root type="single" collapsible className="line-list">
         {lines.map((line) => {
           const withTrips = line.patterns.filter((p) => p.trips > 0)
@@ -43,7 +43,7 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
                 <h3 className="line-header">
                   <Accordion.Trigger className="line-button">
                     <span className="line-badge">{line.id}</span>
-                    <span>{withTrips.length} tras s jízdami</span>
+                    <span>{t('map.patternsWithTrips', { count: withTrips.length })}</span>
                     <span className="chevron" aria-hidden="true">
                       ▾
                     </span>
@@ -60,11 +60,11 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
                   >
                     <span>{patternLabel(p)}</span>
                     <span className="muted small">
-                      {p.trips} jízd · {p.stopCount} zastávek
+                      {t('map.trips', { count: p.trips })} · {t('map.stops', { count: p.stopCount })}
                     </span>
                   </button>
                 ))}
-                {hidden > 0 && <p className="muted small pattern-hidden">+ {hidden} tras bez jízd</p>}
+                {hidden > 0 && <p className="muted small pattern-hidden">{t('map.hiddenPatterns', { count: hidden })}</p>}
               </Accordion.Content>
             </Accordion.Item>
           )
@@ -75,6 +75,7 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
 }
 
 function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number> }) {
+  const { t } = useTranslation()
   return stops.map((s) => {
     const highlighted = onPattern.has(s.code)
     const dimmed = onPattern.size > 0 && !highlighted
@@ -95,8 +96,8 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
           <strong>{s.name}</strong> <span className="muted">({s.code})</span>
           <br />
           {s.visits === 0
-            ? 'bez zaznamenaných zastavení'
-            : `${nf.format(s.visits)} zastavení · průměrně ${nf.format(s.boardings / s.visits)} nástupů, ${nf.format(s.alightings / s.visits)} výstupů`}
+            ? t('map.noVisits')
+            : t('map.stopActivity', { count: s.visits, boardings: s.boardings / s.visits, alightings: s.alightings / s.visits })}
         </Tooltip>
       </CircleMarker>
     )
@@ -104,6 +105,7 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
 }
 
 export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
+  const { t } = useTranslation()
   const stops = useQuery(stopsQuery)
   const lines = useQuery(linesQuery)
   const [selected, setSelected] = useState<number | null>(null)
@@ -118,13 +120,13 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
   const onPattern = useMemo(() => new Set((patternData ?? []).map((s) => s.code)), [patternData])
 
   return (
-    <QueryState query={stops} loading="Načítám zastávky…">
+    <QueryState query={stops} loading={t('map.loadingStops')}>
       {(stopList) =>
         stopList.length === 0 ? (
-          <p className="empty">Zatím nejsou importované žádné zastávky.</p>
+          <p className="empty">{t('map.noStops')}</p>
         ) : (
           <div className="split">
-            <QueryState query={lines} loading="Načítám linky…">
+            <QueryState query={lines} loading={t('map.loadingLines')}>
               {(lineList) => <LinePicker lines={lineList} selected={selected} onSelect={setSelected} />}
             </QueryState>
             <div className="map-wrap">
@@ -138,9 +140,9 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
                 <StopsLayer stops={stopList} onPattern={onPattern} />
               </BaseMap>
               <div className="map-legend" aria-hidden="true">
-                <span className="legend-dot small-dot" /> méně nástupů
-                <span className="legend-dot big-dot" /> více nástupů
-                <span className="legend-dot muted-dot" /> bez dat
+                <span className="legend-dot small-dot" /> {t('map.legendFewer')}
+                <span className="legend-dot big-dot" /> {t('map.legendMore')}
+                <span className="legend-dot muted-dot" /> {t('map.legendNoData')}
               </div>
             </div>
           </div>
