@@ -21,13 +21,14 @@
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 
   font: 14px/1.45 var(--sans);
-  color-scheme: light dark;
+  color-scheme: light;
   color: var(--text);
   background: var(--bg);
 }
 
+/* Theme: follows the system unless the user picked one (data-theme on <html>, set by theme.ts). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --text: #e6edf3;
     --muted: #9198a1;
     --bg: #0d1117;
@@ -44,7 +45,28 @@
     --fault-soft: rgba(248, 81, 73, 0.16);
     --unknown: #9198a1;
     --unknown-soft: rgba(145, 152, 161, 0.14);
+    color-scheme: dark;
   }
+}
+
+:root[data-theme='dark'] {
+  --text: #e6edf3;
+  --muted: #9198a1;
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface-2: #1f2630;
+  --border: #30363d;
+  --accent: #4493f8;
+  --accent-soft: rgba(68, 147, 248, 0.16);
+  --ok: #3fb950;
+  --ok-soft: rgba(63, 185, 80, 0.16);
+  --warning: #d29922;
+  --warning-soft: rgba(210, 153, 34, 0.18);
+  --fault: #f85149;
+  --fault-soft: rgba(248, 81, 73, 0.16);
+  --unknown: #9198a1;
+  --unknown-soft: rgba(145, 152, 161, 0.14);
+  color-scheme: dark;
 }
 
 * {
@@ -86,6 +108,47 @@ button {
 .tabs {
   display: flex;
   gap: 4px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+/* A compact segmented control (Radix ToggleGroup): theme and language switches. */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+}
+
+.segmented-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.segmented-item:hover {
+  color: var(--text);
+}
+
+.segmented-item[data-state='on'] {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .tab {

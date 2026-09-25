@@ -5,6 +5,7 @@ import { NetworkMapView } from './map/NetworkMapView'
 import { mapConfigQuery } from './queries'
 import { DeviceHealthView } from './quality/DeviceHealthView'
 import { QueryState } from './ui/QueryState'
+import { ThemeSwitch } from './ui/ThemeSwitch'
 
 // Two screens as Radix tabs, mirrored in the URL hash so each has a shareable link and
 // the browser's back button works — without a router for two routes.
@@ -40,6 +41,9 @@ export default function App() {
             </Tabs.Trigger>
           ))}
         </Tabs.List>
+        <div className="header-actions">
+          <ThemeSwitch />
+        </div>
       </header>
       <Tabs.Content value="mapa" className="content">
         <QueryState query={mapConfig} loading="Načítám…">
