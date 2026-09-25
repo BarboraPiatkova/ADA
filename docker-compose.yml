@@ -28,6 +28,11 @@ services:
       # Mapy.com key from the gitignored .env file next to this compose file (MAPY_API_KEY=...).
       # Without it the map falls back to OpenStreetMap.
       Map__MapyComApiKey: ${MAPY_API_KEY:-}
+      # Sign-in through Tokari. The key is Tokari's JwtSettings:SigningKey, from .env.
+      # With docker-compose.tokari.yml, a local Tokari runs next to the API.
+      Tokari__BaseUrl: ${TOKARI_URL:-http://host.docker.internal:8091/}
+      Tokari__SigningKey: ${TOKARI_SIGNING_KEY:?set TOKARI_SIGNING_KEY in .env (Tokari's JwtSettings:SigningKey)}
+      Tokari__ApiKey: ${TOKARI_API_KEY:-}
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080"
     ports:

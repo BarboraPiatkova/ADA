@@ -1,0 +1,55 @@
+# Local Tokari (Herman's token issuer) for signing in during development, built from its
+# source next to this repo. Use on top of either stack:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.tokari.yml up --build
+#   ./tools/tokari/seed-dev.ps1      # once: registers AdaPlatform and a dev user in Tokari
+#
+# Secrets come from the gitignored .env: TOKARI_SIGNING_KEY, TOKARI_API_KEY, TOKARI_DB_PASSWORD.
+services:
+  tokari-db:
+    # Tokari's migrations are generated for SQL Server.
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${TOKARI_DB_PASSWORD:?set TOKARI_DB_PASSWORD in .env}
+    volumes:
+      - tokari-db-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  tokari:
+    build:
+      context: ${TOKARI_SRC:-../Tokari}
+      dockerfile: publish/Dockerfile
+    environment:
+      # Development: Tokari migrates its database and seeds its admin user on startup.
+      ASPNETCORE_ENVIRONMENT: Development
+      DatabaseProvider: sqlserver
+      DefaultConnection: "Server=tokari-db,1433;Database=tokari;User Id=sa;Password=${TOKARI_DB_PASSWORD};TrustServerCertificate=true;"
+      JwtSettings__Issuer: Tokari
+      JwtSettings__SigningKey: ${TOKARI_SIGNING_KEY:?set TOKARI_SIGNING_KEY in .env}
+      RateLimiting__ApiKeys__0: ${TOKARI_API_KEY:?set TOKARI_API_KEY in .env}
+      Ports__External: "8091"
+      Ports__Internal: "8090"
+    ports:
+      # Only the external port. The internal one grants admin to any caller without
+      # credentials, so it stays inside the compose network.
+      - "8091:8091"
+    depends_on:
+      tokari-db:
+        condition: service_healthy
+
+  api:
+    environment:
+      Tokari__BaseUrl: http://tokari:8091/
+    depends_on:
+      tokari:
+        condition: service_started
+
+volumes:
+  tokari-db-data:
