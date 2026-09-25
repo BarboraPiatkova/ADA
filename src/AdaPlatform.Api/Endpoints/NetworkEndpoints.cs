@@ -1,3 +1,4 @@
+using AdaPlatform.Api.Auth;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,7 +20,7 @@ public static class NetworkEndpoints
 
     public static IEndpointRouteBuilder MapNetworkEndpoints(this IEndpointRouteBuilder app)
     {
-        var api = app.MapGroup("/api");
+        var api = app.MapGroup("/api").RequireAuthorization(Permissions.NetworkRead);
 
         // Stops without coordinates can't be drawn, so the map endpoint leaves them out.
         api.MapGet("/stops", async (AppDbContext db, CancellationToken ct) =>

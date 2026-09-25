@@ -24,7 +24,7 @@ public sealed class MapTileProxyTests(PostgresFixture fixture) : IClassFixture<P
     public async Task Without_a_key_only_OpenStreetMap_is_offered()
     {
         await using var api = NewApi(apiKey: null);
-        var config = await api.CreateClient().GetFromJsonAsync<MapEndpoints.MapConfigDto>("/api/map/config");
+        var config = await api.CreateSignedInClient().GetFromJsonAsync<MapEndpoints.MapConfigDto>("/api/map/config");
 
         Assert.Equal(["osm"], config!.BaseLayers.Select(l => l.Id));
     }
@@ -33,7 +33,7 @@ public sealed class MapTileProxyTests(PostgresFixture fixture) : IClassFixture<P
     public async Task With_a_key_Mapy_layers_point_at_the_proxy_and_never_expose_the_key()
     {
         await using var api = NewApi(Key);
-        var response = await api.CreateClient().GetStringAsync("/api/map/config");
+        var response = await api.CreateSignedInClient().GetStringAsync("/api/map/config");
 
         Assert.Contains("/api/map/tiles/basic/256{r}/{z}/{x}/{y}", response);
         Assert.DoesNotContain(Key, response);

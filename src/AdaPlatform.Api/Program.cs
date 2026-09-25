@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using AdaPlatform.Api.Auth;
 using AdaPlatform.Api.Endpoints;
 using AdaPlatform.Api.Map;
 using AdaPlatform.Api.Security;
@@ -22,13 +23,16 @@ builder.Services.AddMapTiles(builder.Configuration);
 builder.Services.AddProblemDetails();
 builder.Services.AddAdaPlatformRateLimits();
 
+// Sign-in through Tokari (Herman's token issuer) — see ADR 0005.
+builder.Services.AddTokariAuthentication(builder.Configuration);
+
 var app = builder.Build();
 
 await app.Services.MigrateAdaPlatformDatabaseAsync();
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 }
 
 app.UseExceptionHandler();
@@ -40,10 +44,12 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseRateLimiter();
 
 // Liveness/readiness probe — verifies the API is up AND can reach the database.
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.MapNetworkEndpoints();
 app.MapMapEndpoints();

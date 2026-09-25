@@ -1,3 +1,4 @@
+using AdaPlatform.Api.Auth;
 using AdaPlatform.Infrastructure.Persistence;
 using AdaPlatform.Infrastructure.Reporting;
 using Microsoft.Extensions.Caching.Memory;
@@ -12,14 +13,16 @@ public static class QualityEndpoints
 
     public static IEndpointRouteBuilder MapQualityEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/api/quality/devices", async (AppDbContext db, IMemoryCache cache, CancellationToken ct) =>
+        var quality = app.MapGroup("/api/quality").RequireAuthorization(Permissions.QualityRead);
+
+        quality.MapGet("/devices", async (AppDbContext db, IMemoryCache cache, CancellationToken ct) =>
             await cache.GetOrCreateAsync("quality/devices", entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = CacheFor;
                 return new DeviceHealthReport(db).BuildAsync(new HealthThresholds(), ct);
             }));
 
-        app.MapGet("/api/quality/daily", async (AppDbContext db, IMemoryCache cache, CancellationToken ct) =>
+        quality.MapGet("/daily", async (AppDbContext db, IMemoryCache cache, CancellationToken ct) =>
             await cache.GetOrCreateAsync("quality/daily", entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = CacheFor;

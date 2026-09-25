@@ -12,7 +12,7 @@ public sealed class HttpSecurityTests(PostgresFixture fixture) : IClassFixture<P
     public async Task Responses_carry_the_security_headers()
     {
         await using var api = NewApi();
-        var response = await api.CreateClient().GetAsync("/api/map/config");
+        var response = await api.CreateSignedInClient().GetAsync("/api/map/config");
 
         Assert.Equal(SecurityHeaders.ContentSecurityPolicy, response.Headers.GetValues("Content-Security-Policy").Single());
         Assert.Equal("nosniff", response.Headers.GetValues("X-Content-Type-Options").Single());
@@ -23,7 +23,7 @@ public sealed class HttpSecurityTests(PostgresFixture fixture) : IClassFixture<P
     public async Task An_unknown_route_answers_with_problem_details()
     {
         await using var api = NewApi();
-        var response = await api.CreateClient().GetAsync("/api/does-not-exist");
+        var response = await api.CreateSignedInClient().GetAsync("/api/does-not-exist");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
@@ -33,7 +33,7 @@ public sealed class HttpSecurityTests(PostgresFixture fixture) : IClassFixture<P
     public async Task The_tile_proxy_rejects_a_client_over_its_budget()
     {
         await using var api = NewApi();
-        using var client = api.CreateClient();
+        using var client = api.CreateSignedInClient();
 
         // No key is configured, so each request is a cheap 404 — but it still counts.
         for (var i = 0; i < 600; i++)

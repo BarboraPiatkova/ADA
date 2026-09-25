@@ -117,7 +117,7 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
             await db.SaveChangesAsync();
         }
 
-        using var client = api.CreateClient();
+        using var client = api.CreateSignedInClient();
         var stops = await client.GetFromJsonAsync<List<NetworkEndpoints.StopDto>>("/api/stops");
 
         Assert.NotNull(stops);
@@ -212,7 +212,7 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
                 await new UcpLogIngestor(scope.ServiceProvider.GetRequiredService<AppDbContext>()).IngestAsync(folder);
             }
 
-            using var report = System.Text.Json.JsonDocument.Parse(await api.CreateClient().GetStringAsync("/api/quality/devices"));
+            using var report = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/quality/devices"));
             var vehicle = report.RootElement.GetProperty("vehicles").EnumerateArray().Single();
             string[] Codes(System.Text.Json.JsonElement e) =>
                 e.GetProperty("reasons").EnumerateArray().Select(r => r.GetProperty("code").GetString()!).ToArray();
@@ -246,7 +246,7 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
                 await new UcpLogIngestor(scope.ServiceProvider.GetRequiredService<AppDbContext>()).IngestAsync(folder);
             }
 
-            using var report = System.Text.Json.JsonDocument.Parse(await api.CreateClient().GetStringAsync("/api/quality/daily"));
+            using var report = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/quality/daily"));
             var day = report.RootElement.EnumerateArray().Single();
 
             Assert.Equal(UcpLogFixture.VehicleId, day.GetProperty("vehicleId").GetInt32());

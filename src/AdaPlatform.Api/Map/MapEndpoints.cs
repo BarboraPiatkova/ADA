@@ -1,4 +1,5 @@
 using System.Net;
+using AdaPlatform.Api.Auth;
 using AdaPlatform.Api.Security;
 using Microsoft.Extensions.Options;
 
@@ -78,10 +79,13 @@ public static class MapEndpoints
                 MaxZoom: 19, RequiresMapyLogo: false));
 
             return new MapConfigDto(layers);
-        });
+        }).RequireAuthorization(Permissions.NetworkRead);
 
         map.MapGet("/tiles/{mapset}/{size}/{z:int}/{x:int}/{y:int}", GetTileAsync)
-            .RequireRateLimiting(RateLimits.Tiles);
+            .RequireRateLimiting(RateLimits.Tiles)
+            // Leaflet loads tiles as <img>, which can't send a bearer token. A tile is public
+            // map data, and the per-client limit caps what an anonymous caller can spend.
+            .AllowAnonymous();
 
         return app;
     }
