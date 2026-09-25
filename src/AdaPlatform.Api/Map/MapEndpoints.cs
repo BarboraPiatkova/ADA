@@ -1,4 +1,5 @@
 using System.Net;
+using AdaPlatform.Api.Security;
 using Microsoft.Extensions.Options;
 
 namespace AdaPlatform.Api.Map;
@@ -79,7 +80,8 @@ public static class MapEndpoints
             return new MapConfigDto(layers);
         });
 
-        map.MapGet("/tiles/{mapset}/{size}/{z:int}/{x:int}/{y:int}", GetTileAsync);
+        map.MapGet("/tiles/{mapset}/{size}/{z:int}/{x:int}/{y:int}", GetTileAsync)
+            .RequireRateLimiting(RateLimits.Tiles);
 
         return app;
     }

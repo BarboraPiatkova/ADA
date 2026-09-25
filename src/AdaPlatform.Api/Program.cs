@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using AdaPlatform.Api.Endpoints;
 using AdaPlatform.Api.Map;
+using AdaPlatform.Api.Security;
 using AdaPlatform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,10 @@ builder.Services.AddAdaPlatformDatabase(builder.Configuration);
 // Base maps: Mapy.com through a caching proxy (key stays server-side), OSM as fallback.
 builder.Services.AddMapTiles(builder.Configuration);
 
+// Errors as RFC 9457 problem details: a status and a title, never a stack trace.
+builder.Services.AddProblemDetails();
+builder.Services.AddAdaPlatformRateLimits();
+
 var app = builder.Build();
 
 await app.Services.MigrateAdaPlatformDatabaseAsync();
@@ -26,7 +31,16 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+app.UseSecurityHeaders();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
 app.UseHttpsRedirection();
+app.UseRateLimiter();
 
 // Liveness/readiness probe — verifies the API is up AND can reach the database.
 app.MapHealthChecks("/health");
