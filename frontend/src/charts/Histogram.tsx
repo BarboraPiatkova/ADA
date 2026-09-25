@@ -10,6 +10,14 @@ const TOP = 26 // room for threshold labels
 const AXIS_HEIGHT = 28
 const MAX_BAR = 24
 
+/** Enter or Space activates a focusable chart mark, like a button. */
+const onActivate = (action: () => void) => (event: React.KeyboardEvent) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
 /** Round tick step for a 0..max count axis (1, 2, 5, 10, 20, …). */
 function niceStep(max: number) {
   const raw = Math.max(1, max / 4)
@@ -27,11 +35,17 @@ export function Histogram({
   thresholds,
   formatValue,
   countLabel,
+  selectedFrom,
+  onSelect,
 }: {
   bins: HistogramBin[]
   thresholds?: { warning: number; fault?: number }
   formatValue: (value: number) => string
   countLabel: (count: number) => string
+  /** Lower edge of the bin the reader filtered by; other bins are dimmed. */
+  selectedFrom?: number
+  /** Clicking a bin filters everything else to it (cross-filtering). */
+  onSelect?: (bin: HistogramBin, isLast: boolean) => void
 }) {
   const { t } = useTranslation()
   const [wrap, width] = useElementWidth<HTMLDivElement>()
@@ -74,6 +88,8 @@ export function Histogram({
               const h = y(0) - y(bin.count)
               const r = Math.min(4, h)
               const x0 = cx - barWidth / 2
+              const dimmed = selectedFrom !== undefined && selectedFrom !== bin.from
+              const select = () => onSelect?.(bin, i === bins.length - 1)
               const content = (
                 <>
                   <strong className="tooltip-value">{countLabel(bin.count)}</strong>
@@ -90,9 +106,13 @@ export function Histogram({
                     y={TOP}
                     width={band}
                     height={PLOT_HEIGHT}
-                    className="hit-area"
+                    className={`hit-area${onSelect ? ' clickable' : ''}`}
                     tabIndex={0}
+                    role={onSelect ? 'button' : undefined}
+                    aria-pressed={onSelect ? selectedFrom === bin.from : undefined}
                     aria-label={`${formatValue(bin.from)} – ${formatValue(bin.to)}: ${countLabel(bin.count)}`}
+                    onClick={select}
+                    onKeyDown={onActivate(select)}
                     onPointerMove={(event) => show(event, content)}
                     onPointerLeave={hide}
                     onFocus={(event) => show(event.currentTarget.getBoundingClientRect(), content)}
@@ -101,7 +121,7 @@ export function Histogram({
                   {bin.count > 0 && (
                     // 4px rounded data end, square at the baseline.
                     <path
-                      className="bar"
+                      className={`bar${dimmed ? ' dimmed' : ''}`}
                       d={`M${x0},${y(0)} V${y(bin.count) + r} Q${x0},${y(bin.count)} ${x0 + r},${y(bin.count)} H${x0 + barWidth - r} Q${x0 + barWidth},${y(bin.count)} ${x0 + barWidth},${y(bin.count) + r} V${y(0)} Z`}
                     />
                   )}

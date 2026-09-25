@@ -12,6 +12,17 @@ const LABEL_WIDTH = 168
 const TOTAL_WIDTH = 44
 const GAP = 2
 
+/** Enter or Space activates a focusable chart mark, like a button. */
+const onActivate = (action: () => void) => (event: React.KeyboardEvent) => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    action()
+  }
+}
+
+/** The folded tail ("other") is not a real group, so it can't be filtered by. */
+const OTHER = '__other'
+
 const total = (g: StatusGroup) => STATUSES.reduce((n, s) => n + g.counts[s], 0)
 
 /**
@@ -19,7 +30,24 @@ const total = (g: StatusGroup) => STATUSES.reduce((n, s) => n + g.counts[s], 0)
  * firmware) split by status. Status colours here mean status, and the legend carries
  * icon + word, so colour is never the only cue.
  */
-export function StatusBars({ groups, countLabel }: { groups: StatusGroup[]; countLabel: (count: number) => string }) {
+export function StatusBars({
+  groups,
+  countLabel,
+  selectedKey,
+  selectedStatus,
+  onSelectGroup,
+  onSelectSegment,
+}: {
+  groups: StatusGroup[]
+  countLabel: (count: number) => string
+  /** The group the reader filtered by; other groups are dimmed. */
+  selectedKey?: string
+  /** Within the selected group, the status filtered by; other segments are dimmed. */
+  selectedStatus?: HealthStatus
+  /** Clicking a group's label filters to the group; clicking a segment, to group + status. */
+  onSelectGroup?: (key: string) => void
+  onSelectSegment?: (key: string, status: HealthStatus) => void
+}) {
   const { t } = useTranslation()
   const [wrap, width] = useElementWidth<HTMLDivElement>()
   const { box, tooltip, show, hide } = useTooltip()
@@ -39,9 +67,34 @@ export function StatusBars({ groups, countLabel }: { groups: StatusGroup[]; coun
               const y = row * ROW + (ROW - BAR) / 2
               const present = STATUSES.filter((s) => group.counts[s] > 0)
               let x = LABEL_WIDTH
+              const selectable = group.key !== OTHER
+              const groupDimmed = selectedKey !== undefined && selectedKey !== group.key
+              const selectGroup = () => selectable && onSelectGroup?.(group.key)
               return (
-                <g key={group.key}>
-                  <text x={LABEL_WIDTH - 10} y={row * ROW + ROW / 2} className="axis-label strong" textAnchor="end" dominantBaseline="middle">
+                <g key={group.key} className={groupDimmed ? 'dimmed' : undefined}>
+                  {onSelectGroup && selectable && (
+                    <rect
+                      x={0}
+                      y={row * ROW}
+                      width={LABEL_WIDTH - 4}
+                      height={ROW}
+                      className="row-hit"
+                      tabIndex={0}
+                      role="button"
+                      aria-pressed={selectedKey === group.key}
+                      aria-label={group.label}
+                      onClick={selectGroup}
+                      onKeyDown={onActivate(selectGroup)}
+                    />
+                  )}
+                  <text
+                    x={LABEL_WIDTH - 10}
+                    y={row * ROW + ROW / 2}
+                    className={`axis-label strong${selectedKey === group.key ? ' selected-label' : ''}`}
+                    textAnchor="end"
+                    dominantBaseline="middle"
+                    pointerEvents="none"
+                  >
                     {group.label.length > 26 ? `${group.label.slice(0, 25)}…` : group.label}
                     <title>{group.label}</title>
                   </text>
@@ -50,6 +103,8 @@ export function StatusBars({ groups, countLabel }: { groups: StatusGroup[]; coun
                     const x0 = x
                     x += scale(group.counts[status])
                     const last = i === present.length - 1
+                    const segmentDimmed = !groupDimmed && selectedStatus !== undefined && selectedKey === group.key && selectedStatus !== status
+                    const selectSegment = () => selectable && onSelectSegment?.(group.key, status)
                     const r = last ? Math.min(4, w) : 0
                     const content = (
                       <>
@@ -62,14 +117,17 @@ export function StatusBars({ groups, countLabel }: { groups: StatusGroup[]; coun
                     return (
                       <path
                         key={status}
-                        className={`segment segment-${status.toLowerCase()}`}
+                        className={`segment segment-${status.toLowerCase()}${segmentDimmed ? ' dimmed' : ''}${selectable && onSelectSegment ? ' clickable' : ''}`}
                         tabIndex={0}
+                        role={selectable && onSelectSegment ? 'button' : undefined}
                         aria-label={`${group.label}, ${t(`health.status.${status}`)}: ${countLabel(group.counts[status])}`}
                         d={`M${x0},${y} H${x0 + w - r} Q${x0 + w},${y} ${x0 + w},${y + r} V${y + BAR - r} Q${x0 + w},${y + BAR} ${x0 + w - r},${y + BAR} H${x0} Z`}
                         onPointerMove={(event) => show(event, content)}
                         onPointerLeave={hide}
                         onFocus={(event) => show(event.currentTarget.getBoundingClientRect(), content)}
                         onBlur={hide}
+                        onClick={selectSegment}
+                        onKeyDown={onActivate(selectSegment)}
                       />
                     )
                   })}
