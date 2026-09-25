@@ -1,0 +1,39 @@
+# Same stack on SQL Server:  docker compose -f docker-compose.sqlserver.yml up
+# Same API image — only Database__Provider and the connection string differ.
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      # Local dev only — never a real credential, never used outside this compose file.
+      MSSQL_SA_PASSWORD: "LocalDev_Only_1"
+    ports:
+      - "1433:1433"
+    volumes:
+      - db-data-mssql:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: src/AdaPlatform.Api/Dockerfile
+    environment:
+      Database__Provider: SqlServer
+      Database__MigrateOnStartup: "true"
+      ConnectionStrings__Default: "Server=db,1433;Database=adaplatform;User Id=sa;Password=LocalDev_Only_1;TrustServerCertificate=True"
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db-data-mssql:

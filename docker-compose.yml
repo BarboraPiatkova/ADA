@@ -1,3 +1,4 @@
+# Default stack: API + PostgreSQL. For SQL Server use docker-compose.sqlserver.yml instead.
 services:
   db:
     image: postgres:17-alpine
@@ -18,8 +19,11 @@ services:
 
   api:
     build:
-      context: ./src/AdaPlatform.Api
+      context: .
+      dockerfile: src/AdaPlatform.Api/Dockerfile
     environment:
+      Database__Provider: Postgres
+      Database__MigrateOnStartup: "true"
       ConnectionStrings__Default: "Host=db;Port=5432;Database=adaplatform;Username=postgres;Password=postgres"
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080"

@@ -6,6 +6,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AdaPlatform.Infrastructure\AdaPlatform.Infrastructure.csproj" />
+    <!--
+      Both migration sets ship with the API so one build can run on either engine;
+      Database:Provider picks which one is applied at runtime.
+    -->
+    <ProjectReference Include="..\AdaPlatform.Migrations.Postgres\AdaPlatform.Migrations.Postgres.csproj" />
+    <ProjectReference Include="..\AdaPlatform.Migrations.SqlServer\AdaPlatform.Migrations.SqlServer.csproj" />
   </ItemGroup>
 
 </Project>
