@@ -1,5 +1,6 @@
-// Light / dark / follow-the-system. The choice lives on <html data-theme> (CSS reads it)
-// and in localStorage; index.html re-applies it before first paint.
+// Light / dark / follow-the-system. The choice lives in localStorage; <html data-theme>
+// always holds the resolved theme (light or dark), which is what the CSS reads.
+// public/theme-init.js does the same resolution before first paint.
 
 export type ThemeChoice = 'system' | 'light' | 'dark'
 
@@ -14,12 +15,20 @@ export function readTheme(): ThemeChoice {
   }
 }
 
+const systemDark = window.matchMedia('(prefers-color-scheme: dark)')
+
+/** Sets <html data-theme> to what's shown now: the choice, or the system's when following it. */
+function resolve(choice: ThemeChoice) {
+  document.documentElement.dataset.theme = choice === 'system' ? (systemDark.matches ? 'dark' : 'light') : choice
+}
+
+// Following the system: switch along when it switches (e.g. at sunset).
+systemDark.addEventListener('change', () => {
+  if (readTheme() === 'system') resolve('system')
+})
+
 export function applyTheme(choice: ThemeChoice) {
-  if (choice === 'system') {
-    delete document.documentElement.dataset.theme
-  } else {
-    document.documentElement.dataset.theme = choice
-  }
+  resolve(choice)
   try {
     if (choice === 'system') localStorage.removeItem(STORAGE_KEY)
     else localStorage.setItem(STORAGE_KEY, choice)

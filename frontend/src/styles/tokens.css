@@ -1,4 +1,4 @@
-/* Raw design tokens. Light by default, dark when the system asks (unless the user chose light) or when the user chose dark. Tailwind utilities read these through @theme in index.css, so every utility switches theme with no dark: variant. */
+/* Raw design tokens: light by default, dark under <html data-theme="dark">. The theme script resolves "follow the system" into that attribute, so the dark palette is written once. Tailwind utilities read these through @theme in index.css, so every utility switches theme with no dark: variant. */
 
 :root {
   --ink: #1b2430;
@@ -60,40 +60,6 @@
   color: var(--ink);
   background: var(--paper);
   -webkit-font-smoothing: antialiased;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme='light']) {
-    --ink: #e6ecec;
-    --ink-2: #a2adb6;
-    --paper: #111a1f;
-    --surface: #17232a;
-    --surface-2: #203039;
-    --rule: #2d3d46;
-    --route: #52b5b0;
-    --route-strong: #7fd0cb;
-    --route-soft: rgba(82, 181, 176, 0.16);
-    --on-route: #0a2323;
-    --fault: #ff8b7b;
-    --fault-soft: rgba(255, 139, 123, 0.14);
-    --warning: #f0b54a;
-    --warning-soft: rgba(240, 181, 74, 0.14);
-    --ok: #5dca8b;
-    --ok-soft: rgba(93, 202, 139, 0.14);
-    --unknown: #a2adb6;
-    --unknown-soft: rgba(162, 173, 182, 0.14);
-    --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.45);
-    --seq-1: #104040;
-    --seq-2: #006161;
-    --seq-3: #008282;
-    --seq-4: #18a4a4;
-    --seq-5: #67c1c1;
-    --seq-6: #acdcdb;
-    --series-1: #119999;
-    --gridline: #23323a;
-    --axis: #3a4b55;
-    color-scheme: dark;
-  }
 }
 
 :root[data-theme='dark'] {
