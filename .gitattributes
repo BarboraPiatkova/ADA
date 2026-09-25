@@ -1,0 +1,18 @@
+# Store text with LF in the repo whatever the OS; Git converts on checkout only where
+# a tool needs it. Stops the CRLF/LF churn between Windows and the Linux containers.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary — never diff or convert.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.sqlite binary
+*.db binary
+*.xlsx binary
