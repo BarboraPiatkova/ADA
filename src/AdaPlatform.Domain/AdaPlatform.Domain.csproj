@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plain entities, no framework or provider dependencies. -->
+</Project>
