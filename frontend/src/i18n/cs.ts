@@ -11,6 +11,7 @@ export const cs = {
       jednotky: 'Stav jednotek',
     },
     loading: 'Načítám…',
+    skipToContent: 'Přeskočit na obsah',
     comingSoon: 'Připravuje se.',
   },
   auth: {

@@ -133,46 +133,50 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
   const onPattern = useMemo(() => new Set((patternData ?? []).map((s) => s.code)), [patternData])
 
   return (
-    <QueryState query={stops} loading={t('map.loadingStops')} skeleton={<MapSkeleton label={t('map.loadingStops')} />}>
-      {(stopList) =>
-        stopList.length === 0 ? (
-          <Empty>{t('map.noStops')}</Empty>
-        ) : (
-          <div className="flex min-w-0 flex-1 flex-col md:flex-row">
-            <QueryState query={lines} loading={t('map.loadingLines')} skeleton={<LinePickerSkeleton label={t('map.loadingLines')} />}>
-              {(lineList) => <LinePicker lines={lineList} selected={selected} onSelect={setSelected} />}
-            </QueryState>
-            <div className="relative flex min-w-0 flex-1">
-              <BaseMap layers={baseLayers} bounds={latLngBounds(stopList.map((s) => [s.latitude, s.longitude]))}>
-                {patternPoints.length > 1 && (
-                  <>
-                    {/* Drawn like a line diagram: a light casing under the route colour. */}
-                    <Polyline positions={patternPoints} pathOptions={{ color: 'var(--map-casing)', weight: 10, opacity: 0.9 }} />
-                    <Polyline positions={patternPoints} pathOptions={{ color: 'var(--map-route)', weight: 5 }} />
-                    <FitTo points={patternPoints} />
-                  </>
-                )}
-                <StopsLayer stops={stopList} onPattern={onPattern} />
-              </BaseMap>
-              <div
-                className="absolute right-3 bottom-[26px] z-[500] flex items-center gap-3.5 rounded-lg bg-paper px-3 py-1.5 text-xs shadow-float [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5"
-                aria-hidden="true"
-              >
-                <span>
-                  <i className={cn(LEGEND_STOP, 'size-[9px]')} /> {t('map.legendFewer')}
-                </span>
-                <span>
-                  <i className={cn(LEGEND_STOP, 'size-[17px]')} /> {t('map.legendMore')}
-                </span>
-                <span>
-                  <i className={cn(LEGEND_STOP, 'size-[9px] border-map-no-data')} /> {t('map.legendNoData')}
-                </span>
+    <>
+      {/* The map has no visible title (the tab names it); screen readers still get one. */}
+      <h1 className="sr-only">{t('app.views.mapa')}</h1>
+      <QueryState query={stops} loading={t('map.loadingStops')} skeleton={<MapSkeleton label={t('map.loadingStops')} />}>
+        {(stopList) =>
+          stopList.length === 0 ? (
+            <Empty>{t('map.noStops')}</Empty>
+          ) : (
+            <div className="flex min-w-0 flex-1 flex-col md:flex-row">
+              <QueryState query={lines} loading={t('map.loadingLines')} skeleton={<LinePickerSkeleton label={t('map.loadingLines')} />}>
+                {(lineList) => <LinePicker lines={lineList} selected={selected} onSelect={setSelected} />}
+              </QueryState>
+              <div className="relative flex min-w-0 flex-1">
+                <BaseMap layers={baseLayers} bounds={latLngBounds(stopList.map((s) => [s.latitude, s.longitude]))}>
+                  {patternPoints.length > 1 && (
+                    <>
+                      {/* Drawn like a line diagram: a light casing under the route colour. */}
+                      <Polyline positions={patternPoints} pathOptions={{ color: 'var(--map-casing)', weight: 10, opacity: 0.9 }} />
+                      <Polyline positions={patternPoints} pathOptions={{ color: 'var(--map-route)', weight: 5 }} />
+                      <FitTo points={patternPoints} />
+                    </>
+                  )}
+                  <StopsLayer stops={stopList} onPattern={onPattern} />
+                </BaseMap>
+                <div
+                  className="absolute right-3 bottom-[26px] z-[500] flex items-center gap-3.5 rounded-lg bg-paper px-3 py-1.5 text-xs shadow-float [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5"
+                  aria-hidden="true"
+                >
+                  <span>
+                    <i className={cn(LEGEND_STOP, 'size-[9px]')} /> {t('map.legendFewer')}
+                  </span>
+                  <span>
+                    <i className={cn(LEGEND_STOP, 'size-[17px]')} /> {t('map.legendMore')}
+                  </span>
+                  <span>
+                    <i className={cn(LEGEND_STOP, 'size-[9px] border-map-no-data')} /> {t('map.legendNoData')}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )
-      }
-    </QueryState>
+          )
+        }
+      </QueryState>
+    </>
   )
 }
 

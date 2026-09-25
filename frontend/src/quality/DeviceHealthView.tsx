@@ -403,7 +403,7 @@ function VehicleHealthTable({ report, daily, dailyPending }: { report: DeviceHea
   return (
     <div className="flex-1 overflow-y-auto p-4 md:px-7 md:pt-6 md:pb-10">
       <header>
-        <h2 className="mb-2 text-2xl">{t('health.title')}</h2>
+        <h1 className="mb-2 text-2xl">{t('health.title')}</h1>
         <dl className="flex flex-wrap gap-x-7 gap-y-1.5 [&>div]:flex [&>div]:items-baseline [&>div]:gap-2 [&_dd]:font-semibold [&_dt]:text-ink-2">
           <div>
             <dt>{t('health.facts.period')}</dt>
@@ -564,7 +564,7 @@ function VehicleHealthTable({ report, daily, dailyPending }: { report: DeviceHea
       </section>
 
       <div className="mb-2.5 flex items-baseline gap-3">
-        <h3 className="text-xl">{t('health.vehiclesTitle')}</h3>
+        <h2 className="text-xl">{t('health.vehiclesTitle')}</h2>
         <span className="text-xs text-ink-2">{t('health.shown', { count: filtered.length })}</span>
       </div>
 

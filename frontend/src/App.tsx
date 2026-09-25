@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Tabs } from 'radix-ui'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { LoginPage } from './auth/LoginPage'
 import { hasPermission, useSession, type Session } from './auth/session'
@@ -8,6 +8,7 @@ import { UserMenu } from './auth/UserMenu'
 import { NetworkMapView } from './map/NetworkMapView'
 import { mapConfigQuery } from './queries'
 import { DeviceHealthView } from './quality/DeviceHealthView'
+import { useDocumentTitle } from './ui/useDocumentTitle'
 import { Empty } from './ui/Empty'
 import { BrandMark } from './ui/icons'
 import { LanguageSwitch } from './ui/LanguageSwitch'
@@ -59,14 +60,30 @@ function Shell({ session }: { session: Session }) {
     return () => window.removeEventListener('hashchange', onHash)
   }, [views])
 
+  // The browser tab (and history, bookmarks, screen readers) name the screen, not just the app.
+  useDocumentTitle(view ? t(`app.views.${view}`) : undefined)
+  const main = useRef<HTMLElement>(null)
+
   return (
     <Tabs.Root className="flex h-svh flex-col" value={view} onValueChange={(v) => (window.location.hash = `/${v}`)}>
+      {/* First Tab stop: jump past the header. A button-like link, because the URL hash is the router. */}
+      <a
+        href="#main"
+        onClick={(event) => {
+          event.preventDefault()
+          main.current?.focus()
+        }}
+        className="sr-only z-[2000] rounded-lg bg-route px-3 py-2 font-semibold text-on-route focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+      >
+        {t('app.skipToContent')}
+      </a>
       {/* Phones: brand and switches on top, tabs full width below. */}
       <header className="flex flex-wrap items-center gap-x-3 border-b border-rule bg-paper px-3 pt-2 md:h-14 md:flex-nowrap md:gap-8 md:px-5 md:pt-0">
-        <h1 className="flex items-center gap-2.5 font-display text-xl font-bold tracking-[0.01em] text-ink">
+        {/* The brand, not a heading: each screen's own title is its h1. */}
+        <p className="flex items-center gap-2.5 font-display text-xl font-bold tracking-[0.01em] text-ink">
           <BrandMark />
           <span>AdaPlatform</span>
-        </h1>
+        </p>
         <Tabs.List className="order-3 flex h-[42px] w-full gap-1 self-stretch md:order-none md:h-auto md:w-auto" aria-label={t('app.screens')}>
           {views.map((v) => (
             <Tabs.Trigger
@@ -84,15 +101,17 @@ function Shell({ session }: { session: Session }) {
           <UserMenu user={session.user} />
         </div>
       </header>
-      {views.length === 0 && <Empty>{t('auth.noPermissions')}</Empty>}
-      <Tabs.Content value="mapa" className="flex min-h-0 flex-1">
-        <QueryState query={mapConfig} loading={t('app.loading')}>
-          {(config) => <NetworkMapView baseLayers={config.baseLayers} />}
-        </QueryState>
-      </Tabs.Content>
-      <Tabs.Content value="jednotky" className="flex min-h-0 flex-1">
-        <DeviceHealthView />
-      </Tabs.Content>
+      <main id="main" ref={main} tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
+        {views.length === 0 && <Empty>{t('auth.noPermissions')}</Empty>}
+        <Tabs.Content value="mapa" className="flex min-h-0 flex-1">
+          <QueryState query={mapConfig} loading={t('app.loading')}>
+            {(config) => <NetworkMapView baseLayers={config.baseLayers} />}
+          </QueryState>
+        </Tabs.Content>
+        <Tabs.Content value="jednotky" className="flex min-h-0 flex-1">
+          <DeviceHealthView />
+        </Tabs.Content>
+      </main>
     </Tabs.Root>
   )
 }

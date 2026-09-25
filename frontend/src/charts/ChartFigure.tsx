@@ -29,7 +29,7 @@ export function ChartFigure({
     <figure className="m-0 min-w-0 rounded-[10px] border border-rule bg-paper px-[18px] pt-4 pb-3.5">
       <figcaption className="mb-2.5 flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
         <div>
-          <h3 className="text-lg">{title}</h3>
+          <h2 className="text-lg">{title}</h2>
           {subtitle && <p className="mt-0.5 max-w-[72ch] text-sm text-ink-2">{subtitle}</p>}
         </div>
         <div className="flex flex-wrap gap-2">

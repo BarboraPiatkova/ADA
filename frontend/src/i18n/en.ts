@@ -11,6 +11,7 @@ export const en = {
       jednotky: 'Device health',
     },
     loading: 'Loading…',
+    skipToContent: 'Skip to content',
     comingSoon: 'Coming soon.',
   },
   auth: {

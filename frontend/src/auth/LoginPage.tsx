@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { BrandMark, StatusIcon } from '../ui/icons'
 import { LanguageSwitch } from '../ui/LanguageSwitch'
 import { ThemeSwitch } from '../ui/ThemeSwitch'
+import { useDocumentTitle } from '../ui/useDocumentTitle'
 import { AuthError, login } from './session'
 
 const FIELD =
@@ -29,6 +30,7 @@ export function LoginPage({ reason }: { reason?: 'expired' | 'unavailable' }) {
   const [password, setPassword] = useState('')
   const signIn = useMutation({ mutationFn: () => login(userName.trim(), password) })
   const ids = { user: useId(), password: useId(), message: useId() }
+  useDocumentTitle(t('auth.title'))
 
   // The latest attempt's error wins; before any attempt, say why we're here.
   const message: Message | undefined = signIn.isError ? messageFor(signIn.error) : signIn.isIdle ? reason : undefined
