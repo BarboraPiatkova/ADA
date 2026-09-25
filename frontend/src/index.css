@@ -1255,6 +1255,69 @@ h3 {
   font-size: var(--fs-xl);
 }
 
+/* ---------- pagination ---------- */
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 12px;
+}
+
+.pagination-range {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.page-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--display);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.page-button:hover:not(:disabled) {
+  border-color: var(--ink-2);
+  background: var(--surface);
+}
+
+.page-button[aria-current='page'] {
+  border-color: var(--route);
+  background: var(--route);
+  color: var(--on-route);
+  cursor: default;
+}
+
+.page-button:disabled {
+  color: var(--ink-2);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.page-gap {
+  min-width: 20px;
+  color: var(--ink-2);
+  text-align: center;
+}
+
 /* ---------- Radix primitives ---------- */
 
 .select-trigger {
@@ -1375,5 +1438,8 @@ h3 {
   }
   .search input {
     width: 150px;
+  }
+  .pagination-pages {
+    margin-left: 0;
   }
 }

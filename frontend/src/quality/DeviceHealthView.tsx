@@ -4,11 +4,13 @@ import {
   createColumnHelper,
   createExpandedRowModel,
   createFilteredRowModel,
+  createPaginatedRowModel,
   createSortedRowModel,
   filterFn_equals,
   functionalUpdate,
   globalFilteringFeature,
   rowExpandingFeature,
+  rowPaginationFeature,
   rowSortingFeature,
   tableFeatures,
   useTable,
@@ -18,7 +20,7 @@ import {
 } from '@tanstack/react-table'
 import type { TFunction } from 'i18next'
 import { Collapsible, ToggleGroup } from 'radix-ui'
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import { Trans, useTranslation } from 'react-i18next'
 import type { DeviceHealth, DeviceHealthReport, HealthReason, HealthStatus, HealthThresholds, VehicleDay, VehicleHealth } from '../api'
 import { ChartFigure } from '../charts/ChartFigure'
@@ -29,6 +31,7 @@ import { StatusBars, StatusBarsTable, StatusLegend } from '../charts/StatusBars'
 import { useFormat } from '../i18n/format'
 import { dailyQualityQuery, deviceHealthQuery } from '../queries'
 import { Hint } from '../ui/Hint'
+import { Pagination } from '../ui/Pagination'
 import { StatusIcon, TractionIcon } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { Select } from '../ui/Select'
@@ -48,6 +51,8 @@ const vehicleFeatures = tableFeatures({
   filterFns: { equals: filterFn_equals },
   rowExpandingFeature,
   expandedRowModel: createExpandedRowModel(),
+  rowPaginationFeature,
+  paginatedRowModel: createPaginatedRowModel(),
 })
 const deviceFeatures = tableFeatures({ rowSortingFeature, sortedRowModel: createSortedRowModel() })
 
@@ -283,6 +288,7 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
   const [search, setSearch] = useState('')
   const [metricId, setMetricId] = useState<MetricId>('negative')
   const [groupBy, setGroupBy] = useState<'model' | 'firmware'>('model')
+  const tableTop = useRef<HTMLDivElement>(null)
   const metric = METRICS[metricId]
 
   const searchFn = useMemo<FilterFn<any, VehicleHealth>>(
@@ -302,7 +308,8 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
     data: report.vehicles,
     getRowId: (v) => String(v.vehicleId),
     getRowCanExpand: () => true,
-    initialState: { sorting: [{ id: 'status', desc: false }] },
+    initialState: { sorting: [{ id: 'status', desc: false }], pagination: { pageIndex: 0, pageSize: 25 } },
+    // Filters, search and sorting send the reader back to page 1 (TanStack's default reset).
     state: { columnFilters, globalFilter: search },
     onColumnFiltersChange: (updater) => setColumnFilters((previous) => functionalUpdate(updater, previous)),
     onGlobalFilterChange: (updater) => setSearch((previous) => functionalUpdate(updater, previous) ?? ''),
@@ -318,10 +325,12 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
 
   const statusFilter = (columnFilters.find((f) => f.id === 'status')?.value as HealthStatus | undefined) ?? ''
   const tractionFilter = (columnFilters.find((f) => f.id === 'traction')?.value as string | undefined) ?? 'all'
+  // The table body shows one page; everything else — charts, counts — sees every filtered,
+  // sorted row, so paging never changes what the analysis says.
   const shown = table.getRowModel().rows
-
-  // Everything below the filter row sees the same slice: charts follow the table's filters and order.
-  const visible = shown.map((row) => row.original)
+  const filtered = table.getPrePaginatedRowModel().rows
+  const visible = filtered.map((row) => row.original)
+  const { pageIndex, pageSize } = table.state.pagination
   const dailyByKey = useMemo(() => new Map(daily.map((d) => [`${d.vehicleId}|${d.day}`, d])), [daily])
   const days = useMemo(() => heatmapDays(report.from, report.to), [report.from, report.to])
   const formatMetric = (value: number) => (metric.kind === 'share' ? format.percentWhole(value) : format.number(Math.round(value)))
@@ -486,10 +495,10 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
 
       <div className="section-head">
         <h3>{t('health.vehiclesTitle')}</h3>
-        <span className="muted small">{t('health.shown', { count: shown.length })}</span>
+        <span className="muted small">{t('health.shown', { count: filtered.length })}</span>
       </div>
 
-      <div className="table-wrap">
+      <div className="table-wrap" ref={tableTop}>
         <table className="data-table">
           <thead>
             {table.getHeaderGroups().map((group) => (
@@ -535,6 +544,17 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        rowCount={filtered.length}
+        onPageChange={(page) => {
+          table.setPageIndex(page)
+          tableTop.current?.scrollIntoView({ block: 'nearest' })
+        }}
+        onPageSizeChange={(size) => table.setPageSize(size)}
+      />
 
       <Rules th={report.thresholds} />
     </div>

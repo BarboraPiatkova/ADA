@@ -137,6 +137,14 @@ export const en = {
       restarts: 'Restarts are not evaluated: in the data they are a routine operational event (see report F5).',
     },
   },
+  pagination: {
+    label: 'Pagination',
+    range: '{{from}}–{{to}} of {{total}}',
+    pageSize: 'Per page',
+    previous: 'Previous page',
+    next: 'Next page',
+    page: 'Page {{page}}',
+  },
   charts: {
     analysis: 'Analysis',
     metric: 'Measure',

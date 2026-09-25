@@ -143,6 +143,14 @@ export const cs = {
       restarts: 'Restarty se nehodnotí: v datech jsou běžnou provozní událostí (viz report F5).',
     },
   },
+  pagination: {
+    label: 'Stránkování',
+    range: '{{from}}–{{to}} z {{total}}',
+    pageSize: 'Na stránku',
+    previous: 'Předchozí stránka',
+    next: 'Další stránka',
+    page: 'Stránka {{page}}',
+  },
   charts: {
     analysis: 'Analýza',
     metric: 'Ukazatel',
