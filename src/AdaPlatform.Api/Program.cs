@@ -1,3 +1,4 @@
+using AdaPlatform.Api.Endpoints;
 using AdaPlatform.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -21,6 +22,7 @@ app.UseHttpsRedirection();
 // Liveness/readiness probe — verifies the API is up AND can reach the database.
 app.MapHealthChecks("/health");
 
+app.MapNetworkEndpoints();
 
 app.Run();
 
