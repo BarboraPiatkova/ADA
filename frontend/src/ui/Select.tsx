@@ -19,17 +19,28 @@ export function Select({
 }) {
   return (
     <RadixSelect.Root value={value} onValueChange={onChange}>
-      <RadixSelect.Trigger className="select-trigger" aria-label={label}>
-        <span className="muted">{label}:</span> <RadixSelect.Value />
-        <RadixSelect.Icon className="select-icon">▾</RadixSelect.Icon>
+      <RadixSelect.Trigger
+        className="inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-lg border border-rule bg-paper px-2.5 hover:border-ink-2"
+        aria-label={label}
+      >
+        <span className="text-ink-2">{label}:</span> <RadixSelect.Value />
+        <RadixSelect.Icon className="text-ink-2">▾</RadixSelect.Icon>
       </RadixSelect.Trigger>
       <RadixSelect.Portal>
-        <RadixSelect.Content className="select-content" position="popper" sideOffset={4}>
+        <RadixSelect.Content
+          className="z-[1000] min-w-(--radix-select-trigger-width) rounded-lg border border-rule bg-paper p-1 shadow-float"
+          position="popper"
+          sideOffset={4}
+        >
           <RadixSelect.Viewport>
             {options.map((o) => (
-              <RadixSelect.Item key={o.value} value={o.value} className="select-item">
+              <RadixSelect.Item
+                key={o.value}
+                value={o.value}
+                className="flex cursor-pointer justify-between gap-3 rounded-md px-2.5 py-1.5 outline-none data-highlighted:bg-route-soft"
+              >
                 <RadixSelect.ItemText>{o.label}</RadixSelect.ItemText>
-                <RadixSelect.ItemIndicator className="select-check">✓</RadixSelect.ItemIndicator>
+                <RadixSelect.ItemIndicator className="text-route">✓</RadixSelect.ItemIndicator>
               </RadixSelect.Item>
             ))}
           </RadixSelect.Viewport>

@@ -52,7 +52,10 @@
   --fs-2xl: 26px;
 
   color-scheme: light;
-  font: 400 var(--fs-md) / 1.5 var(--text);
+  /* The root keeps the browser font size (1rem = 16px by default, larger if the user set it),
+     so Tailwind's rem spacing is right; body text is 14px (see index.css). */
+  font-family: var(--text);
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--paper);

@@ -1,7 +1,7 @@
-import { ToggleGroup } from 'radix-ui'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { applyTheme, readTheme, type ThemeChoice } from '../theme'
+import { SegmentedItem, SegmentedRoot } from './Segmented'
 
 const ICONS: Record<ThemeChoice, string> = {
   system: 'M4 5h16v11H4zM9 20h6M12 16v4',
@@ -14,9 +14,8 @@ export function ThemeSwitch() {
   const [choice, setChoice] = useState<ThemeChoice>(readTheme)
 
   return (
-    <ToggleGroup.Root
+    <SegmentedRoot
       type="single"
-      className="segmented"
       aria-label={t('theme.label')}
       value={choice}
       onValueChange={(value) => {
@@ -27,12 +26,12 @@ export function ThemeSwitch() {
       }}
     >
       {(Object.keys(ICONS) as ThemeChoice[]).map((c) => (
-        <ToggleGroup.Item key={c} value={c} className="segmented-item" aria-label={t(`theme.${c}`)} title={t(`theme.${c}`)}>
+        <SegmentedItem key={c} value={c} aria-label={t(`theme.${c}`)} title={t(`theme.${c}`)}>
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d={ICONS[c]} />
           </svg>
-        </ToggleGroup.Item>
+        </SegmentedItem>
       ))}
-    </ToggleGroup.Root>
+    </SegmentedRoot>
   )
 }

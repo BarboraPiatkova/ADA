@@ -15,7 +15,7 @@ function Icon({ size = 16, children }: { size?: number; children: React.ReactNod
 /** The product mark: a route line with stops, as on a line diagram. */
 export function BrandMark() {
   return (
-    <svg className="brand-mark" viewBox="0 0 34 20" width="34" height="20" aria-hidden="true">
+    <svg className="text-route" viewBox="0 0 34 20" width="34" height="20" aria-hidden="true">
       <path d="M4 15h9l7-10h10" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="4" cy="15" r="3.2" fill="var(--paper)" stroke="currentColor" strokeWidth="2.2" />
       <circle cx="16.5" cy="10" r="3.2" fill="var(--paper)" stroke="currentColor" strokeWidth="2.2" />

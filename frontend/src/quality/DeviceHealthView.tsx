@@ -27,6 +27,7 @@ import { Hint } from '../ui/Hint'
 import { Pagination } from '../ui/Pagination'
 import { StatusIcon, TractionIcon } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
+import { SegmentedItem, SegmentedRoot } from '../ui/Segmented'
 import { Select } from '../ui/Select'
 import { ActiveFilters } from './ActiveFilters'
 import { matches, NO_FILTERS, type FilterKey, type Filters } from './filters'
@@ -511,20 +512,19 @@ function VehicleHealthTable({ report, daily }: { report: DeviceHealthReport; dai
             title={t(groupBy === 'model' ? 'charts.statusByModel' : 'charts.statusByFirmware')}
             subtitle={t(groupBy === 'model' ? 'charts.statusByModelSubtitle' : 'charts.statusByFirmwareSubtitle')}
             controls={
-              <ToggleGroup.Root
+              <SegmentedRoot
                 type="single"
-                className="segmented"
                 value={groupBy}
                 aria-label={t('charts.groupBy')}
                 onValueChange={(value) => value && setGroupBy(value as 'model' | 'firmware')}
               >
-                <ToggleGroup.Item value="model" className="segmented-item">
+                <SegmentedItem value="model">
                   {t('charts.byModel')}
-                </ToggleGroup.Item>
-                <ToggleGroup.Item value="firmware" className="segmented-item">
+                </SegmentedItem>
+                <SegmentedItem value="firmware">
                   {t('charts.byFirmware')}
-                </ToggleGroup.Item>
-              </ToggleGroup.Root>
+                </SegmentedItem>
+              </SegmentedRoot>
             }
             legend={<StatusLegend />}
             chart={

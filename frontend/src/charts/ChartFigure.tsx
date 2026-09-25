@@ -1,6 +1,6 @@
-import { ToggleGroup } from 'radix-ui'
 import { useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
+import { SegmentedItem, SegmentedRoot } from '../ui/Segmented'
 
 /**
  * Frame for every chart: title, one-line reading guide, optional view controls, and a
@@ -34,20 +34,19 @@ export function ChartFigure({
         </div>
         <div className="chart-controls">
           {controls}
-          <ToggleGroup.Root
+          <SegmentedRoot
             type="single"
-            className="segmented"
             value={view}
             aria-label={t('charts.viewAs')}
             onValueChange={(value) => value && setView(value as 'chart' | 'table')}
           >
-            <ToggleGroup.Item value="chart" className="segmented-item">
+            <SegmentedItem value="chart">
               {t('charts.chart')}
-            </ToggleGroup.Item>
-            <ToggleGroup.Item value="table" className="segmented-item">
+            </SegmentedItem>
+            <SegmentedItem value="table">
               {t('charts.table')}
-            </ToggleGroup.Item>
-          </ToggleGroup.Root>
+            </SegmentedItem>
+          </SegmentedRoot>
         </div>
       </figcaption>
       {view === 'chart' ? (

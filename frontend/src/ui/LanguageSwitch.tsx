@@ -1,22 +1,16 @@
-import { ToggleGroup } from 'radix-ui'
 import { useTranslation } from 'react-i18next'
 import { currentLanguage, LANGUAGES } from '../i18n'
+import { SegmentedItem, SegmentedRoot } from './Segmented'
 
 export function LanguageSwitch() {
   const { t, i18n } = useTranslation()
   return (
-    <ToggleGroup.Root
-      type="single"
-      className="segmented"
-      aria-label={t('language.label')}
-      value={currentLanguage()}
-      onValueChange={(value) => value && void i18n.changeLanguage(value)}
-    >
+    <SegmentedRoot type="single" aria-label={t('language.label')} value={currentLanguage()} onValueChange={(value) => value && void i18n.changeLanguage(value)}>
       {LANGUAGES.map((lng) => (
-        <ToggleGroup.Item key={lng} value={lng} className="segmented-item" lang={lng}>
+        <SegmentedItem key={lng} value={lng} lang={lng}>
           {lng.toUpperCase()}
-        </ToggleGroup.Item>
+        </SegmentedItem>
       ))}
-    </ToggleGroup.Root>
+    </SegmentedRoot>
   )
 }
