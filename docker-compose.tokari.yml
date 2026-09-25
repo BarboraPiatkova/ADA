@@ -33,6 +33,8 @@ services:
       DefaultConnection: "Server=tokari-db,1433;Database=tokari;User Id=sa;Password=${TOKARI_DB_PASSWORD};TrustServerCertificate=true;"
       JwtSettings__Issuer: Tokari
       JwtSettings__SigningKey: ${TOKARI_SIGNING_KEY:?set TOKARI_SIGNING_KEY in .env}
+      # Shorten to test silent refresh without waiting 5 minutes (TOKARI_ACCESS_TOKEN_MINUTES=1).
+      JwtSettings__AccessTokenExpirationMinutes: ${TOKARI_ACCESS_TOKEN_MINUTES:-5}
       RateLimiting__ApiKeys__0: ${TOKARI_API_KEY:?set TOKARI_API_KEY in .env}
       Ports__External: "8091"
       Ports__Internal: "8090"

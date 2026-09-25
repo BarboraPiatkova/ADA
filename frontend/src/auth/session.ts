@@ -41,13 +41,32 @@ export class AuthError extends Error {
 // The API refuses cookie-authenticated calls without this header (CSRF defence).
 const CSRF_HEADER = { 'X-Requested-With': 'fetch' }
 
-// Refresh a minute before the 5-minute access token runs out.
+// Refresh a minute before the access token runs out (Tokari issues 5-minute tokens), or a
+// third of its remaining life for a shorter token, so a short lifetime never becomes a loop.
 const REFRESH_AHEAD_MS = 60_000
+const MIN_REFRESH_DELAY_MS = 5_000
+// After a failed refresh (Tokari restarting, network down), retry with backoff:
+// 10 s, 20 s, 40 s … at most every 5 minutes, and not at all while the tab is hidden.
+const RETRY_FIRST_MS = 10_000
+const RETRY_MAX_MS = 300_000
 
 let state: SessionState = { status: 'checking' }
 const listeners = new Set<() => void>()
 let refreshTimer: ReturnType<typeof setTimeout> | undefined
 let inflightRefresh: Promise<Session | null> | null = null
+let retryDelay = RETRY_FIRST_MS
+let retryWhenVisible = false
+
+const msLeft = (session: Session) => new Date(session.expiresAt).getTime() - Date.now()
+
+/** The one place a refresh gets scheduled. */
+function scheduleRefresh(delay: number, { skipWhileHidden = false } = {}) {
+  clearTimeout(refreshTimer)
+  refreshTimer = setTimeout(() => {
+    if (skipWhileHidden && document.hidden) retryWhenVisible = true
+    else void refresh()
+  }, delay)
+}
 
 // Tabs tell each other about sign-in and sign-out, so all of them follow.
 const tabs = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('adaplatform.auth')
@@ -57,12 +76,26 @@ tabs?.addEventListener('message', (event: MessageEvent<'signedIn' | 'signedOut'>
   if (event.data === 'signedIn' && state.status !== 'signedIn') void refresh()
 })
 
+// Timers don't run while a laptop sleeps, and background tabs throttle them. Coming back,
+// refresh at once if the token is due or a retry was held back, instead of letting the
+// first request fail with 401.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return
+    const due = state.status === 'signedIn' && msLeft(state.session) < REFRESH_AHEAD_MS
+    if (due || retryWhenVisible) {
+      retryWhenVisible = false
+      void refresh()
+    }
+  })
+}
+
 function setState(next: SessionState) {
   state = next
   clearTimeout(refreshTimer)
   if (next.status === 'signedIn') {
-    const due = new Date(next.session.expiresAt).getTime() - Date.now() - REFRESH_AHEAD_MS
-    refreshTimer = setTimeout(() => void refresh(), Math.max(due, 5_000))
+    const left = msLeft(next.session)
+    scheduleRefresh(Math.max(left - Math.min(REFRESH_AHEAD_MS, left / 3), MIN_REFRESH_DELAY_MS))
   }
   listeners.forEach((listener) => listener())
 }
@@ -110,11 +143,12 @@ async function doRefresh(): Promise<Session | null> {
   try {
     response = await post('/api/auth/refresh')
   } catch {
-    return keepOrFail('unavailable')
+    return keepOrFail()
   }
 
   if (response.ok) {
     const session = (await response.json()) as Session
+    retryDelay = RETRY_FIRST_MS
     setState({ status: 'signedIn', session })
     return session
   }
@@ -123,20 +157,25 @@ async function doRefresh(): Promise<Session | null> {
     setState({ status: 'signedOut', reason: state.status === 'signedIn' ? 'expired' : undefined })
     return null
   }
-  return keepOrFail('unavailable')
+  return keepOrFail()
 }
 
-/** Tokari unreachable: keep a live session until its token runs out; on page load, give up. */
-function keepOrFail(reason: 'unavailable'): Session | null {
-  if (state.status === 'signedIn' && new Date(state.session.expiresAt).getTime() > Date.now()) {
-    return state.session
-  }
-  setState({ status: 'signedOut', reason })
-  return null
+/**
+ * Tokari unreachable. The refresh cookie may well still be good, so keep trying in the
+ * background: a live session stays until its token runs out; after that (or on page load)
+ * the login page says the service is unavailable — and the session resumes on its own as
+ * soon as a retry gets through, without asking for the password again.
+ */
+function keepOrFail(): Session | null {
+  if (state.status !== 'signedIn' || msLeft(state.session) <= 0) setState({ status: 'signedOut', reason: 'unavailable' })
+  scheduleRefresh(retryDelay, { skipWhileHidden: true })
+  retryDelay = Math.min(retryDelay * 2, RETRY_MAX_MS)
+  return state.status === 'signedIn' ? state.session : null
 }
 
 export async function logout(): Promise<void> {
   clearTimeout(refreshTimer)
+  retryWhenVisible = false
   try {
     // Revokes the session in Tokari and clears the cookie; the local sign-out happens
     // whether or not the server answers.

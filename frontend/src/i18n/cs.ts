@@ -28,7 +28,7 @@ export const cs = {
       noAccess: 'Tento účet nemá přístup do AdaPlatform. Požádejte správce o přidělení role.',
       tooManyAttempts: 'Příliš mnoho pokusů. Zkuste to znovu za minutu.',
       unavailable: 'Přihlašovací služba teď není dostupná. Zkuste to za chvíli znovu.',
-      expired: 'Přihlášení vypršelo. Přihlaste se prosím znovu.',
+      expired: 'Přihlášení skončilo – vypršelo, nebo bylo ukončeno jinde. Přihlaste se prosím znovu.',
     },
     account: 'Účet: {{name}}',
     signOut: 'Odhlásit se',

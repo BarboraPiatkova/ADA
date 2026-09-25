@@ -28,7 +28,7 @@ export const en = {
       noAccess: 'This account has no access to AdaPlatform. Ask your administrator for a role.',
       tooManyAttempts: 'Too many attempts. Try again in a minute.',
       unavailable: 'The sign-in service isn’t available right now. Try again shortly.',
-      expired: 'Your session has ended. Please sign in again.',
+      expired: 'Your session has ended: it expired or was ended elsewhere. Please sign in again.',
     },
     account: 'Account: {{name}}',
     signOut: 'Sign out',
