@@ -40,11 +40,12 @@ export const en = {
     stops_other: '{{count}} stops',
     hiddenPatterns_one: '+ {{count}} pattern without trips',
     hiddenPatterns_other: '+ {{count}} patterns without trips',
+    patternMeta: '{{trips}}, {{stops}}',
     noVisits: 'no recorded stop visits',
     stopActivity_one:
-      '{{count, number}} stop visit · on average {{boardings, number(maximumFractionDigits: 1)}} boardings, {{alightings, number(maximumFractionDigits: 1)}} alightings',
+      '{{count, number}} stop visit, on average {{boardings, number(maximumFractionDigits: 1)}} boardings, {{alightings, number(maximumFractionDigits: 1)}} alightings',
     stopActivity_other:
-      '{{count, number}} stop visits · on average {{boardings, number(maximumFractionDigits: 1)}} boardings, {{alightings, number(maximumFractionDigits: 1)}} alightings',
+      '{{count, number}} stop visits, on average {{boardings, number(maximumFractionDigits: 1)}} boardings, {{alightings, number(maximumFractionDigits: 1)}} alightings',
     legendFewer: 'fewer boardings',
     legendMore: 'more boardings',
     legendNoData: 'no data',
@@ -66,6 +67,13 @@ export const en = {
     devices_one: '{{count, number}} device',
     devices_other: '{{count, number}} devices',
     summary: '{{from}} – {{to}} · {{vehicles}} · {{devices}}. Evaluated from raw messages using provisional rules (below).',
+    facts: {
+      period: 'Period',
+      vehicles: 'Vehicles',
+      devices: 'Devices',
+    },
+    note: 'Evaluated from the devices’ raw messages using provisional rules, described below the table.',
+    fleetStatus: 'Fleet status',
     status: {
       Fault: 'Fault',
       Warning: 'Warning',
@@ -81,7 +89,7 @@ export const en = {
       trolejbus: 'trolleybus',
     },
     clearFilters: 'clear filters',
-    shown: '{{count, number}} shown · click a row to see its devices',
+    shown: '{{count, number}} shown. Click a row to see the vehicle’s devices.',
     columns: {
       status: 'Status',
       vehicle: 'Vehicle',

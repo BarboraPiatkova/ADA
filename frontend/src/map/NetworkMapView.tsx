@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { CircleMarker, Polyline, Tooltip, useMap } from 'react-leaflet'
 import type { BaseLayer, Line, PatternSummary, Stop } from '../api'
 import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
+import { Chevron } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { BaseMap } from './BaseMap'
 
@@ -23,8 +24,11 @@ function FitTo({ points }: { points: [number, number][] }) {
   return null
 }
 
+/** Terminus names come as "14901 Purmerendská"; the leading stop code means nothing to a reader. */
+const withoutStopCode = (name: string | null) => name?.replace(/^\d+\s+/, '') ?? '?'
+
 function patternLabel(p: PatternSummary) {
-  return `${p.firstStopName ?? '?'} → ${p.lastStopName ?? '?'}`
+  return `${withoutStopCode(p.firstStopName)} → ${withoutStopCode(p.lastStopName)}`
 }
 
 function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: number | null; onSelect: (code: number | null) => void }) {
@@ -32,7 +36,7 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
   return (
     <nav className="sidebar" aria-label={t('map.lines')}>
       <h2>{t('map.lines')}</h2>
-      <p className="muted small">{t('map.linesHint')}</p>
+      <p className="sidebar-hint">{t('map.linesHint')}</p>
       <Accordion.Root type="single" collapsible className="line-list">
         {lines.map((line) => {
           const withTrips = line.patterns.filter((p) => p.trips > 0)
@@ -43,9 +47,9 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
                 <h3 className="line-header">
                   <Accordion.Trigger className="line-button">
                     <span className="line-badge">{line.id}</span>
-                    <span>{t('map.patternsWithTrips', { count: withTrips.length })}</span>
-                    <span className="chevron" aria-hidden="true">
-                      ▾
+                    <span className="line-meta">{t('map.patternsWithTrips', { count: withTrips.length })}</span>
+                    <span className="chevron">
+                      <Chevron />
                     </span>
                   </Accordion.Trigger>
                 </h3>
@@ -54,13 +58,13 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
                 {withTrips.map((p) => (
                   <button
                     key={p.code}
-                    className={`pattern-button${selected === p.code ? ' selected' : ''}`}
+                    className="pattern-button"
                     aria-pressed={selected === p.code}
                     onClick={() => onSelect(selected === p.code ? null : p.code)}
                   >
-                    <span>{patternLabel(p)}</span>
+                    <span className="pattern-name">{patternLabel(p)}</span>
                     <span className="muted small">
-                      {t('map.trips', { count: p.trips })} · {t('map.stops', { count: p.stopCount })}
+                      {t('map.patternMeta', { trips: t('map.trips', { count: p.trips }), stops: t('map.stops', { count: p.stopCount }) })}
                     </span>
                   </button>
                 ))}
@@ -85,11 +89,11 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
         center={[s.latitude, s.longitude]}
         radius={radiusFor(s)}
         pathOptions={{
-          color: s.visits === 0 ? 'var(--muted)' : 'var(--accent)',
-          weight: highlighted ? 3 : 1.5,
-          fillColor: s.visits === 0 ? 'var(--muted)' : 'var(--accent)',
-          fillOpacity: dimmed ? 0.15 : 0.55,
-          opacity: dimmed ? 0.3 : 1,
+          color: s.visits === 0 ? 'var(--map-no-data)' : 'var(--map-route)',
+          weight: highlighted ? 3.5 : 2,
+          fillColor: 'var(--map-stop)',
+          fillOpacity: dimmed ? 0.5 : 0.95,
+          opacity: dimmed ? 0.3 : s.visits === 0 ? 0.6 : 1,
         }}
       >
         <Tooltip>
@@ -133,16 +137,24 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
               <BaseMap layers={baseLayers} bounds={latLngBounds(stopList.map((s) => [s.latitude, s.longitude]))}>
                 {patternPoints.length > 1 && (
                   <>
-                    <Polyline positions={patternPoints} pathOptions={{ color: 'var(--accent)', weight: 5, opacity: 0.85 }} />
+                    {/* Drawn like a line diagram: a light casing under the route colour. */}
+                    <Polyline positions={patternPoints} pathOptions={{ color: 'var(--map-casing)', weight: 10, opacity: 0.9 }} />
+                    <Polyline positions={patternPoints} pathOptions={{ color: 'var(--map-route)', weight: 5 }} />
                     <FitTo points={patternPoints} />
                   </>
                 )}
                 <StopsLayer stops={stopList} onPattern={onPattern} />
               </BaseMap>
               <div className="map-legend" aria-hidden="true">
-                <span className="legend-dot small-dot" /> {t('map.legendFewer')}
-                <span className="legend-dot big-dot" /> {t('map.legendMore')}
-                <span className="legend-dot muted-dot" /> {t('map.legendNoData')}
+                <span>
+                  <i className="legend-stop small" /> {t('map.legendFewer')}
+                </span>
+                <span>
+                  <i className="legend-stop big" /> {t('map.legendMore')}
+                </span>
+                <span>
+                  <i className="legend-stop none" /> {t('map.legendNoData')}
+                </span>
               </div>
             </div>
           </div>

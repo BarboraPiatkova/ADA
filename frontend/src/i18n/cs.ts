@@ -48,8 +48,9 @@ export const cs = {
     hiddenPatterns_few: '+ {{count}} trasy bez jízd',
     hiddenPatterns_many: '+ {{count}} trasy bez jízd',
     hiddenPatterns_other: '+ {{count}} tras bez jízd',
+    patternMeta: '{{trips}}, {{stops}}',
     noVisits: 'bez zaznamenaných zastavení',
-    stopActivity: '{{count, number}} zastavení · průměrně {{boardings, number(maximumFractionDigits: 1)}} nástupů, {{alightings, number(maximumFractionDigits: 1)}} výstupů',
+    stopActivity: '{{count, number}} zastavení, průměrně {{boardings, number(maximumFractionDigits: 1)}} nástupů, {{alightings, number(maximumFractionDigits: 1)}} výstupů',
     legendFewer: 'méně nástupů',
     legendMore: 'více nástupů',
     legendNoData: 'bez dat',
@@ -75,6 +76,13 @@ export const cs = {
     devices_many: '{{count, number}} jednotky',
     devices_other: '{{count, number}} jednotek',
     summary: '{{from}} – {{to}} · {{vehicles}} · {{devices}}. Vyhodnoceno ze surových zpráv podle předběžných pravidel (níže).',
+    facts: {
+      period: 'Období',
+      vehicles: 'Vozidla',
+      devices: 'Jednotky',
+    },
+    note: 'Vyhodnoceno ze surových zpráv jednotek podle předběžných pravidel, která jsou popsána pod tabulkou.',
+    fleetStatus: 'Stav vozového parku',
     status: {
       Fault: 'Porucha',
       Warning: 'Varování',
@@ -90,7 +98,7 @@ export const cs = {
       trolejbus: 'trolejbus',
     },
     clearFilters: 'zrušit filtry',
-    shown: '{{count, number}} zobrazeno · kliknutím na řádek zobrazíte jednotky',
+    shown: 'Zobrazeno {{count, number}}. Kliknutím na řádek zobrazíte jednotky vozu.',
     columns: {
       status: 'Stav',
       vehicle: 'Vůz',

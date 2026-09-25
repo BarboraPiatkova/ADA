@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { NetworkMapView } from './map/NetworkMapView'
 import { mapConfigQuery } from './queries'
 import { DeviceHealthView } from './quality/DeviceHealthView'
+import { BrandMark } from './ui/icons'
 import { LanguageSwitch } from './ui/LanguageSwitch'
 import { QueryState } from './ui/QueryState'
 import { ThemeSwitch } from './ui/ThemeSwitch'
@@ -33,7 +34,10 @@ export default function App() {
   return (
     <Tabs.Root className="layout" value={view} onValueChange={(v) => (window.location.hash = `/${v}`)}>
       <header className="header">
-        <h1>AdaPlatform</h1>
+        <h1 className="brand">
+          <BrandMark />
+          <span className="brand-word">AdaPlatform</span>
+        </h1>
         <Tabs.List className="tabs" aria-label={t('app.screens')}>
           {VIEWS.map((v) => (
             <Tabs.Trigger key={v} value={v} className="tab">
