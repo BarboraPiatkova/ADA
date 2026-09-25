@@ -93,6 +93,7 @@ public sealed class UcpLogIngestor(AppDbContext db)
         }
 
         report.NewCountingDevices = await SaveDevicesAsync(devices, ct);
+        // Restore the default even when there were no devices to save.
         db.ChangeTracker.AutoDetectChangesEnabled = true;
 
         report.Elapsed = stopwatch.Elapsed;
@@ -205,8 +206,7 @@ public sealed class UcpLogIngestor(AppDbContext db)
             }
             else if (file.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
             {
-                var captured = file;
-                yield return new LogEntry(captured, Path.GetFileName(captured), () => File.ReadAllBytes(captured));
+                yield return new LogEntry(file, Path.GetFileName(file), () => File.ReadAllBytes(file));
             }
         }
     }
@@ -216,10 +216,9 @@ public sealed class UcpLogIngestor(AppDbContext db)
         using var archive = ZipFile.OpenRead(zipPath);
         foreach (var entry in archive.Entries.Where(e => e.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)).OrderBy(e => e.FullName, StringComparer.Ordinal))
         {
-            var captured = entry;
-            yield return new LogEntry($"{Path.GetFileName(zipPath)}!{captured.FullName}", captured.Name, () =>
+            yield return new LogEntry($"{Path.GetFileName(zipPath)}!{entry.FullName}", entry.Name, () =>
             {
-                using var stream = captured.Open();
+                using var stream = entry.Open();
                 using var buffer = new MemoryStream();
                 stream.CopyTo(buffer);
                 return buffer.ToArray();
@@ -234,7 +233,7 @@ public sealed class UcpLogIngestor(AppDbContext db)
         public DateTime First { get; set; } = time;
         public DateTime Last { get; set; } = time;
         public string? Firmware { get; set; }
-        public DateTime FirmwareSeenAt { get; set; } = DateTime.MinValue;
+        public DateTime FirmwareSeenAt { get; set; }
     }
 }
 
