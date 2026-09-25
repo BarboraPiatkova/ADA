@@ -1,13 +1,14 @@
-import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../ui/cn'
 import { StatusIcon } from '../ui/icons'
 import { LinkButton } from '../ui/LinkButton'
 import { STATUS_TEXT } from '../ui/status'
-import { hasFilters, NO_FILTERS, type FilterKey, type Filters } from './filters'
+import { NO_FILTERS, type FilterKey, type Filters } from './filters'
+import { tractionLabel } from './labels'
 import { METRICS } from './metrics'
 
 function Chip({ label, value, onRemove, removeLabel, icon }: { label: string; value: string; onRemove: () => void; removeLabel: string; icon?: React.ReactNode }) {
+
   return (
     <li className="inline-flex h-[30px] touch-target items-center gap-[5px] rounded-full border border-route bg-route-soft pr-1 pl-2.5">
       {icon}
@@ -30,15 +31,12 @@ export function ActiveFilters({
   filters,
   onChange,
   formatRange,
-  tractionLabel,
 }: {
   filters: Filters
   onChange: (next: Filters) => void
   formatRange: (metric: keyof typeof METRICS, value: number) => string
-  tractionLabel: (t: TFunction, traction: string) => string
 }) {
   const { t } = useTranslation()
-  if (!hasFilters(filters)) return null
 
   const remove = (key: FilterKey) => onChange({ ...filters, [key]: key === 'search' ? '' : undefined })
   const removeLabel = (label: string, value: string) => t('filters.remove', { filter: `${label}: ${value}` })
@@ -68,6 +66,8 @@ export function ActiveFilters({
     })
   }
   if (filters.search.trim()) chips.push({ key: 'search', label: t('filters.search'), value: `„${filters.search.trim()}“` })
+
+  if (chips.length === 0) return null
 
   return (
     <div className="-mt-0.5 mb-4 flex flex-wrap items-center gap-x-3.5 gap-y-2" aria-live="polite">

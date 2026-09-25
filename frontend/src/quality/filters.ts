@@ -16,13 +16,10 @@ export interface Filters {
   search: string
 }
 
-export type FilterKey = Exclude<keyof Filters, 'search'> | 'search'
+export type FilterKey = keyof Filters
 
 export const NO_FILTERS: Filters = { search: '' }
 
-export function hasFilters(f: Filters) {
-  return Boolean(f.status || f.traction || f.model || f.firmware || f.range || f.search.trim())
-}
 
 /**
  * Whether a vehicle passes the filters. `except` leaves out dimensions: a chart is fed

@@ -3,6 +3,9 @@ import { useTranslation } from 'react-i18next'
 import { currentLanguage, LOCALES } from '.'
 
 /** Number, percent and date formatters for the current UI language. */
+/** The formatters for the current language; see useFormat. */
+export type Format = ReturnType<typeof useFormat>
+
 export function useFormat() {
   const { i18n } = useTranslation()
   const language = i18n.resolvedLanguage

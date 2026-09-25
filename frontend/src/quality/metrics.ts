@@ -1,4 +1,5 @@
 import type { HealthThresholds, VehicleDay, VehicleHealth } from '../api'
+import type { Format } from '../i18n/format'
 
 // The measures the analysis charts can show. Each knows how to read itself from a
 // vehicle-day (heatmap) and from a vehicle's whole period (histogram), how to bin itself
@@ -18,34 +19,29 @@ export interface Metric {
   thresholds?: (t: HealthThresholds) => { warning: number; fault?: number }
 }
 
+// The three share metrics differ only in what they read and which thresholds apply.
+const SHARE_BINS = [0.05, 0.1, 0.2, 0.3, 0.4, Infinity]
+
+function share(
+  id: MetricId,
+  read: { day: Metric['day']; vehicle: Metric['vehicle'] },
+  thresholds: NonNullable<Metric['thresholds']>,
+): Metric {
+  return { id, kind: 'share', ...read, bins: SHARE_BINS, histogramStep: 0.05, thresholds }
+}
+
 export const METRICS: Record<MetricId, Metric> = {
-  negative: {
-    id: 'negative',
-    kind: 'share',
-    day: (d) => d.negativeOccupancyShare,
-    vehicle: (v) => v.negativeOccupancyShare,
-    bins: [0.05, 0.1, 0.2, 0.3, 0.4, Infinity],
-    histogramStep: 0.05,
-    thresholds: (t) => ({ warning: t.negativeOccupancyWarning, fault: t.negativeOccupancyFault }),
-  },
-  flagged: {
-    id: 'flagged',
-    kind: 'share',
-    day: (d) => d.flaggedStopShare,
-    vehicle: (v) => v.flaggedStopShare,
-    bins: [0.05, 0.1, 0.2, 0.3, 0.4, Infinity],
-    histogramStep: 0.05,
-    thresholds: (t) => ({ warning: t.flaggedStopsWarning }),
-  },
-  imbalance: {
-    id: 'imbalance',
-    kind: 'share',
-    day: (d) => d.imbalance,
-    vehicle: (v) => v.imbalance,
-    bins: [0.05, 0.1, 0.2, 0.3, 0.4, Infinity],
-    histogramStep: 0.05,
-    thresholds: (t) => ({ warning: t.imbalanceWarning, fault: t.imbalanceFault }),
-  },
+  negative: share(
+    'negative',
+    { day: (d) => d.negativeOccupancyShare, vehicle: (v) => v.negativeOccupancyShare },
+    (t) => ({ warning: t.negativeOccupancyWarning, fault: t.negativeOccupancyFault }),
+  ),
+  flagged: share('flagged', { day: (d) => d.flaggedStopShare, vehicle: (v) => v.flaggedStopShare }, (t) => ({ warning: t.flaggedStopsWarning })),
+  imbalance: share(
+    'imbalance',
+    { day: (d) => d.imbalance, vehicle: (v) => v.imbalance },
+    (t) => ({ warning: t.imbalanceWarning, fault: t.imbalanceFault }),
+  ),
   boardings: {
     id: 'boardings',
     kind: 'count',
@@ -62,4 +58,22 @@ export const METRIC_ORDER: MetricId[] = ['negative', 'flagged', 'imbalance', 'bo
 export function binOf(metric: Metric, value: number) {
   const index = metric.bins.findIndex((edge) => value < edge)
   return index === -1 ? metric.bins.length - 1 : index
+}
+
+/** A value of this metric as the charts label it: a whole percentage, or a rounded count. */
+export function formatMetricValue(metric: Metric, format: Format, value: number) {
+  return metric.kind === 'share' ? format.percentWhole(value) : format.number(Math.round(value))
+}
+
+/** Per-day records by vehicle and day: the heatmap's lookup. */
+export type DailyIndex = Map<string, VehicleDay>
+
+export const dayKey = (vehicleId: number, day: string) => `${vehicleId}|${day}`
+
+export const indexDaily = (daily: VehicleDay[]): DailyIndex => new Map(daily.map((d) => [dayKey(d.vehicleId, d.day), d]))
+
+/** One heatmap cell: the day's record (if the vehicle ran) and the metric's value. */
+export function dayValue(daily: DailyIndex, metric: Metric, vehicleId: number, day: string) {
+  const record = daily.get(dayKey(vehicleId, day))
+  return { record, value: record ? metric.day(record) : null }
 }

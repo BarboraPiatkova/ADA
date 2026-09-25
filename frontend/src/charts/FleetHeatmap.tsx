@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { VehicleDay, VehicleHealth } from '../api'
+import type { VehicleHealth } from '../api'
 import { useFormat } from '../i18n/format'
-import { binOf, type Metric } from '../quality/metrics'
+import { binOf, dayValue, type DailyIndex, type Metric } from '../quality/metrics'
 import { cn } from '../ui/cn'
 import { Empty } from '../ui/Empty'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
@@ -30,7 +30,7 @@ export function FleetHeatmap({
 }: {
   vehicles: VehicleHealth[]
   days: string[]
-  daily: Map<string, VehicleDay>
+  daily: DailyIndex
   metric: Metric
   formatValue: (value: number) => string
   onSelectVehicle: (vehicleId: number) => void
@@ -50,13 +50,41 @@ export function FleetHeatmap({
   const cells = useMemo(
     () =>
       vehicles.flatMap((vehicle, column) =>
-        days.map((day, row) => {
-          const record = daily.get(`${vehicle.vehicleId}|${day}`)
-          const value = record ? metric.day(record) : null
-          return { vehicle, day, column, row, record, value }
-        }),
+        days.map((day, row) => ({ vehicle, day, column, row, ...dayValue(daily, metric, vehicle.vehicleId, day) })),
       ),
     [vehicles, days, daily, metric],
+  )
+
+  // The ~3k cells as one element, so a hover (which only moves the outline) doesn't
+  // re-render every one of them.
+  const cellLayer = useMemo(
+    () =>
+      cells.map((cell) => {
+        const x = DAY_LABEL_WIDTH + cell.column * cellWidth
+        const y = cell.row * ROW_HEIGHT
+        return cell.value === null ? (
+          <rect
+            key={`${cell.vehicle.vehicleId}|${cell.day}`}
+            x={x + 0.5}
+            y={y + 0.5}
+            width={cellWidth - GAP - 1}
+            height={ROW_HEIGHT - GAP - 1}
+            rx={2}
+            className="fill-none stroke-rule"
+          />
+        ) : (
+          <rect
+            key={`${cell.vehicle.vehicleId}|${cell.day}`}
+            x={x}
+            y={y}
+            width={cellWidth - GAP}
+            height={ROW_HEIGHT - GAP}
+            rx={2}
+            fill={`var(--seq-${binOf(metric, cell.value) + 1})`}
+          />
+        )
+      }),
+    [cells, cellWidth, metric],
   )
 
   const cellAt = (event: React.MouseEvent<SVGSVGElement>) => {
@@ -114,31 +142,7 @@ export function FleetHeatmap({
                 {format.dayShort(day)}
               </text>
             ))}
-            {cells.map((cell) => {
-              const x = DAY_LABEL_WIDTH + cell.column * cellWidth
-              const y = cell.row * ROW_HEIGHT
-              return cell.value === null ? (
-                <rect
-                  key={`${cell.vehicle.vehicleId}|${cell.day}`}
-                  x={x + 0.5}
-                  y={y + 0.5}
-                  width={cellWidth - GAP - 1}
-                  height={ROW_HEIGHT - GAP - 1}
-                  rx={2}
-                  className="fill-none stroke-rule"
-                />
-              ) : (
-                <rect
-                  key={`${cell.vehicle.vehicleId}|${cell.day}`}
-                  x={x}
-                  y={y}
-                  width={cellWidth - GAP}
-                  height={ROW_HEIGHT - GAP}
-                  rx={2}
-                  fill={`var(--seq-${binOf(metric, cell.value) + 1})`}
-                />
-              )
-            })}
+            {cellLayer}
             {hovered && (
               <rect
                 x={DAY_LABEL_WIDTH + hovered.column * cellWidth - 1}
@@ -203,7 +207,7 @@ export function HeatmapTable({
 }: {
   vehicles: VehicleHealth[]
   days: string[]
-  daily: Map<string, VehicleDay>
+  daily: DailyIndex
   metric: Metric
   formatValue: (value: number) => string
 }) {
@@ -226,8 +230,7 @@ export function HeatmapTable({
           <tr key={vehicle.vehicleId}>
             <td className={TD_COMPACT}>{vehicle.vehicleId}</td>
             {days.map((day) => {
-              const record = daily.get(`${vehicle.vehicleId}|${day}`)
-              const value = record ? metric.day(record) : null
+              const { value } = dayValue(daily, metric, vehicle.vehicleId, day)
               return (
                 <td key={day} className={cn(TD_COMPACT, NUM)}>
                   {value === null ? '—' : formatValue(value)}
