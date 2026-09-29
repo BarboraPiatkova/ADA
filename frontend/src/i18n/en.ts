@@ -73,6 +73,7 @@ export const en = {
     legendFewer: 'fewer boardings',
     legendMore: 'more boardings',
     legendNoData: 'no data',
+    legendDirection: 'direction of travel',
     chooseBaseMap: 'Base map',
     layers: {
       'mapy-basic': 'Basic',
@@ -270,6 +271,7 @@ export const en = {
       subtitle: 'A circle is a stop: colour = extra dwell (median), size = number of stops. Click one for the stop’s details.',
       legend: 'Extra dwell',
       noPosition: '{{count}} stops without coordinates are missing from the map.',
+      direction: 'Arrow = direction of travel (towards the next stop). The two directions of a stop are each moved to their right-hand side.',
       visits: 'stops',
     },
     stop: {

@@ -1,5 +1,6 @@
 using AdaPlatform.Api.Auth;
 using AdaPlatform.Infrastructure.Persistence;
+using AdaPlatform.Infrastructure.Reporting;
 using Microsoft.EntityFrameworkCore;
 
 namespace AdaPlatform.Api.Endpoints;
@@ -10,7 +11,10 @@ public static class NetworkEndpoints
     /// A stop with coordinates, plus how busy it is across all stop visits recorded there
     /// (zero visits = the stop exists in the network but no trip data covers it).
     /// </summary>
-    public sealed record StopDto(int Code, string Name, double Latitude, double Longitude, int Visits, int Boardings, int Alightings);
+    /// <param name="Toward">The most frequent destination of trips calling here (which direction this post serves).</param>
+    /// <param name="Bearing">Compass direction (0 = north) towards the most frequent next stop.</param>
+    public sealed record StopDto(
+        int Code, string Name, double Latitude, double Longitude, int Visits, int Boardings, int Alightings, string? Toward, double? Bearing);
 
     public sealed record PatternSummaryDto(int Code, string? FirstStopName, string? LastStopName, int StopCount, int Trips);
 
@@ -23,8 +27,9 @@ public static class NetworkEndpoints
         var api = app.MapGroup("/api").RequireAuthorization(Permissions.NetworkRead);
 
         // Stops without coordinates can't be drawn, so the map endpoint leaves them out.
-        api.MapGet("/stops", async (AppDbContext db, CancellationToken ct) =>
+        api.MapGet("/stops", async (AppDbContext db, StopDirections stopDirections, CancellationToken ct) =>
         {
+            var directions = await stopDirections.GetAsync(ct);
             var activity = await db.StopVisits.AsNoTracking()
                 .GroupBy(v => v.StopCode)
                 .Select(g => new { Code = g.Key, Visits = g.Count(), Boardings = g.Sum(v => v.Boardings), Alightings = g.Sum(v => v.Alightings) })
@@ -36,9 +41,13 @@ public static class NetworkEndpoints
                 .Select(s => new { s.Code, s.Name, Latitude = s.Latitude!.Value, Longitude = s.Longitude!.Value })
                 .ToListAsync(ct);
 
-            return stops.Select(s => activity.TryGetValue(s.Code, out var a)
-                ? new StopDto(s.Code, s.Name, s.Latitude, s.Longitude, a.Visits, a.Boardings, a.Alightings)
-                : new StopDto(s.Code, s.Name, s.Latitude, s.Longitude, 0, 0, 0));
+            return stops.Select(s =>
+            {
+                var direction = directions.GetValueOrDefault(s.Code);
+                return activity.TryGetValue(s.Code, out var a)
+                    ? new StopDto(s.Code, s.Name, s.Latitude, s.Longitude, a.Visits, a.Boardings, a.Alightings, direction?.Toward, direction?.Bearing)
+                    : new StopDto(s.Code, s.Name, s.Latitude, s.Longitude, 0, 0, 0, direction?.Toward, direction?.Bearing);
+            });
         });
 
         // Lines with their patterns, busiest pattern first — the map's line picker.

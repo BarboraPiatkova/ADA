@@ -49,6 +49,7 @@ public static class DependencyInjection
         services.AddScoped<DailyQualityReport>();
         services.AddScoped<DatasetProfiler>();
         services.AddOptions<DwellRules>().Bind(configuration.GetSection(DwellRules.SectionName));
+        services.AddScoped<StopDirections>();
         services.AddScoped<StopDwellReport>();
         return services;
     }

@@ -78,6 +78,7 @@ export const cs = {
     legendFewer: 'méně nástupů',
     legendMore: 'více nástupů',
     legendNoData: 'bez dat',
+    legendDirection: 'směr jízdy',
     chooseBaseMap: 'Podkladová mapa',
     layers: {
       'mapy-basic': 'Základní',
@@ -282,6 +283,7 @@ export const cs = {
       subtitle: 'Kroužek je zastávka: barva = stání navíc (medián), velikost = počet zastavení. Kliknutím otevřete detail zastávky.',
       legend: 'Stání navíc',
       noPosition: '{{count}} zastávek bez souřadnic na mapě chybí.',
+      direction: 'Šipka = směr jízdy (k další zastávce). Oba směry téže zastávky jsou odsunuty každý na svou pravou stranu.',
       visits: 'zastavení',
     },
     stop: {

@@ -3,7 +3,7 @@ import { latLngBounds } from 'leaflet'
 import { Accordion } from 'radix-ui'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { CircleMarker, Polyline, Popup, Tooltip, useMap } from 'react-leaflet'
+import { CircleMarker, Polygon, Polyline, Popup, Tooltip, useMap } from 'react-leaflet'
 import type { BaseLayer, Line, PatternSummary, Stop } from '../api'
 import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
 import { cn } from '../ui/cn'
@@ -12,6 +12,7 @@ import { Chevron } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
 import { useCoarsePointer } from '../ui/useCoarsePointer'
 import { BaseMap } from './BaseMap'
+import { ARROW_STYLE, layoutDirections, stopLabel, useZoom } from './directions'
 import { LINE_PANEL, LinePickerSkeleton, MapSkeleton } from './MapSkeleton'
 
 /** Marker radius grows with the square root of mean boardings, so area tracks volume. */
@@ -97,13 +98,18 @@ const TOUCH_HIT_STYLE = { stroke: false, fillColor: '#000', fillOpacity: 0 }
 function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number> }) {
   const { t } = useTranslation()
   const coarse = useCoarsePointer()
-  return stops.map((s) => {
+  const map = useMap()
+  const { zoom, zooming } = useZoom()
+  // Offsets and arrows are in pixels, so the layout follows the zoom.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- layer points change with the zoom
+  const markers = useMemo(() => layoutDirections(map, stops, radiusFor), [map, stops, zoom])
+  return markers.map(({ stop: s, center, arrow }) => {
     const highlighted = onPattern.has(s.code)
     const dimmed = onPattern.size > 0 && !highlighted
     const radius = radiusFor(s)
     const details = (
       <>
-        <strong>{s.name}</strong> <span className="text-ink-2">({s.code})</span>
+        <strong>{stopLabel(s)}</strong> <span className="text-ink-2">({s.code})</span>
         <br />
         {s.visits === 0
           ? t('map.noVisits')
@@ -112,8 +118,9 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
     )
     return (
       <Fragment key={s.code}>
+        {arrow && !zooming && <Polygon positions={arrow} interactive={false} pathOptions={{ ...ARROW_STYLE, fillOpacity: dimmed ? 0.3 : 1, opacity: dimmed ? 0.3 : 1 }} />}
         <CircleMarker
-          center={[s.latitude, s.longitude]}
+          center={center}
           radius={radius}
           interactive={!coarse}
           pathOptions={{
@@ -129,7 +136,7 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
         {/* Touch: a finger can't hit a 4px circle, so a larger invisible one takes the tap.
             A tap has no hover, so the details open as a popup that stays until dismissed. */}
         {coarse && (
-          <CircleMarker center={[s.latitude, s.longitude]} radius={Math.max(TOUCH_HIT_RADIUS, radius)} pathOptions={TOUCH_HIT_STYLE}>
+          <CircleMarker center={center} radius={Math.max(TOUCH_HIT_RADIUS, radius)} pathOptions={TOUCH_HIT_STYLE}>
             <Popup closeButton autoPan>
               {details}
             </Popup>
@@ -192,6 +199,12 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
                   </span>
                   <span>
                     <i className={cn(LEGEND_STOP, 'size-[9px] border-map-no-data')} /> {t('map.legendNoData')}
+                  </span>
+                  <span>
+                    <svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" className="fill-map-route">
+                      <path d="M5 0 10 10H0Z" />
+                    </svg>{' '}
+                    {t('map.legendDirection')}
                   </span>
                 </div>
               </div>

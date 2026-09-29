@@ -27,6 +27,8 @@ export function excessStep(seconds: number) {
   return (i === -1 ? EXCESS_BINS.length : i) + 1
 }
 
+export { stopLabel } from '../map/directions'
+
 /** What the reader is looking at in detail: one stop, or one vehicle's day. */
 export type DwellDetail = { kind: 'stop'; code: number } | { kind: 'vehicle'; vehicle: number; day: string; at?: string }
 

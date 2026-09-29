@@ -11,7 +11,7 @@ import { QueryState } from '../ui/QueryState'
 import { Select } from '../ui/Select'
 import { DwellBandsChart, DwellBandsTable } from './DwellBandsChart'
 import { DwellMap } from './DwellMap'
-import type { DwellDetail } from './shared'
+import { stopLabel, type DwellDetail } from './shared'
 import { StopDetail } from './StopDetail'
 import { StopRanking } from './StopRanking'
 import { UnexplainedList } from './UnexplainedList'
@@ -62,7 +62,7 @@ function DwellView({
     () => [{ value: ALL, label: t('dwell.allLines') }, ...report.lines.map((l) => ({ value: String(l), label: t('dwell.lineN', { line: l }) }))],
     [report.lines, t],
   )
-  const stopName = (code: number) => report.stops.find((s) => s.code === code)?.name || String(code)
+  const stopName = (code: number) => stopLabel(report.stops.find((s) => s.code === code), code)
 
   const openStop = useCallback((code: number) => setDetail({ kind: 'stop', code }), [])
   const openVehicle = useCallback((vehicle: number, day: string, at?: string) => setDetail({ kind: 'vehicle', vehicle, day, at }), [])
