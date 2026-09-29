@@ -51,6 +51,9 @@ public static class DependencyInjection
         services.AddOptions<DwellRules>().Bind(configuration.GetSection(DwellRules.SectionName));
         services.AddScoped<StopDirections>();
         services.AddScoped<StopDwellReport>();
+        services.AddOptions<PunctualityRules>().Bind(configuration.GetSection(PunctualityRules.SectionName));
+        services.AddScoped<PunctualityReport>();
+        services.AddScoped<LoadReport>();
         return services;
     }
 

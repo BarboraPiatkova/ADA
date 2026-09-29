@@ -356,6 +356,52 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
     }
 
     [Fact]
+    public async Task Punctuality_and_load_reports_judge_departures_and_follow_the_load_along_a_trip()
+    {
+        await using var api = NewApi();
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            SeedNetwork(db);
+            db.Vehicles.Local.Single(v => v.Id == 13).SeatingCapacity = 20;
+            db.Vehicles.Local.Single(v => v.Id == 13).StandingCapacity = 20;
+            var file = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-01.csv", Sha256 = "x", VehicleId = 13 };
+            db.SourceFiles.Add(file);
+            var t0 = new DateTime(2022, 8, 1, 7, 0, 0);
+            StopVisit Visit(int sequence, int stop, int delay, int on, int off) => new()
+            {
+                Sequence = sequence, StopCode = stop, ArrivalTime = t0.AddMinutes(sequence), DepartureTime = t0.AddMinutes(sequence).AddSeconds(20),
+                DelaySeconds = delay, Boardings = on, Alightings = off,
+            };
+            // Loads after each stop: 10, 30, 25, 0. Delays: early, on time, late, very late.
+            db.Trips.Add(new Trip
+            {
+                VehicleId = 13, PatternCode = 2080001, SourceFile = file, IsValid = true, StartTime = t0, EndTime = t0.AddHours(1),
+                StopVisits = [Visit(1, 201, -120, 10, 0), Visit(2, 301, 0, 20, 0), Visit(3, 201, 240, 5, 10), Visit(4, 301, 600, 0, 25)],
+            });
+            await db.SaveChangesAsync();
+        }
+        var client = api.CreateSignedInClient();
+
+        using var punctuality = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/punctuality"));
+        var total = punctuality.RootElement.GetProperty("total");
+        Assert.Equal((4, 1, 1, 1, 1),
+            (total.GetProperty("departures").GetInt32(), total.GetProperty("early").GetInt32(), total.GetProperty("onTime").GetInt32(),
+             total.GetProperty("late").GetInt32(), total.GetProperty("veryLate").GetInt32()));
+        // Beyond the 3-minute limit: 25 passengers × 1 min at the third stop, nobody on board at the fourth.
+        Assert.Equal(25, total.GetProperty("passengerMinutesLate").GetDouble());
+        Assert.Equal(30.0 / 65, total.GetProperty("passengersOnTimeShare").GetDouble(), 3);
+        Assert.Equal([7], punctuality.RootElement.GetProperty("hours").EnumerateArray().Select(h => h.GetProperty("hour").GetInt32()));
+
+        using var load = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load"));
+        var profile = load.RootElement.GetProperty("profile").EnumerateArray().ToList();
+        Assert.Equal([10.0, 30.0, 25.0, 0.0], profile.Select(p => p.GetProperty("medianLoad").GetDouble()));
+        var crowded = Assert.Single(load.RootElement.GetProperty("crowded").EnumerateArray());
+        Assert.Equal((30, 301, 0.75), (crowded.GetProperty("peakLoad").GetInt32(), crowded.GetProperty("peakStopCode").GetInt32(), crowded.GetProperty("peakShare").GetDouble()));
+        Assert.Equal(35, load.RootElement.GetProperty("boardings").GetInt32());
+    }
+
+    [Fact]
     public async Task Dwell_report_needs_the_operations_permission()
     {
         await using var api = NewApi();
