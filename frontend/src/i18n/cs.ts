@@ -416,6 +416,8 @@ export const cs = {
       title: 'Kde vozy stojí déle, než potřebují cestující',
       subtitle: 'Kroužek je zastávka: barva = stání navíc (medián), velikost = počet zastavení. Kliknutím otevřete detail zastávky.',
       legend: 'Stání navíc',
+      expand: 'Zvětšit mapu',
+      shrink: 'Zmenšit mapu',
       noPosition: '{{count}} zastávek bez souřadnic na mapě chybí.',
       direction: 'Šipka = směr jízdy (k další zastávce). Oba směry téže zastávky jsou odsunuty každý na svou pravou stranu.',
       visits: 'zastavení',
