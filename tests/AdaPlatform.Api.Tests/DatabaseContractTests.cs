@@ -283,6 +283,86 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         Assert.Equal((0, 0, 0), (again.Added, again.Updated, again.CapacityFromType));
     }
 
+    [Fact]
+    public async Task Dwell_report_relates_stop_time_to_passengers_and_lists_what_they_dont_explain()
+    {
+        await using var api = NewApi();
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            SeedNetwork(db);
+            var file = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-01.csv", Sha256 = "x", VehicleId = 13 };
+            db.SourceFiles.Add(file);
+            var t0 = new DateTime(2022, 8, 1, 7, 0, 0);
+            StopVisit Visit(int sequence, int stop, int minute, int dwell, int passengers, int delay = 0) => new()
+            {
+                Sequence = sequence, StopCode = stop, ArrivalTime = t0.AddMinutes(minute), DepartureTime = t0.AddMinutes(minute).AddSeconds(dwell),
+                Boardings = passengers, Alightings = 0, DelaySeconds = delay,
+            };
+            // Middle stops follow dwell = 10 s + 1 s per passenger exactly; one stop stands 150 s with 2
+            // passengers and leaves on time. First and last stops (the layover) must not count.
+            for (var trip = 0; trip < 3; trip++)
+            {
+                db.Trips.Add(new Trip
+                {
+                    VehicleId = 13, PatternCode = 2080001, SourceFile = file, IsValid = true, StartTime = t0, EndTime = t0.AddHours(1),
+                    StopVisits =
+                    [
+                        Visit(1, 201, 0, 900, 0),
+                        Visit(2, 301, 10, 10, 0),
+                        Visit(3, 301, 20, 20, 10),
+                        Visit(4, 301, 30, 30, 20),
+                        Visit(5, 201, 40, trip == 0 ? 150 : 12, 2, delay: 20),
+                        Visit(6, 201, 50, 600, 0),
+                    ],
+                });
+            }
+            // An invalid trip is left out entirely.
+            db.Trips.Add(new Trip { VehicleId = 13, SourceFile = file, IsValid = false, StartTime = t0, EndTime = t0, StopVisits = [Visit(1, 201, 0, 1, 0), Visit(2, 301, 1, 999, 0), Visit(3, 201, 2, 1, 0)] });
+            await db.SaveChangesAsync();
+        }
+
+        using var report = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell"));
+        var root = report.RootElement;
+        var model = root.GetProperty("model");
+
+        Assert.Equal(12, model.GetProperty("visits").GetInt32());   // 4 middle stops × 3 trips
+        Assert.Equal([208], root.GetProperty("lines").EnumerateArray().Select(l => l.GetInt32()));
+        var unexplained = Assert.Single(root.GetProperty("unexplained").EnumerateArray());
+        Assert.Equal((150, 2, "HeldForTimetable"), (unexplained.GetProperty("dwellSeconds").GetInt32(), unexplained.GetProperty("passengers").GetInt32(), unexplained.GetProperty("cause").GetString()));
+
+        var bands = root.GetProperty("bands").EnumerateArray().ToDictionary(b => b.GetProperty("minPassengers").GetInt32());
+        Assert.Equal((3, 10.0), (bands[0].GetProperty("visits").GetInt32(), bands[0].GetProperty("medianSeconds").GetDouble()));
+        Assert.Equal(20.0, bands[6].GetProperty("medianSeconds").GetDouble());
+        Assert.Equal(30.0, bands[11].GetProperty("medianSeconds").GetDouble());
+
+        // A line with no data gives an empty report, not an error.
+        using var other = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?line=999"));
+        Assert.Equal(0, other.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
+
+        // Stop detail: every counted visit of the stop, the long one marked.
+        using var stop = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell/stops/201"));
+        var stopVisits = stop.RootElement.GetProperty("visits").EnumerateArray().ToList();
+        Assert.Equal(3, stopVisits.Count);   // sequence 5 of each trip; first and last stops excluded
+        Assert.Equal(1, stopVisits.Count(v => v.GetProperty("unexplained").GetBoolean()));
+
+        // Vehicle day: all trips with every stop, invalid ones included and marked.
+        using var day = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/vehicles/13/days/2022-08-01"));
+        var trips = day.RootElement.GetProperty("trips").EnumerateArray().ToList();
+        Assert.Equal(4, trips.Count);
+        Assert.Equal(1, trips.Count(x => !x.GetProperty("isValid").GetBoolean()));
+        Assert.Equal(6, trips.First(x => x.GetProperty("isValid").GetBoolean()).GetProperty("stops").GetArrayLength());
+        Assert.Equal(["2022-08-01"], day.RootElement.GetProperty("days").EnumerateArray().Select(d => d.GetString()));
+    }
+
+    [Fact]
+    public async Task Dwell_report_needs_the_operations_permission()
+    {
+        await using var api = NewApi();
+        var response = await api.CreateSignedInClient(AdaPlatform.Api.Auth.Permissions.QualityRead).GetAsync("/api/operations/dwell");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private sealed class StaticFleetSource(params FleetVehicle[] vehicles) : IFleetSource
     {
         public string Name => "test register";
