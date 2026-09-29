@@ -3,10 +3,12 @@
 //   dotnet run --project tools/AdaPlatform.Cli -- import-ada --source C:\Projects\ADA\ADA.dbFile
 //   dotnet run --project tools/AdaPlatform.Cli -- import-ucp --source T:\Projects\DPMB\ADA\ADA_20220808\APC_Logs.zip
 //   dotnet run --project tools/AdaPlatform.Cli -- reconstruct
+//   dotnet run --project tools/AdaPlatform.Cli -- sync-fleet
 //
 // Target engine and connection come from appsettings.json / environment, exactly as for the API.
 
 using AdaPlatform.Infrastructure;
+using AdaPlatform.Infrastructure.Fleet;
 using AdaPlatform.Infrastructure.Import.Ada;
 using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
@@ -21,6 +23,7 @@ const string Usage = """
       AdaPlatform.Cli import-ada --source <ADA.dbFile>          seed from a legacy ADA database (empty target only)
       AdaPlatform.Cli import-ucp --source <folder or .zip>      ingest raw UCP logs (APC_*.csv) and reconstruct their trips; safe to re-run
       AdaPlatform.Cli reconstruct                               rebuild every trip from the raw logs (after a rule change)
+      AdaPlatform.Cli sync-fleet                                update vehicles from the fleet register (Fleet:Source)
       AdaPlatform.Cli profile --out <folder>                    write the thesis data report (Markdown + CSV)
     """;
 
@@ -41,6 +44,7 @@ var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings
 builder.Services.AddAdaPlatformDatabase(builder.Configuration);
 builder.Services.AddAdaPlatformReporting(builder.Configuration);
 builder.Services.AddAdaPlatformReconstruction(builder.Configuration);
+builder.Services.AddAdaPlatformFleet(builder.Configuration);
 using var host = builder.Build();
 
 var source = builder.Configuration["source"];
@@ -48,7 +52,7 @@ var output = builder.Configuration["out"];
 var missingArgument = command switch
 {
     "profile" => string.IsNullOrWhiteSpace(output),
-    "reconstruct" => false,
+    "reconstruct" or "sync-fleet" => false,
     _ => string.IsNullOrWhiteSpace(source),
 };
 if (missingArgument)
@@ -69,6 +73,7 @@ try
         // New logs get their trips straight away; files already reconstructed are left alone.
         "import-ucp" => $"{await new UcpLogIngestor(db).IngestAsync(source!)}\n{await Reconstruction().ReconstructAsync(onlyNew: true)}",
         "reconstruct" => await Reconstruction().ReconstructAsync(),
+        "sync-fleet" => await scope.ServiceProvider.GetRequiredService<FleetSync>().SyncAsync(),
         "profile" => await scope.ServiceProvider.GetRequiredService<DatasetProfiler>().ProfileAsync(output!, CodeVersion()),
         _ => throw new ArgumentException($"Unknown command '{command}'."),
     };

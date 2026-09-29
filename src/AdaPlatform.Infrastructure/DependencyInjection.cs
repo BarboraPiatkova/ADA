@@ -1,3 +1,4 @@
+using AdaPlatform.Infrastructure.Fleet;
 using AdaPlatform.Infrastructure.Persistence;
 using AdaPlatform.Infrastructure.Reconstruction;
 using AdaPlatform.Infrastructure.Reporting;
@@ -54,6 +55,34 @@ public static class DependencyInjection
     {
         services.AddOptions<ReconstructionOptions>().Bind(configuration.GetSection(ReconstructionOptions.SectionName));
         services.AddScoped<TripReconstruction>();
+        return services;
+    }
+
+    /// <summary>
+    /// The fleet register the deployment is configured for ("Fleet:Source") and the sync that
+    /// merges it into the platform's vehicles.
+    /// </summary>
+    public static IServiceCollection AddAdaPlatformFleet(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<FleetOptions>().Bind(configuration.GetSection(FleetOptions.SectionName));
+        services.AddHttpClient(nameof(AtlasFleetSource));
+        services.AddScoped<IFleetSource>(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<FleetOptions>>().Value;
+            string FilePath() => options.Path is { Length: > 0 } path
+                ? path
+                : throw new InvalidOperationException($"Fleet:Path is required for Fleet:Source = {options.Source}.");
+            return options.Source switch
+            {
+                FleetSourceKind.None => new NoFleetSource(),
+                FleetSourceKind.EpisVehiclesXml => new EpisVehiclesXmlFleetSource(FilePath()),
+                FleetSourceKind.Csv => new CsvFleetSource(FilePath()),
+                FleetSourceKind.Atlas => new AtlasFleetSource(
+                    sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(AtlasFleetSource)), options.Atlas),
+                _ => throw new InvalidOperationException($"Unknown Fleet:Source '{options.Source}'."),
+            };
+        });
+        services.AddScoped<FleetSync>();
         return services;
     }
 

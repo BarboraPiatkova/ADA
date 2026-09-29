@@ -7,6 +7,7 @@ using AdaPlatform.Domain.Network;
 using AdaPlatform.Domain.Operations;
 using AdaPlatform.Domain.Quality;
 using AdaPlatform.Domain.Raw;
+using AdaPlatform.Infrastructure.Fleet;
 using AdaPlatform.Infrastructure.Import.Ada;
 using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
@@ -250,6 +251,44 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         {
             Directory.Delete(folder, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Fleet_sync_merges_the_register_and_fills_capacity_from_the_vehicle_type()
+    {
+        await using var api = NewApi();
+        await using var scope = api.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        // Known from the logs: traction and depot, no type, no capacity.
+        db.Vehicles.Add(new Vehicle { Id = 58, Traction = "trolejbus", Depot = "1" });
+        await db.SaveChangesAsync();
+
+        var register = new StaticFleetSource(
+            new FleetVehicle(58, Model: "SOR 30 TR"),
+            new FleetVehicle(38, "SOR NB 12", "autobus", SeatingCapacity: 26, StandingCapacity: 76),
+            new FleetVehicle(99, "Trenažér", IsExcluded: true));
+        var options = Options.Create(new FleetOptions { TypeCapacities = { ["SOR 30 TR"] = new TypeCapacity(32, 62) } });
+
+        var first = await new FleetSync(db, register, options).SyncAsync();
+        Assert.Equal((3, 2, 1, 1, 1), (first.InRegister, first.Added, first.Updated, first.CapacityFromType, first.WithoutCapacity));
+
+        db.ChangeTracker.Clear();
+        var vehicles = await db.Vehicles.ToDictionaryAsync(v => v.Id);
+        Assert.Equal(("SOR 30 TR", "trolejbus", "1", 32, 62), (vehicles[58].Model, vehicles[58].Traction, vehicles[58].Depot, vehicles[58].SeatingCapacity, vehicles[58].StandingCapacity));
+        Assert.Equal((26, 76), (vehicles[38].SeatingCapacity, vehicles[38].StandingCapacity));   // the register's own figures win
+        Assert.True(vehicles[99].IsExcluded);
+
+        // The same register again changes nothing.
+        var again = await new FleetSync(db, register, options).SyncAsync();
+        Assert.Equal((0, 0, 0), (again.Added, again.Updated, again.CapacityFromType));
+    }
+
+    private sealed class StaticFleetSource(params FleetVehicle[] vehicles) : IFleetSource
+    {
+        public string Name => "test register";
+
+        public Task<IReadOnlyList<FleetVehicle>> GetVehiclesAsync(CancellationToken ct = default) =>
+            Task.FromResult<IReadOnlyList<FleetVehicle>>(vehicles);
     }
 
     [Fact]
