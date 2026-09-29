@@ -277,6 +277,7 @@ export const en = {
     lines: {
       title: 'Lines',
       line: 'Line',
+      search: 'Line number',
     },
     stops: {
       title: 'Stops',
@@ -341,6 +342,7 @@ export const en = {
       boardings: 'Boarded',
       share: 'Of capacity',
       unknown: '–',
+      search: 'Line, vehicle or stop',
     },
   },
   dwell: {
@@ -359,7 +361,7 @@ export const en = {
     allLines: 'All lines',
     search: 'Search',
     searchStops: 'Stop or code',
-    searchList: 'Stop, vehicle or line',
+    searchList: 'Stop, vehicle or line number',
     noMatch: 'No row matches the search.',
     cause: 'Cause',
     allCauses: 'All causes',

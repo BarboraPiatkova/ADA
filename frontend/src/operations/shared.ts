@@ -15,6 +15,23 @@ export function matches(query: string, ...texts: (string | number | null | undef
   return words.every((w) => haystack.includes(w))
 }
 
+/**
+ * Search over a row with numbers and texts. A number searches exactly: "1" finds line 1, not 10 or 18,
+ * among `exact` (line, vehicle), and the start of any `prefix` (a stop code, "1378" finds its posts).
+ * Anything else searches the texts, as `matches` does.
+ */
+export function matchesRow(
+  query: string,
+  { exact = [], prefix = [], texts = [] }: { exact?: (number | null)[]; prefix?: (number | null)[]; texts?: (string | number | null | undefined)[] },
+) {
+  const q = query.trim()
+  if (/^\d+$/.test(q)) {
+    const n = Number(q)
+    return exact.some((x) => x === n) || prefix.some((x) => x !== null && String(x).startsWith(q))
+  }
+  return matches(q, ...texts)
+}
+
 /** ISO local date-time → its calendar day ("2022-08-01"). */
 export const dayOf = (iso: string) => iso.slice(0, 10)
 

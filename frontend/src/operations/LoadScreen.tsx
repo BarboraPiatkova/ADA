@@ -10,9 +10,10 @@ import { HealthSkeleton } from '../quality/HealthSkeleton'
 import { Empty } from '../ui/Empty'
 import { LinkButton } from '../ui/LinkButton'
 import { QueryState } from '../ui/QueryState'
+import { SearchInput } from '../ui/SearchInput'
 import { Select } from '../ui/Select'
 import { ColumnChart } from './BarCharts'
-import { dayOf } from './shared'
+import { dayOf, matchesRow } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 import { VehicleDay } from './VehicleDay'
@@ -226,6 +227,14 @@ function ProfileTable({ profile, format }: { profile: LoadProfileStop[]; format:
 const tripCol = createColumnHelper<typeof sortableFeatures, CrowdedTrip>()
 function CrowdedTrips({ trips, format, onOpenVehicle }: { trips: CrowdedTrip[]; format: Format; onOpenVehicle: (vehicle: number, day: string, tripId: number) => void }) {
   const { t, i18n } = useTranslation()
+  const [search, setSearch] = useState('')
+  const rows = useMemo(
+    () =>
+      trips.filter((r) =>
+        matchesRow(search, { exact: [r.vehicleId, r.line], prefix: [r.peakStopCode], texts: [r.firstStopName, r.lastStopName, r.peakStopName] }),
+      ),
+    [trips, search],
+  )
   const columns = useMemo(
     () => [
       tripCol.accessor('start', { id: 'start', header: t('load.crowded.start'), cell: (info) => <span className="tabular-nums">{format.dateTime(info.getValue())}</span> }),
@@ -261,13 +270,18 @@ function CrowdedTrips({ trips, format, onOpenVehicle }: { trips: CrowdedTrip[]; 
       <h2 id="load-crowded" className="text-xl">
         {t('load.crowded.title')}
       </h2>
-      <p className="mt-0.5 mb-2.5 text-sm text-ink-2">{t('load.crowded.subtitle')}</p>
+      <p className="mt-0.5 text-sm text-ink-2">{t('load.crowded.subtitle')}</p>
+      <div role="search" className="mt-3 mb-2.5 flex flex-wrap items-center gap-3">
+        <SearchInput label={t('dwell.search')} placeholder={t('load.crowded.search')} value={search} onChange={setSearch} />
+        <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(trips.length) })}</span>
+      </div>
       <SortableTable
         columns={columns}
         numeric={['vehicle', 'line', 'peak', 'boardings', 'share']}
-        data={trips}
+        data={rows}
         rowId={(r) => String(r.tripId)}
         sorting={[{ id: 'peak', desc: true }]}
+        empty={t('dwell.noMatch')}
       />
     </section>
   )

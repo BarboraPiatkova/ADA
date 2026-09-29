@@ -289,6 +289,7 @@ export const cs = {
     lines: {
       title: 'Linky',
       line: 'Linka',
+      search: 'Číslo linky',
     },
     stops: {
       title: 'Zastávky',
@@ -353,6 +354,7 @@ export const cs = {
       boardings: 'Nastoupilo',
       share: 'Z kapacity',
       unknown: '–',
+      search: 'Linka, vůz nebo zastávka',
     },
   },
   dwell: {
@@ -371,7 +373,7 @@ export const cs = {
     allLines: 'Všechny linky',
     search: 'Hledat',
     searchStops: 'Zastávka nebo kód',
-    searchList: 'Zastávka, vůz nebo linka',
+    searchList: 'Zastávka, vůz nebo číslo linky',
     noMatch: 'Hledání neodpovídá žádný řádek.',
     cause: 'Příčina',
     allCauses: 'Všechny příčiny',
