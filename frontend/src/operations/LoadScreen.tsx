@@ -13,7 +13,7 @@ import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
 import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
-import { usePeriod, useReportPeriod } from './period'
+import { FILTER_BAR, usePeriod, useReportPeriod } from './period'
 import { DayKindSelect, TimeViewSwitch, type TimeView } from './TimeView'
 import { WeekHourHeatmap } from './WeekHourHeatmap'
 import { ColumnChart } from './BarCharts'
@@ -123,15 +123,18 @@ function LoadView({
             <dt>{t('load.facts.boardings')}</dt>
             <dd>{format.number(report.boardings)}</dd>
           </div>
-          <div>
-            <dt>{t('load.facts.capacity')}</dt>
-            <dd>{format.number(report.tripsWithCapacity)}</dd>
-          </div>
+          {report.tripsWithCapacity > 0 && (
+            <div>
+              <dt>{t('load.facts.capacity')}</dt>
+              <dd>{format.number(report.tripsWithCapacity)}</dd>
+            </div>
+          )}
         </dl>
         <p className="mt-3 max-w-[72ch] text-sm text-ink-2">{t('load.note')}</p>
+        {report.tripsWithCapacity === 0 && <p className="mt-1 max-w-[72ch] text-sm text-ink-2">{t('load.noCapacity')}</p>}
       </header>
 
-      <div className="my-5 flex flex-wrap items-center gap-3">
+      <div className={FILTER_BAR} role="group" aria-label={t('dates.filters')}>
         <SearchSelect
           label={t('dwell.line')}
           value={line === null ? ALL : String(line)}
@@ -212,7 +215,7 @@ function LoadView({
         />
         <ChartFigure
           title={`${t('load.profile.title')}${chosen ? ` – ${chosen.firstStopName ?? '?'} → ${chosen.lastStopName ?? '?'}` : ''}`}
-          subtitle={t('load.profile.subtitle')}
+          subtitle={report.patternChosenForReader ? `${t('load.profile.subtitle')} ${t('load.profile.chosen')}` : t('load.profile.subtitle')}
           chart={
             report.profile.length === 0 ? (
               <p className="text-sm text-ink-2">{t('load.profile.none')}</p>
@@ -254,7 +257,7 @@ function LoadView({
         </section>
       )}
 
-      <CrowdedTrips trips={report.crowded} format={format} onOpenVehicle={openVehicle} />
+      <CrowdedTrips trips={report.crowded} withCapacity={report.tripsWithCapacity > 0} format={format} onOpenVehicle={openVehicle} />
     </div>
   )
 }
@@ -317,7 +320,18 @@ function ProfileTable({ profile, format }: { profile: LoadProfileStop[]; format:
 }
 
 const tripCol = createColumnHelper<typeof sortableFeatures, CrowdedTrip>()
-function CrowdedTrips({ trips, format, onOpenVehicle }: { trips: CrowdedTrip[]; format: Format; onOpenVehicle: (vehicle: number, day: string, tripId: number) => void }) {
+function CrowdedTrips({
+  trips,
+  withCapacity,
+  format,
+  onOpenVehicle,
+}: {
+  trips: CrowdedTrip[]
+  /** Whether any vehicle's capacity is known; without it the share-of-capacity column is left out. */
+  withCapacity: boolean
+  format: Format
+  onOpenVehicle: (vehicle: number, day: string, tripId: number) => void
+}) {
   const { t, i18n } = useTranslation()
   const [search, setSearch] = useState('')
   const rows = useMemo(
@@ -328,7 +342,8 @@ function CrowdedTrips({ trips, format, onOpenVehicle }: { trips: CrowdedTrip[]; 
     [trips, search],
   )
   const columns = useMemo(
-    () => [
+    () =>
+      [
       tripCol.accessor('start', { id: 'start', header: t('load.crowded.start'), cell: (info) => <span className="tabular-nums">{format.dateTime(info.getValue())}</span> }),
       tripCol.accessor('vehicleId', {
         id: 'vehicle',
@@ -352,9 +367,9 @@ function CrowdedTrips({ trips, format, onOpenVehicle }: { trips: CrowdedTrip[]; 
         header: t('load.crowded.share'),
         cell: (info) => (info.row.original.peakShare === null ? t('load.crowded.unknown') : format.percentWhole(info.row.original.peakShare)),
       }),
-    ],
+      ].filter((column) => withCapacity || column.id !== 'share'),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-    [i18n.resolvedLanguage, format, onOpenVehicle],
+    [i18n.resolvedLanguage, format, onOpenVehicle, withCapacity],
   )
 
   return (

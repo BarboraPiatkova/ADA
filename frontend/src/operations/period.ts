@@ -37,4 +37,12 @@ export function useReportPeriod(): { period: Period; isAll: boolean } {
   )
 }
 
+/**
+ * The statistics screens' filter row: it stays at the top of the scroll area, so the reader always sees
+ * which line, days and kind of day the page shows. It spans the area's padding (p-4, md:px-7 md:pt-6), so it
+ * sticks flush with the top edge.
+ */
+export const FILTER_BAR =
+  'sticky -top-4 z-[850] -mx-4 my-4 flex flex-wrap items-center gap-3 border-b border-rule bg-paper px-4 py-2.5 md:-top-6 md:-mx-7 md:px-7'
+
 export const DAY_KINDS: DayKind[] = ['all', 'workdays', 'schoolWorkdays', 'holidayWorkdays', 'saturday', 'sundayOrHoliday', 'publicHoliday']

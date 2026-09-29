@@ -25,7 +25,9 @@ export function useFormat() {
       date: (iso: string) => date.format(new Date(`${iso}T00:00:00`)),
       /** Compact day label for chart axes, e.g. "po 1. 8.". */
       dayShort: (iso: string) => dayShort.format(new Date(`${iso}T00:00:00`)),
-      percentWhole: (value: number) => percentWhole.format(value),
+      /** Whole percent; a share that isn't zero never reads as "0 %" (nor an incomplete one as "100 %"). */
+      percentWhole: (value: number) =>
+        value > 0 && value < 0.005 ? `< ${percentWhole.format(0.01)}` : value > 0.995 && value < 1 ? `> ${percentWhole.format(0.99)}` : percentWhole.format(value),
       /** Local ISO date-time without zone ("2022-08-02T04:52:22") → e.g. "2. 8. 2022 4:52". */
       dateTime: (iso: string) => dateTime.format(new Date(iso)),
       /** One decimal at most, e.g. 0.7 or 13. */

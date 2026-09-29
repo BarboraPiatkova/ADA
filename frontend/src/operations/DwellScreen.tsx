@@ -10,7 +10,7 @@ import { Empty } from '../ui/Empty'
 import { QueryState } from '../ui/QueryState'
 import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
-import { usePeriod, useReportPeriod } from './period'
+import { FILTER_BAR, usePeriod, useReportPeriod } from './period'
 import { DayKindSelect } from './TimeView'
 import { DwellBandsChart, DwellBandsTable } from './DwellBandsChart'
 import { DwellMap } from './DwellMap'
@@ -113,7 +113,7 @@ function DwellView({
         <p className="mt-1.5 max-w-[72ch] text-sm text-ink-2">{t('dwell.note')}</p>
       </header>
 
-      <div className="my-5 flex flex-wrap items-center gap-3">
+      <div className={FILTER_BAR} role="group" aria-label={t('dates.filters')}>
         <SearchSelect
           label={t('dwell.line')}
           value={line === null ? ALL : String(line)}

@@ -96,8 +96,13 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache, DayCalendar c
             .OrderByDescending(p => p.Trips)
             .ToList();
 
-        // Profile of the chosen pattern, or the busiest one of the selection.
-        var chosen = pattern ?? patterns.FirstOrDefault()?.Code;
+        // Profile of the chosen pattern; unless one is asked for, the best covered: most stop calls
+        // counted (trips x typical stops per trip), so a short pattern with many trips doesn't win.
+        var chosen = pattern ?? loaded.Where(t => t.PatternCode is not null)
+            .GroupBy(t => t.PatternCode!.Value)
+            .OrderByDescending(g => g.Count() * Median(g.Select(t => t.Stops.Count(s => !s.IsPassThrough))))
+            .ThenBy(g => g.Key)
+            .Select(g => (int?)g.Key).FirstOrDefault();
         var profile = new List<LoadProfileStopDto>();
         if (chosen is { } code)
         {
@@ -146,11 +151,18 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache, DayCalendar c
             loaded.Count == 0 ? null : DateOnly.FromDateTime(loaded.Max(t => t.Start)),
             line, lines, loaded.Count, loaded.Sum(t => t.Stops.Sum(s => s.Boardings)),
             loaded.Count(t => t.Capacity is > 0),
-            boardingsByHour, byWeekday, byWeekHour, patterns, chosen, profile, crowded, await ReportPeriod.DaysWithDataAsync(db, ct));
+            boardingsByHour, byWeekday, byWeekHour, patterns, chosen, pattern is null && chosen is not null, profile, crowded,
+            await ReportPeriod.DaysWithDataAsync(db, ct));
     }
 
     // ADA writes terminus names with the stop code in front ("14901 Purmerendská").
     private static string? Clean(string? name) => name is null ? null : System.Text.RegularExpressions.Regex.Replace(name, @"^\d+\s+", "");
+
+    private static int Median(IEnumerable<int> values)
+    {
+        var sorted = values.Order().ToList();
+        return sorted.Count == 0 ? 0 : sorted[sorted.Count / 2];
+    }
 
     private static double Percentile(List<double> values, double p)
     {
@@ -189,8 +201,9 @@ public sealed record CrowdedTripDto(
     int PeakLoad, string? PeakStopName, int? PeakStopCode, int Boardings, int? Capacity, double? PeakShare);
 
 /// <param name="TripsWithCapacity">Trips whose vehicle has a known capacity (occupancy in % is possible).</param>
+/// <param name="PatternChosenForReader">The profile shows the best covered pattern because none was asked for.</param>
 public sealed record LoadReportDto(
     DateOnly? From, DateOnly? To, int? Line, IReadOnlyList<int> Lines, int Trips, int Boardings, int TripsWithCapacity,
     IReadOnlyList<LoadHourDto> BoardingsByHour, IReadOnlyList<LoadWeekdayDto> BoardingsByWeekday, IReadOnlyList<LoadWeekHourDto> BoardingsByWeekHour,
-    IReadOnlyList<LoadPatternDto> Patterns, int? Pattern,
+    IReadOnlyList<LoadPatternDto> Patterns, int? Pattern, bool PatternChosenForReader,
     IReadOnlyList<LoadProfileStopDto> Profile, IReadOnlyList<CrowdedTripDto> Crowded, IReadOnlyList<DateOnly> Days);

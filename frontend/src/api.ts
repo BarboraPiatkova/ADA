@@ -364,6 +364,8 @@ export interface LoadReport {
   patterns: LoadPattern[]
   pattern: number | null
   profile: LoadProfileStop[]
+  /** The profile shows the best covered pattern because the reader picked none. */
+  patternChosenForReader: boolean
   crowded: CrowdedTrip[]
   /** Weekday 1 = Monday … 7 = Sunday; days = how many such days the period has (boardings are totals). */
   boardingsByWeekday: { weekday: number; days: number; boardings: number; alightings: number }[]

@@ -134,7 +134,7 @@ export function BaseMap({ layers, bounds, children }: { layers: BaseLayer[]; bou
   const active = layers.find((l) => l.id === activeId) ?? layers[0]
 
   return (
-    <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} minZoom={MIN_ZOOM} attributionControl={false} className="flex-1 bg-surface font-sans">
+    <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} minZoom={MIN_ZOOM} attributionControl={false} className="isolate flex-1 bg-surface font-sans">
       {/* The tile providers' credits stay (Mapy.com requires theirs); the "Leaflet" prefix is optional under its BSD licence. */}
       <AttributionControl prefix={false} />
       {active && (

@@ -13,7 +13,7 @@ import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
 import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
-import { usePeriod, useReportPeriod } from './period'
+import { FILTER_BAR, usePeriod, useReportPeriod } from './period'
 import { DayKindSelect, TimeViewSwitch, type TimeView } from './TimeView'
 import { WeekHourHeatmap } from './WeekHourHeatmap'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
@@ -136,7 +136,7 @@ function PunctualityView({
         </p>
       </header>
 
-      <div className="my-5 flex flex-wrap items-center gap-3">
+      <div className={FILTER_BAR} role="group" aria-label={t('dates.filters')}>
         <SearchSelect
           label={t('dwell.line')}
           value={line === null ? ALL : String(line)}

@@ -1,6 +1,7 @@
 import { point, type LatLng, type Map as LeafletMap, type Point } from 'leaflet'
 import { useState } from 'react'
 import { useMap, useMapEvents } from 'react-leaflet'
+import i18n from '../i18n'
 
 // Which way a stop post serves, drawn the same on every map: an arrow in the direction of travel,
 // and the posts of one station moved apart, each to its right-hand side (as on a network diagram).
@@ -73,11 +74,14 @@ export function useZoom() {
 
 const plain = (text: string) => text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 
-/** "Mendlovo namesti → Hlavni nadrazi": the stop post named with the direction it serves. */
+/**
+ * "Mendlovo náměstí (směr Hlavní nádraží)": the stop post named with the direction it serves. Not an
+ * arrow: "A → B" reads as a route from A to B, and this is one stop.
+ */
 export function stopLabel(stop: { name: string; code: number; toward: string | null } | undefined, code?: number) {
   if (!stop) return String(code ?? '')
   const name = stop.name || String(stop.code)
-  return stop.toward && plain(stop.toward) !== plain(name) ? `${name} → ${stop.toward}` : name
+  return stop.toward && plain(stop.toward) !== plain(name) ? i18n.t('map.toward', { name, toward: stop.toward }) : name
 }
 
 /** Arrow style: route colour with a light casing, like the line diagram; never takes clicks. */
