@@ -404,6 +404,8 @@ export const en = {
       title: 'Where vehicles stand longer than passengers need',
       subtitle: 'A circle is a stop: colour = extra dwell (median), size = number of stops. Click one for the stop’s details.',
       legend: 'Extra dwell',
+      expand: 'Enlarge map',
+      shrink: 'Shrink map',
       noPosition: '{{count}} stops without coordinates are missing from the map.',
       direction: 'Arrow = direction of travel (towards the next stop). The two directions of a stop are each moved to their right-hand side.',
       visits: 'stops',
