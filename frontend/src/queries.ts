@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { api } from './api'
+import { api, type Period } from './api'
 
 // Every server read goes through TanStack Query: one cache, request de-duplication and
 // cancellation (the AbortSignal is passed down to fetch) for free.
@@ -37,31 +37,31 @@ export const deviceHealthQuery = queryOptions({
   staleTime: REPORT_STALE_MS,
 })
 
-export const dwellQuery = (line: number | null) =>
+export const dwellQuery = (line: number | null, period: Period) =>
   queryOptions({
-    queryKey: ['operations', 'dwell', line],
-    queryFn: ({ signal }) => api.dwell(line, signal),
+    queryKey: ['operations', 'dwell', line, period],
+    queryFn: ({ signal }) => api.dwell(line, period, signal),
     staleTime: REPORT_STALE_MS,
   })
 
-export const stopDwellQuery = (code: number, line: number | null) =>
+export const stopDwellQuery = (code: number, line: number | null, period: Period) =>
   queryOptions({
-    queryKey: ['operations', 'dwell', 'stops', code, line],
-    queryFn: ({ signal }) => api.stopDwell(code, line, signal),
+    queryKey: ['operations', 'dwell', 'stops', code, line, period],
+    queryFn: ({ signal }) => api.stopDwell(code, line, period, signal),
     staleTime: REPORT_STALE_MS,
   })
 
-export const punctualityQuery = (line: number | null) =>
+export const punctualityQuery = (line: number | null, period: Period) =>
   queryOptions({
-    queryKey: ['operations', 'punctuality', line],
-    queryFn: ({ signal }) => api.punctuality(line, signal),
+    queryKey: ['operations', 'punctuality', line, period],
+    queryFn: ({ signal }) => api.punctuality(line, period, signal),
     staleTime: REPORT_STALE_MS,
   })
 
-export const loadQuery = (line: number | null, pattern: number | null) =>
+export const loadQuery = (line: number | null, pattern: number | null, period: Period) =>
   queryOptions({
-    queryKey: ['operations', 'load', line, pattern],
-    queryFn: ({ signal }) => api.load(line, pattern, signal),
+    queryKey: ['operations', 'load', line, pattern, period],
+    queryFn: ({ signal }) => api.load(line, pattern, period, signal),
     staleTime: REPORT_STALE_MS,
   })
 

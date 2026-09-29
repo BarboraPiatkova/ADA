@@ -20,20 +20,28 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache)
     [ImmutableObject(true)]
     private sealed record Cached(LoadReportDto Report);
 
-    public async Task<LoadReportDto> GetAsync(int? line, int? pattern, CancellationToken ct = default)
+    public async Task<LoadReportDto> GetAsync(int? line, int? pattern, ReportPeriod period = default, CancellationToken ct = default)
     {
         var version = $"{await db.SourceFiles.MaxAsync(f => (long?)f.Id, ct) ?? 0}.{await db.Trips.MaxAsync(t => (long?)t.Id, ct) ?? 0}";
-        var key = $"operations/load/{version}/{line?.ToString() ?? "all"}/{pattern?.ToString() ?? "all"}";
-        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, pattern, token)), cancellationToken: ct)).Report;
+        var key = $"operations/load/{version}/{line?.ToString() ?? "all"}/{pattern?.ToString() ?? "all"}/{period.Key}";
+        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, pattern, period, token)), cancellationToken: ct)).Report;
     }
 
-    public async Task<LoadReportDto> BuildAsync(int? line, int? pattern, CancellationToken ct = default)
+    public async Task<LoadReportDto> BuildAsync(int? line, int? pattern, ReportPeriod period = default, CancellationToken ct = default)
     {
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
         var trips = db.Trips.AsNoTracking().Where(t => t.SourceFileId != null && t.IsValid && !t.IsDepotRun);
         if (line is { } l)
         {
             trips = trips.Where(t => t.Pattern != null && t.Pattern.LineId == l);
+        }
+        if (period.Start is { } start)
+        {
+            trips = trips.Where(t => t.StartTime >= start);
+        }
+        if (period.End is { } end)
+        {
+            trips = trips.Where(t => t.StartTime < end);
         }
 
         var rows = await trips
@@ -127,7 +135,7 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache)
             loaded.Count == 0 ? null : DateOnly.FromDateTime(loaded.Max(t => t.Start)),
             line, lines, loaded.Count, loaded.Sum(t => t.Stops.Sum(s => s.Boardings)),
             loaded.Count(t => t.Capacity is > 0),
-            boardingsByHour, patterns, chosen, profile, crowded);
+            boardingsByHour, patterns, chosen, profile, crowded, await ReportPeriod.DaysWithDataAsync(db, ct));
     }
 
     // ADA writes terminus names with the stop code in front ("14901 Purmerendská").
@@ -166,4 +174,4 @@ public sealed record CrowdedTripDto(
 public sealed record LoadReportDto(
     DateOnly? From, DateOnly? To, int? Line, IReadOnlyList<int> Lines, int Trips, int Boardings, int TripsWithCapacity,
     IReadOnlyList<LoadHourDto> BoardingsByHour, IReadOnlyList<LoadPatternDto> Patterns, int? Pattern,
-    IReadOnlyList<LoadProfileStopDto> Profile, IReadOnlyList<CrowdedTripDto> Crowded);
+    IReadOnlyList<LoadProfileStopDto> Profile, IReadOnlyList<CrowdedTripDto> Crowded, IReadOnlyList<DateOnly> Days);

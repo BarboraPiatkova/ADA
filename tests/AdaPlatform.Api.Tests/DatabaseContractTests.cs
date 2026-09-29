@@ -336,6 +336,14 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         Assert.Equal(20.0, bands[6].GetProperty("medianSeconds").GetDouble());
         Assert.Equal(30.0, bands[11].GetProperty("medianSeconds").GetDouble());
 
+        // Every day with data is listed for the period picker, and a period without trips is empty.
+        Assert.Equal(["2022-08-01"], root.GetProperty("days").EnumerateArray().Select(d => d.GetString()));
+        using var inPeriod = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?from=2022-08-01&to=2022-08-01"));
+        Assert.Equal(12, inPeriod.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
+        using var outside = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?from=2022-08-02"));
+        Assert.Equal(0, outside.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
+        Assert.Equal(["2022-08-01"], outside.RootElement.GetProperty("days").EnumerateArray().Select(d => d.GetString()));
+
         // A line with no data gives an empty report, not an error.
         using var other = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?line=999"));
         Assert.Equal(0, other.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
@@ -392,6 +400,10 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         Assert.Equal(25, total.GetProperty("passengerMinutesLate").GetDouble());
         Assert.Equal(30.0 / 65, total.GetProperty("passengersOnTimeShare").GetDouble(), 3);
         Assert.Equal([7], punctuality.RootElement.GetProperty("hours").EnumerateArray().Select(h => h.GetProperty("hour").GetInt32()));
+        using var earlier = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/punctuality?to=2022-07-31"));
+        Assert.Equal(0, earlier.RootElement.GetProperty("total").GetProperty("departures").GetInt32());
+        using var loadLater = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load?from=2022-08-02"));
+        Assert.Equal(0, loadLater.RootElement.GetProperty("trips").GetInt32());
 
         using var load = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load"));
         var profile = load.RootElement.GetProperty("profile").EnumerateArray().ToList();
