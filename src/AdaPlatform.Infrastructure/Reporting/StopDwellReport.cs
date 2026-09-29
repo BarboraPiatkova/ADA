@@ -47,7 +47,7 @@ public sealed record DwellRules
 /// Times come from the vehicles' own logs today. When Transportella's records for the same operator
 /// exist (<c>RecordedCalls</c>), they can supply the times instead; the report says which it used.
 /// </summary>
-public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> options, HybridCache cache)
+public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> options, HybridCache cache, StopDirections stopDirections)
 {
     public static readonly (int Min, int? Max)[] Bands = [(0, 0), (1, 2), (3, 5), (6, 10), (11, 20), (21, null)];
     // All of them for a normal operator; the cap only keeps a broken data set from flooding the page.
@@ -78,6 +78,7 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
             .Select(s => new { s.Code, s.Name, s.Latitude, s.Longitude })
             .ToDictionaryAsync(s => s.Code, ct);
 
+        var directions = await stopDirections.GetAsync(ct);
         var model = Fit(visits.Where(v => v.Dwell <= rules.FitMaxSeconds).ToList());
         int Expected(int passengers) => (int)Math.Round(model.BaseSeconds + model.SecondsPerPassenger * passengers);
 
@@ -95,8 +96,10 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
             {
                 var stop = stops.GetValueOrDefault(g.Key);
                 var dwell = g.Select(v => (double)v.Dwell).ToList();
+                var direction = directions.GetValueOrDefault(g.Key);
                 return new StopDwellDto(
                     g.Key, stop?.Name ?? "", stop?.Latitude, stop?.Longitude,
+                    direction?.Toward, direction?.Bearing,
                     g.Count(),
                     Percentile(dwell, 0.5), Percentile(dwell, 0.9),
                     Math.Round(g.Average(v => v.Passengers), 1),
@@ -321,8 +324,10 @@ public sealed record DwellModelDto(int Visits, double BaseSeconds, double Second
 public sealed record DwellBandDto(int MinPassengers, int? MaxPassengers, int Visits, double MedianSeconds, double P90Seconds);
 
 /// <param name="MedianExcessSeconds">Median of dwell minus what its passengers explain: positive = stands longer than its passengers need.</param>
+/// <param name="Toward">The most frequent destination of trips calling here: which direction this post serves.</param>
+/// <param name="Bearing">Compass direction (0 = north) towards the most frequent next stop; null without positions.</param>
 public sealed record StopDwellDto(
-    int Code, string Name, double? Latitude, double? Longitude, int Visits,
+    int Code, string Name, double? Latitude, double? Longitude, string? Toward, double? Bearing, int Visits,
     double MedianSeconds, double P90Seconds, double MeanPassengers, double MedianExcessSeconds, int Unexplained);
 
 /// <param name="DelaySeconds">Delay at departure; negative = early.</param>

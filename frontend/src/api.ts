@@ -26,6 +26,10 @@ export interface Stop {
   visits: number
   boardings: number
   alightings: number
+  /** The most frequent destination of trips calling here: which direction this post serves. */
+  toward: string | null
+  /** Compass direction (0 = north) towards the most frequent next stop. */
+  bearing: number | null
 }
 
 export interface PatternSummary {
@@ -161,6 +165,10 @@ export interface StopDwell {
   name: string
   latitude: number | null
   longitude: number | null
+  /** The most frequent destination of trips calling here: which direction this post serves. */
+  toward: string | null
+  /** Compass direction (0 = north) towards the most frequent next stop. */
+  bearing: number | null
   visits: number
   medianSeconds: number
   p90Seconds: number

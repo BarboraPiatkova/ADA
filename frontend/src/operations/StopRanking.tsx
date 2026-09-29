@@ -5,7 +5,7 @@ import type { StopDwell } from '../api'
 import type { Format } from '../i18n/format'
 import { LinkButton } from '../ui/LinkButton'
 import { SearchInput } from '../ui/SearchInput'
-import { matches } from './shared'
+import { matches, stopLabel } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 
@@ -28,10 +28,10 @@ export function StopRanking({
 }) {
   const { t, i18n } = useTranslation()
   const [search, setSearch] = useState('')
-  const rows = useMemo(() => stops.filter((s) => matches(search, s.name, s.code)), [stops, search])
+  const rows = useMemo(() => stops.filter((s) => matches(search, s.name, s.code, s.toward)), [stops, search])
   const columns = useMemo(
     () => [
-      col.accessor((s) => s.name || String(s.code), {
+      col.accessor((s) => stopLabel(s), {
         id: 'stop',
         header: t('dwell.stops.stop'),
         cell: (info) => (

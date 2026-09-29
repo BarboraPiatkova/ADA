@@ -7,7 +7,7 @@ import { cn } from '../ui/cn'
 import { LinkButton } from '../ui/LinkButton'
 import { SearchInput } from '../ui/SearchInput'
 import { Select } from '../ui/Select'
-import { dayOf, matches } from './shared'
+import { dayOf, matches, stopLabel } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 
@@ -41,13 +41,15 @@ export function UnexplainedList({
   const [search, setSearch] = useState('')
   const [cause, setCause] = useState<DwellCause | typeof ALL>(ALL)
   const [day, setDay] = useState<string>(ALL)
+  const stops = useMemo(() => new Map(report.stops.map((s) => [s.code, s])), [report.stops])
+  const labelOf = (r: UnexplainedDwell) => (stops.has(r.stopCode) ? stopLabel(stops.get(r.stopCode)) : r.stopName || String(r.stopCode))
   const days = useMemo(() => [...new Set(report.unexplained.map((r) => dayOf(r.arrival)))].sort(), [report.unexplained])
   const rows = useMemo(
     () =>
       report.unexplained.filter(
-        (r) => (cause === ALL || r.cause === cause) && (day === ALL || dayOf(r.arrival) === day) && matches(search, r.stopName, r.stopCode, r.vehicleId, r.line),
+        (r) => (cause === ALL || r.cause === cause) && (day === ALL || dayOf(r.arrival) === day) && matches(search, r.stopName, r.stopCode, r.vehicleId, r.line, stops.get(r.stopCode)?.toward),
       ),
-    [report.unexplained, cause, day, search],
+    [report.unexplained, cause, day, search, stops],
   )
   const signed = (seconds: number) => (seconds > 0 ? '+' : '') + format.seconds(seconds)
 
@@ -71,7 +73,7 @@ export function UnexplainedList({
         },
       }),
       col.accessor((r) => r.line ?? -1, { id: 'line', header: t('dwell.list.line'), cell: (info) => info.row.original.line ?? t('dwell.list.noLine') }),
-      col.accessor((r) => r.stopName || String(r.stopCode), {
+      col.accessor((r) => labelOf(r), {
         id: 'stop',
         header: t('dwell.list.stop'),
         cell: (info) => (
@@ -99,7 +101,7 @@ export function UnexplainedList({
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-    [i18n.resolvedLanguage, onOpenStop, onOpenVehicle, format],
+    [i18n.resolvedLanguage, onOpenStop, onOpenVehicle, format, stops],
   )
 
   return (
