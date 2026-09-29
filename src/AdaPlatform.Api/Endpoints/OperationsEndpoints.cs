@@ -18,6 +18,10 @@ public static class OperationsEndpoints
         operations.MapGet("/vehicles/{vehicle:int}/days/{day}", (StopDwellReport report, int vehicle, DateOnly day, CancellationToken ct) =>
             report.GetVehicleDayAsync(vehicle, day, ct));
 
+        // Punctuality (with passenger-weighted delay) and occupancy.
+        operations.MapGet("/punctuality", (PunctualityReport report, int? line, CancellationToken ct) => report.GetAsync(line, ct));
+        operations.MapGet("/load", (LoadReport report, int? line, int? pattern, CancellationToken ct) => report.GetAsync(line, pattern, ct));
+
         return app;
     }
 }
