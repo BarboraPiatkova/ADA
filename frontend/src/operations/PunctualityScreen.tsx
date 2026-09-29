@@ -13,11 +13,13 @@ import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
 import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
-import { usePeriod } from './period'
+import { usePeriod, useReportPeriod } from './period'
+import { DayKindSelect, TimeViewSwitch, type TimeView } from './TimeView'
+import { WeekHourHeatmap } from './WeekHourHeatmap'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import { cn } from '../ui/cn'
 import { StackedShareChart, type Segment } from './BarCharts'
-import { lineOptionMatch, matches, matchesRow } from './shared'
+import { lineOptionMatch, matches, matchesRow, weekdayNames } from './shared'
 import { SortableTable } from './SortableTable'
 import { StopValueMap } from './StopValueMap'
 import { sortableFeatures } from './tableFeatures'
@@ -38,13 +40,13 @@ const lateStep = (share: number) => {
 export function PunctualityScreen() {
   const { t } = useTranslation()
   const [line, setLine] = useState<number | null>(null)
-  const [period] = usePeriod()
+  const { period, isAll } = useReportPeriod()
   const report = useQuery({ ...punctualityQuery(line, period), placeholderData: keepPreviousData })
   const mapConfig = useQuery(mapConfigQuery)
   return (
     <QueryState query={report} loading={t('punctuality.loading')} skeleton={<HealthSkeleton label={t('punctuality.loading')} />}>
       {(data) =>
-        data.total.departures === 0 && line === null && period === null ? (
+        data.total.departures === 0 && line === null && isAll ? (
           <Empty>{t('punctuality.empty')}</Empty>
         ) : (
           <PunctualityView report={data} layers={mapConfig.data?.baseLayers} line={line} onLineChange={setLine} />
@@ -68,6 +70,9 @@ function PunctualityView({
   const { t, i18n } = useTranslation()
   const format = useFormat()
   const [period, setPeriod] = usePeriod()
+  const [timeView, setTimeView] = useState<TimeView>('hour')
+  const shortDay = weekdayNames(i18n.resolvedLanguage)
+  const longDay = weekdayNames(i18n.resolvedLanguage, 'long')
   const { total, rules } = report
   const share = (n: number, of: number) => (of === 0 ? '–' : format.percentWhole(n / of))
   const segments = (s: PunctualitySummary): Segment[] =>
@@ -77,7 +82,10 @@ function PunctualityView({
       fill: FILL[k],
       swatch: SWATCH[k],
     }))
-  const hourColumns = report.hours.map((h) => ({ key: h.hour, label: String(h.hour), segments: segments(h.summary), summary: h.summary }))
+  const timeColumns =
+    timeView === 'weekday'
+      ? report.weekdays.map((w) => ({ key: w.weekday, label: shortDay[w.weekday - 1], name: longDay[w.weekday - 1], days: w.days, segments: segments(w.summary), summary: w.summary }))
+      : report.hours.map((h) => ({ key: h.hour, label: String(h.hour), name: '', days: 0, segments: segments(h.summary), summary: h.summary }))
   const lineOptions = [{ value: ALL, label: t('dwell.allLines') }, ...report.lines.map((l) => ({ value: String(l), label: t('dwell.lineN', { line: l }) }))]
   const mapStops = useMemo(
     () =>
@@ -137,6 +145,7 @@ function PunctualityView({
           onChange={(v) => onLineChange(v === ALL ? null : Number(v))}
         />
         <DateRangePicker label={t('dates.period')} days={report.days} value={period} onChange={setPeriod} format={format} />
+        <DayKindSelect />
       </div>
 
       <div className="mb-6 grid gap-5 xl:grid-cols-2">
@@ -151,25 +160,55 @@ function PunctualityView({
           />
         )}
         <ChartFigure
-          title={t('punctuality.hours.title')}
-          subtitle={t('punctuality.hours.subtitle')}
+          title={t(`punctuality.${timeView}.title`)}
+          subtitle={t(`punctuality.${timeView}.subtitle`)}
+          controls={<TimeViewSwitch value={timeView} onChange={setTimeView} />}
           chart={
-            <StackedShareChart
-              columns={hourColumns}
-              keys={t('punctuality.hours.keys')}
-              describe={(c) => {
-                const s = hourColumns.find((h) => h.label === c.label)!.summary
-                return t('punctuality.hours.cell', {
-                  hour: c.label,
-                  departures: format.number(s.departures),
-                  onTime: share(s.onTime, s.departures),
-                  late: share(s.late + s.veryLate, s.departures),
-                  early: share(s.early, s.departures),
-                })
-              }}
+            timeView === 'week' ? (
+              <WeekHourHeatmap
+                keys={t('punctuality.week.keys')}
+                legend={legend}
+                cells={report.weekHours.map((c) => ({
+                  weekday: c.weekday,
+                  hour: c.hour,
+                  step: lateStep(lateShare(c.summary)) - 1,
+                  value: format.percentWhole(lateShare(c.summary)),
+                  label: t('punctuality.week.cell', { day: longDay[c.weekday - 1], hour: c.hour, late: format.percentWhole(lateShare(c.summary)), departures: format.number(c.summary.departures) }),
+                }))}
+              />
+            ) : (
+              <StackedShareChart
+                columns={timeColumns}
+                keys={t(`punctuality.${timeView}.keys`)}
+                describe={(c) => {
+                  const column = timeColumns.find((h) => h.label === c.label)!
+                  const s = column.summary
+                  return t(`punctuality.${timeView}.cell`, {
+                    hour: c.label,
+                    day: column.name,
+                    days: column.days,
+                    departures: format.number(s.departures),
+                    onTime: share(s.onTime, s.departures),
+                    late: share(s.late + s.veryLate, s.departures),
+                    early: share(s.early, s.departures),
+                  })
+                }}
+              />
+            )
+          }
+          table={
+            <SummaryTable
+              rows={
+                timeView === 'hour'
+                  ? report.hours.map((h) => ({ key: h.hour, label: `${h.hour}:00`, summary: h.summary }))
+                  : timeView === 'weekday'
+                    ? report.weekdays.map((w) => ({ key: w.weekday, label: t('dates.weekdayDays', { day: longDay[w.weekday - 1], count: w.days }), summary: w.summary }))
+                    : report.weekHours.map((c) => ({ key: c.weekday * 100 + c.hour, label: `${shortDay[c.weekday - 1]} ${c.hour}:00`, summary: c.summary }))
+              }
+              labelHeader={t(timeView === 'hour' ? 'punctuality.hours.hour' : 'dates.weekday')}
+              format={format}
             />
           }
-          table={<SummaryTable rows={report.hours.map((h) => ({ key: h.hour, label: `${h.hour}:00`, summary: h.summary }))} labelHeader={t('punctuality.hours.hour')} format={format} />}
         />
       </div>
 

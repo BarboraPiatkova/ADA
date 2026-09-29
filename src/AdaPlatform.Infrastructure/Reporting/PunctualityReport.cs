@@ -68,10 +68,11 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
             .Select(v => new
             {
                 v.TripId, v.Sequence, v.StopCode, v.DepartureTime, v.DelaySeconds, v.Boardings, v.Alightings, v.IsPassThrough,
-                v.Trip.IsValid,
+                v.Trip.IsValid, v.Trip.StartTime,
                 Line = v.Trip.Pattern != null ? (int?)v.Trip.Pattern.LineId : null,
             })
             .ToListAsync(ct);
+        rows = rows.Where(r => period.Keeps(r.StartTime)).ToList();
 
         // Load on board after each stop: running sum over the trip, never below zero (drift).
         var departures = new List<Departure>();
@@ -114,6 +115,11 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
 
         var byHour = departures.GroupBy(d => d.At.Hour).OrderBy(g => g.Key)
             .Select(g => new PunctualityHourDto(g.Key, Summarize(g))).ToList();
+        // By day of week: how many such days the period has, so a reader can tell one Monday from four.
+        var byWeekday = departures.GroupBy(d => ReportPeriod.Weekday(d.At)).OrderBy(g => g.Key)
+            .Select(g => new PunctualityWeekdayDto(g.Key, g.Select(d => d.At.Date).Distinct().Count(), Summarize(g))).ToList();
+        var byWeekHour = departures.GroupBy(d => (Weekday: ReportPeriod.Weekday(d.At), d.At.Hour)).OrderBy(g => g.Key)
+            .Select(g => new PunctualityWeekHourDto(g.Key.Weekday, g.Key.Hour, Summarize(g))).ToList();
         var byLine = departures.Where(d => d.Line is not null).GroupBy(d => d.Line!.Value).OrderBy(g => g.Key)
             .Select(g => new PunctualityLineDto(g.Key, Summarize(g))).ToList();
         var byStop = departures.GroupBy(d => d.StopCode)
@@ -130,7 +136,7 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
         return new PunctualityReportDto(
             departures.Count == 0 ? null : DateOnly.FromDateTime(departures.Min(d => d.At)),
             departures.Count == 0 ? null : DateOnly.FromDateTime(departures.Max(d => d.At)),
-            line, lines, rules, Summarize(departures), byHour, byLine, byStop, await ReportPeriod.DaysWithDataAsync(db, ct));
+            line, lines, rules, Summarize(departures), byHour, byWeekday, byWeekHour, byLine, byStop, await ReportPeriod.DaysWithDataAsync(db, ct));
     }
 
     private static Punctuality Judge(int delay, PunctualityRules rules) =>
@@ -159,6 +165,12 @@ public sealed record PunctualitySummaryDto(
 
 public sealed record PunctualityHourDto(int Hour, PunctualitySummaryDto Summary);
 
+/// <param name="Weekday">1 = Monday … 7 = Sunday.</param>
+/// <param name="Days">How many of these weekdays the period has with departures.</param>
+public sealed record PunctualityWeekdayDto(int Weekday, int Days, PunctualitySummaryDto Summary);
+
+public sealed record PunctualityWeekHourDto(int Weekday, int Hour, PunctualitySummaryDto Summary);
+
 public sealed record PunctualityLineDto(int Line, PunctualitySummaryDto Summary);
 
 public sealed record PunctualityStopDto(
@@ -166,5 +178,6 @@ public sealed record PunctualityStopDto(
 
 public sealed record PunctualityReportDto(
     DateOnly? From, DateOnly? To, int? Line, IReadOnlyList<int> Lines, PunctualityRules Rules,
-    PunctualitySummaryDto Total, IReadOnlyList<PunctualityHourDto> Hours, IReadOnlyList<PunctualityLineDto> ByLine,
+    PunctualitySummaryDto Total, IReadOnlyList<PunctualityHourDto> Hours, IReadOnlyList<PunctualityWeekdayDto> Weekdays,
+    IReadOnlyList<PunctualityWeekHourDto> WeekHours, IReadOnlyList<PunctualityLineDto> ByLine,
     IReadOnlyList<PunctualityStopDto> Stops, IReadOnlyList<DateOnly> Days);

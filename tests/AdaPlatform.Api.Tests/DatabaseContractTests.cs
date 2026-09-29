@@ -343,6 +343,11 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         using var outside = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?from=2022-08-02"));
         Assert.Equal(0, outside.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
         Assert.Equal(["2022-08-01"], outside.RootElement.GetProperty("days").EnumerateArray().Select(d => d.GetString()));
+        // 1 August 2022 was a Monday: kept on working days, left out on Sundays.
+        using var workdays = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?days=workdays"));
+        Assert.Equal(12, workdays.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
+        using var sundays = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?days=sunday"));
+        Assert.Equal(0, sundays.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
 
         // A line with no data gives an empty report, not an error.
         using var other = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?line=999"));
@@ -400,8 +405,17 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         Assert.Equal(25, total.GetProperty("passengerMinutesLate").GetDouble());
         Assert.Equal(30.0 / 65, total.GetProperty("passengersOnTimeShare").GetDouble(), 3);
         Assert.Equal([7], punctuality.RootElement.GetProperty("hours").EnumerateArray().Select(h => h.GetProperty("hour").GetInt32()));
+        var monday = Assert.Single(punctuality.RootElement.GetProperty("weekdays").EnumerateArray());
+        Assert.Equal((1, 1, 4), (monday.GetProperty("weekday").GetInt32(), monday.GetProperty("days").GetInt32(), monday.GetProperty("summary").GetProperty("departures").GetInt32()));
+        var cell = Assert.Single(punctuality.RootElement.GetProperty("weekHours").EnumerateArray());
+        Assert.Equal((1, 7), (cell.GetProperty("weekday").GetInt32(), cell.GetProperty("hour").GetInt32()));
         using var earlier = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/punctuality?to=2022-07-31"));
         Assert.Equal(0, earlier.RootElement.GetProperty("total").GetProperty("departures").GetInt32());
+        using var loadWeek = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load"));
+        var loadMonday = Assert.Single(loadWeek.RootElement.GetProperty("boardingsByWeekday").EnumerateArray());
+        Assert.Equal((1, 1, 35), (loadMonday.GetProperty("weekday").GetInt32(), loadMonday.GetProperty("days").GetInt32(), loadMonday.GetProperty("boardings").GetInt32()));
+        using var loadSaturdays = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load?days=saturday"));
+        Assert.Equal(0, loadSaturdays.RootElement.GetProperty("trips").GetInt32());
         using var loadLater = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load?from=2022-08-02"));
         Assert.Equal(0, loadLater.RootElement.GetProperty("trips").GetInt32());
 

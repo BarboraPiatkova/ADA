@@ -37,6 +37,13 @@ export function lineOptionMatch(query: string, option: { value: string; label: s
   return matchesRow(query, { exact: [/^\d+$/.test(option.value) ? Number(option.value) : null], texts: [option.label] })
 }
 
+/** Monday-first short weekday names in the UI language: index 0 = Monday. */
+export function weekdayNames(language: string | undefined, width: 'short' | 'long' = 'short') {
+  const format = new Intl.DateTimeFormat(language, { weekday: width })
+  // 1 January 2024 was a Monday.
+  return Array.from({ length: 7 }, (_, i) => format.format(new Date(2024, 0, 1 + i)))
+}
+
 /** ISO local date-time → its calendar day ("2022-08-01"). */
 export const dayOf = (iso: string) => iso.slice(0, 10)
 

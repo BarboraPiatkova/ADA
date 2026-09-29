@@ -164,6 +164,7 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
         var raw = await query
             .Select(v => new
             {
+                v.Trip.StartTime,
                 v.Trip.VehicleId,
                 Line = v.Trip.Pattern != null ? (int?)v.Trip.Pattern.LineId : null,
                 v.StopCode,
@@ -175,6 +176,7 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
             .ToListAsync(ct);
 
         return raw
+            .Where(v => period.Keeps(v.StartTime))
             .Select(v => new Visit(v.VehicleId, v.Line, v.StopCode, v.Arrival, (int)(v.Departure - v.Arrival).TotalSeconds, v.Passengers, v.DelaySeconds))
             .Where(v => v.Dwell >= 0 && v.Dwell <= 1800)
             .ToList();

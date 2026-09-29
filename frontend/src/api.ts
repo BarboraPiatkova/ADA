@@ -307,6 +307,9 @@ export interface PunctualityReport {
   rules: PunctualityRules
   total: PunctualitySummary
   hours: { hour: number; summary: PunctualitySummary }[]
+  /** Weekday 1 = Monday … 7 = Sunday; days = how many such days the period has. */
+  weekdays: { weekday: number; days: number; summary: PunctualitySummary }[]
+  weekHours: { weekday: number; hour: number; summary: PunctualitySummary }[]
   byLine: { line: number; summary: PunctualitySummary }[]
   stops: PunctualityStop[]
   days: string[]
@@ -362,6 +365,9 @@ export interface LoadReport {
   pattern: number | null
   profile: LoadProfileStop[]
   crowded: CrowdedTrip[]
+  /** Weekday 1 = Monday … 7 = Sunday; days = how many such days the period has (boardings are totals). */
+  boardingsByWeekday: { weekday: number; days: number; boardings: number; alightings: number }[]
+  boardingsByWeekHour: { weekday: number; hour: number; days: number; boardings: number }[]
   days: string[]
 }
 
@@ -398,13 +404,16 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T
 }
 
-/** A report's days, both ends included; null = every day. */
-export type Period = { from: string; to: string } | null
+/** Which days of the week a report counts. */
+export type DayKind = 'all' | 'workdays' | 'saturday' | 'sunday'
+
+/** A report's days: from–to, both included (either end may be open), and which days of the week. */
+export type Period = { from?: string; to?: string; days?: Exclude<DayKind, 'all'> }
 
 /** "?line=1&from=…&to=…" with only the parameters that are set, or "". */
-function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string } | null) {
+function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string; days?: string }) {
   const query = new URLSearchParams()
-  for (const [key, value] of Object.entries(params ?? {})) if (value !== null && value !== undefined) query.set(key, String(value))
+  for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value))
   const qs = query.toString()
   return qs ? `?${qs}` : ''
 }
