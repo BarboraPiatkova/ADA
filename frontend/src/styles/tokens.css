@@ -34,6 +34,12 @@
   --map-seq-3: #25bcbc;
   --map-seq-4: #009999;
   --map-seq-5: #007575;
+  /* Diverging ramp for boardings vs alightings at a stop: orange = mostly alighting, petrol = mostly boarding. */
+  --map-div-alight-2: #b3541e;
+  --map-div-alight-1: #f0b48a;
+  --map-div-even: #ffffff;
+  --map-div-board-1: #77dcdb;
+  --map-div-board-2: #007575;
 
   /* Charts. Sequential = one petrol hue, light → dark (validated: monotone L, ΔL ≥ 0.06). */
   --seq-1: #c1f7f6;

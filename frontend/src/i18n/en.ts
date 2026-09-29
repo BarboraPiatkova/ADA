@@ -74,8 +74,31 @@ export const en = {
       '{{count, number}} stop visit, on average {{boardings, number(maximumFractionDigits: 1)}} boardings, {{alightings, number(maximumFractionDigits: 1)}} alightings',
     stopActivity_other:
       '{{count, number}} stop visits, on average {{boardings, number(maximumFractionDigits: 1)}} boardings, {{alightings, number(maximumFractionDigits: 1)}} alightings',
-    legendFewer: 'fewer boardings',
-    legendMore: 'more boardings',
+    measure: 'What the stops show',
+    measures: {
+      boardings: 'Boardings',
+      alightings: 'Alightings',
+      exchange: 'Boardings + alightings',
+      balance: 'Getting on / off',
+    },
+    measureHints: {
+      boardings: 'Size: average number of passengers boarding per call',
+      alightings: 'Size: average number of passengers alighting per call',
+      exchange: 'Size: average boardings and alightings together – how busy the stop is',
+      balance: 'Colour: whether passengers mostly board here (petrol) or alight (orange); size as for boardings + alightings',
+    },
+    legendFewer: {
+      boardings: 'fewer boardings',
+      alightings: 'fewer alightings',
+      exchange: 'fewer passengers',
+    },
+    legendMore: {
+      boardings: 'more boardings',
+      alightings: 'more alightings',
+      exchange: 'more passengers',
+    },
+    legendAlighting: 'mostly alighting',
+    legendBoarding: 'mostly boarding',
     legendNoData: 'no data',
     legendDirection: 'direction of travel',
     chooseBaseMap: 'Base map',
