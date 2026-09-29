@@ -31,7 +31,7 @@ function bandLabel(band: DwellBand, t: ReturnType<typeof useTranslation>['t']) {
  * Dwell by passenger exchange: one column per passenger band, the bar is the median dwell and
  * a tick marks the 90th percentile. One Tab stop; arrow keys move between bands.
  */
-export function DwellBandsChart({ bands, format }: { bands: DwellBand[]; format: Format }) {
+export function DwellBandsChart({ bands, format, height = PLOT_HEIGHT }: { bands: DwellBand[]; format: Format; height?: number }) {
   const { t } = useTranslation()
   const [wrap, available] = useElementWidth<HTMLDivElement>()
   const { box, tooltip, show, hide } = useTooltip()
@@ -44,14 +44,14 @@ export function DwellBandsChart({ bands, format }: { bands: DwellBand[]; format:
   const max = Math.max(1, ...bands.map((b) => b.p90Seconds))
   const step = secondsStep(max)
   const yTop = Math.ceil(max / step) * step
-  const y = (seconds: number) => TOP + PLOT_HEIGHT - (seconds / yTop) * PLOT_HEIGHT
+  const y = (seconds: number) => TOP + height - (seconds / yTop) * height
   const ticks = Array.from({ length: yTop / step + 1 }, (_, i) => i * step)
 
   return (
     <div ref={wrap} className="min-w-0">
       <div ref={box} className={CHART_BOX}>
         {width > 0 && (
-          <svg width={width} height={TOP + PLOT_HEIGHT + AXIS_HEIGHT} role="group" aria-label={t('dwell.bands.keys')}>
+          <svg width={width} height={TOP + height + AXIS_HEIGHT} role="group" aria-label={t('dwell.bands.keys')}>
             {ticks.map((tick) => (
               <g key={tick}>
                 <line x1={LEFT} x2={width - RIGHT} y1={y(tick)} y2={y(tick)} className={tick === 0 ? BASELINE : GRIDLINE} />
@@ -85,7 +85,7 @@ export function DwellBandsChart({ bands, format }: { bands: DwellBand[]; format:
                     x={LEFT + i * band}
                     y={TOP}
                     width={band}
-                    height={PLOT_HEIGHT}
+                    height={height}
                     className={HIT_AREA}
                     {...focus}
                     role="img"
@@ -93,7 +93,7 @@ export function DwellBandsChart({ bands, format }: { bands: DwellBand[]; format:
                     onPointerMove={(event) => show(event, content)}
                     onPointerLeave={hide}
                   />
-                  <FocusRing show={roving.isFocused(0, i)} x={LEFT + i * band + 1} y={TOP - 2} width={band - 2} height={PLOT_HEIGHT + 3} />
+                  <FocusRing show={roving.isFocused(0, i)} x={LEFT + i * band + 1} y={TOP - 2} width={band - 2} height={height + 3} />
                   {b.visits > 0 && (
                     <>
                       {/* Median: the bar, 4px rounded data end. */}
@@ -106,10 +106,10 @@ export function DwellBandsChart({ bands, format }: { bands: DwellBand[]; format:
                       <line x1={cx - 8} x2={cx + 8} y1={y(b.p90Seconds)} y2={y(b.p90Seconds)} className="pointer-events-none stroke-ink-2" strokeWidth={1.5} />
                     </>
                   )}
-                  <text x={cx} y={TOP + PLOT_HEIGHT + 18} className={AXIS_LABEL_STRONG} textAnchor="middle">
+                  <text x={cx} y={TOP + height + 18} className={AXIS_LABEL_STRONG} textAnchor="middle">
                     {label}
                   </text>
-                  <text x={cx} y={TOP + PLOT_HEIGHT + 34} className={AXIS_LABEL} textAnchor="middle">
+                  <text x={cx} y={TOP + height + 34} className={AXIS_LABEL} textAnchor="middle">
                     {format.number(b.visits)}×
                   </text>
                 </g>

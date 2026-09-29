@@ -21,6 +21,8 @@ import { UnexplainedList } from './UnexplainedList'
 import { VehicleDay } from './VehicleDay'
 
 const ALL = 'all'
+/** Plot height of a chart beside a stop map, so the two cards line up. */
+const MAP_SIDE_HEIGHT = 380
 
 /**
  * Dwell at stops, from overview to case: where and how much vehicles stand longer than their passengers
@@ -133,7 +135,7 @@ function DwellView({
         <ChartFigure
           title={t('dwell.bands.title')}
           subtitle={t('dwell.bands.subtitle')}
-          chart={<DwellBandsChart bands={report.bands} format={format} />}
+          chart={<DwellBandsChart bands={report.bands} format={format} height={MAP_SIDE_HEIGHT} />}
           table={<DwellBandsTable bands={report.bands} format={format} />}
         />
       </div>

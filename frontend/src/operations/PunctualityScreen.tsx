@@ -25,6 +25,8 @@ import { StopValueMap } from './StopValueMap'
 import { sortableFeatures } from './tableFeatures'
 
 const ALL = 'all'
+/** Plot height of a chart beside a stop map, so the two cards line up. */
+const MAP_SIDE_HEIGHT = 380
 // Later = darker, on the one sequential ramp (these are shares, not health verdicts).
 const FILL = { Early: 'fill-seq-1', OnTime: 'fill-seq-2', Late: 'fill-seq-4', VeryLate: 'fill-seq-6' } as const
 const SWATCH = { Early: 'bg-seq-1', OnTime: 'bg-seq-2', Late: 'bg-seq-4', VeryLate: 'bg-seq-6' } as const
@@ -167,6 +169,7 @@ function PunctualityView({
             timeView === 'week' ? (
               <WeekHourHeatmap
                 keys={t('punctuality.week.keys')}
+                height={MAP_SIDE_HEIGHT + 30}
                 legend={legend}
                 cells={report.weekHours.map((c) => ({
                   weekday: c.weekday,
@@ -179,6 +182,7 @@ function PunctualityView({
             ) : (
               <StackedShareChart
                 columns={timeColumns}
+                height={MAP_SIDE_HEIGHT}
                 keys={t(`punctuality.${timeView}.keys`)}
                 describe={(c) => {
                   const column = timeColumns.find((h) => h.label === c.label)!
