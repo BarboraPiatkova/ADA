@@ -53,6 +53,11 @@
   --color-map-casing: var(--map-casing);
   --color-map-stop: var(--map-stop);
   --color-map-no-data: var(--map-no-data);
+  --color-map-seq-1: var(--map-seq-1);
+  --color-map-seq-2: var(--map-seq-2);
+  --color-map-seq-3: var(--map-seq-3);
+  --color-map-seq-4: var(--map-seq-4);
+  --color-map-seq-5: var(--map-seq-5);
 
   --font-sans: var(--text);
   --font-display: var(--display);

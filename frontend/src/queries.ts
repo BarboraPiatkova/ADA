@@ -37,6 +37,27 @@ export const deviceHealthQuery = queryOptions({
   staleTime: REPORT_STALE_MS,
 })
 
+export const dwellQuery = (line: number | null) =>
+  queryOptions({
+    queryKey: ['operations', 'dwell', line],
+    queryFn: ({ signal }) => api.dwell(line, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const stopDwellQuery = (code: number, line: number | null) =>
+  queryOptions({
+    queryKey: ['operations', 'dwell', 'stops', code, line],
+    queryFn: ({ signal }) => api.stopDwell(code, line, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const vehicleDayQuery = (vehicle: number, day: string) =>
+  queryOptions({
+    queryKey: ['operations', 'vehicles', vehicle, day],
+    queryFn: ({ signal }) => api.vehicleDay(vehicle, day, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
 export const dailyQualityQuery = queryOptions({
   queryKey: ['quality', 'daily'],
   queryFn: ({ signal }) => api.dailyQuality(signal),
