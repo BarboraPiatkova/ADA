@@ -6,6 +6,8 @@ export const PERMISSIONS = {
   networkRead: 'network:read',
   /** Device health and data quality. */
   qualityRead: 'quality:read',
+  /** Stop operations: dwell times and what explains them. */
+  operationsRead: 'operations:read',
 } as const
 
 export type Permission = (typeof PERMISSIONS)[keyof typeof PERMISSIONS]

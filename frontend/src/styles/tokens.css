@@ -28,6 +28,12 @@
   --map-casing: #ffffff;
   --map-stop: #ffffff;
   --map-no-data: #7a8591;
+  /* Sequential petrol ramp for magnitudes drawn on the map (the light-theme --seq values, fixed). */
+  --map-seq-1: #c1f7f6;
+  --map-seq-2: #77dcdb;
+  --map-seq-3: #25bcbc;
+  --map-seq-4: #009999;
+  --map-seq-5: #007575;
 
   /* Charts. Sequential = one petrol hue, light → dark (validated: monotone L, ΔL ≥ 0.06). */
   --seq-1: #c1f7f6;
