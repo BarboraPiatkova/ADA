@@ -335,6 +335,8 @@ export const cs = {
     loading: 'Načítám obsazenost…',
     empty: 'Zatím nejsou platné jízdy s počty. Naimportujte logy vozidel (import-ucp).',
     title: 'Obsazenost',
+    searchPattern: 'Zastávka na trase',
+    searchPatternAll: 'Číslo linky nebo zastávka',
     facts: {
       period: 'Období',
       trips: 'Platných jízd',
@@ -344,6 +346,7 @@ export const cs = {
     note: 'Obsazenost je průběžný součet nástupů minus výstupů od začátku jízdy (nikdy pod nulou); vozový údaj o obsazenosti nese chyby z předchozích jízd. Jen platné jízdy, bez výjezdů z vozovny.',
     pattern: 'Trasa',
     patternOption: '{{from}} → {{to}} ({{trips}} jízd)',
+    patternOnLine: '{{line}}: {{route}}',
     hours: {
       title: 'Nástupy během dne',
       subtitle: 'Sloupec je počet nastupujících v dané hodině.',
@@ -398,6 +401,8 @@ export const cs = {
     allLines: 'Všechny linky',
     search: 'Hledat',
     searchStops: 'Zastávka nebo kód',
+    searchLine: 'Číslo linky',
+    noOption: 'Hledání nic neodpovídá.',
     searchList: 'Zastávka, vůz nebo číslo linky',
     noMatch: 'Hledání neodpovídá žádný řádek.',
     cause: 'Příčina',

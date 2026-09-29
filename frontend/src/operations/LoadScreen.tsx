@@ -11,9 +11,9 @@ import { Empty } from '../ui/Empty'
 import { LinkButton } from '../ui/LinkButton'
 import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
-import { Select } from '../ui/Select'
+import { SearchSelect } from '../ui/SearchSelect'
 import { ColumnChart } from './BarCharts'
-import { dayOf, matchesRow } from './shared'
+import { dayOf, lineOptionMatch, matchesRow } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 import { VehicleDay } from './VehicleDay'
@@ -70,10 +70,14 @@ function LoadView({
   }, [vehicleDay])
 
   const lineOptions = [{ value: ALL, label: t('dwell.allLines') }, ...report.lines.map((l) => ({ value: String(l), label: t('dwell.lineN', { line: l }) }))]
-  const patternOptions = report.patterns.map((p) => ({
-    value: String(p.code),
-    label: t('load.patternOption', { from: p.firstStopName ?? '?', to: p.lastStopName ?? '?', trips: p.trips }),
-  }))
+  // With all lines shown, each pattern names its line, and a number searches it ("1" = line 1's patterns).
+  const patternLine = new Map(report.patterns.map((p) => [String(p.code), p.line]))
+  const patternOptions = report.patterns.map((p) => {
+    const route = t('load.patternOption', { from: p.firstStopName ?? '?', to: p.lastStopName ?? '?', trips: p.trips })
+    return { value: String(p.code), label: line === null && p.line !== null ? t('load.patternOnLine', { line: p.line, route }) : route }
+  })
+  const patternMatch = (query: string, option: { value: string; label: string }) =>
+    matchesRow(query, { exact: [patternLine.get(option.value) ?? null], texts: [option.label] })
   const chosen = report.patterns.find((p) => p.code === report.pattern)
 
   return (
@@ -104,9 +108,25 @@ function LoadView({
       </header>
 
       <div className="my-5 flex flex-wrap items-center gap-3">
-        <Select label={t('dwell.line')} value={line === null ? ALL : String(line)} options={lineOptions} onChange={(v) => onLineChange(v === ALL ? null : Number(v))} />
+        <SearchSelect
+          label={t('dwell.line')}
+          value={line === null ? ALL : String(line)}
+          options={lineOptions}
+          placeholder={t('dwell.searchLine')}
+          empty={t('dwell.noOption')}
+          match={lineOptionMatch}
+          onChange={(v) => onLineChange(v === ALL ? null : Number(v))}
+        />
         {patternOptions.length > 0 && report.pattern !== null && (
-          <Select label={t('load.pattern')} value={String(report.pattern)} options={patternOptions} onChange={(v) => onPatternChange(Number(v))} />
+          <SearchSelect
+            label={t('load.pattern')}
+            value={String(report.pattern)}
+            options={patternOptions}
+            placeholder={t(line === null ? 'load.searchPatternAll' : 'load.searchPattern')}
+            empty={t('dwell.noOption')}
+            match={patternMatch}
+            onChange={(v) => onPatternChange(Number(v))}
+          />
         )}
       </div>
 

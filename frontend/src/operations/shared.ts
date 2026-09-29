@@ -32,6 +32,11 @@ export function matchesRow(
   return matches(q, ...texts)
 }
 
+/** Line picker search: a number finds that line exactly ("1" is line 1, not 10), words search the labels. */
+export function lineOptionMatch(query: string, option: { value: string; label: string }) {
+  return matchesRow(query, { exact: [/^\d+$/.test(option.value) ? Number(option.value) : null], texts: [option.label] })
+}
+
 /** ISO local date-time → its calendar day ("2022-08-01"). */
 export const dayOf = (iso: string) => iso.slice(0, 10)
 
