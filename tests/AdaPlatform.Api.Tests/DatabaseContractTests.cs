@@ -10,8 +10,10 @@ using AdaPlatform.Domain.Raw;
 using AdaPlatform.Infrastructure.Import.Ada;
 using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
+using AdaPlatform.Infrastructure.Reconstruction;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace AdaPlatform.Api.Tests;
 
@@ -193,6 +195,56 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
             // The typed columns are queryable on both engines — what fault detection relies on.
             Assert.Equal(1, await db.DeviceEvents.CountAsync(e => e.Type == DeviceEventType.Heartbeat && e.Alive == false));
             Assert.Equal(3, await db.DeviceEvents.Where(e => e.Type == DeviceEventType.CountingStopped).SumAsync(e => e.Boardings));
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Trip_reconstruction_derives_trips_and_the_network_they_run_on_and_can_be_rerun()
+    {
+        var folder = UcpLogFixture.WriteToNewFolder();
+        try
+        {
+            await using var api = NewApi();
+            await using var scope = api.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            await new UcpLogIngestor(db).IngestAsync(folder);
+            var reconstruction = new TripReconstruction(db, Options.Create(new ReconstructionOptions()));
+
+            var first = await reconstruction.ReconstructAsync();
+            Assert.Equal((1, 0, 1), (first.Files, first.TripsReplaced, first.Stats.Trips));
+            Assert.Equal((1, 1, 1), (first.NewLines, first.NewPatterns, first.NewBlocks));
+
+            db.ChangeTracker.Clear();
+            var trip = await db.Trips.Include(t => t.StopVisits).ThenInclude(v => v.DoorCounts).ThenInclude(d => d.CountingDevice).SingleAsync();
+            Assert.Equal((1200201, "01200715", UcpLogFixture.VehicleId), (trip.PatternCode, trip.BlockCode, trip.VehicleId));
+            Assert.True(trip.IsDepotRun);        // from Garaz ED Pisarky
+            Assert.False(trip.IsValid);          // the stop summary flags device 42
+            Assert.NotNull(trip.SourceFileId);
+
+            var visits = trip.StopVisits.OrderBy(v => v.Sequence).ToList();
+            Assert.Equal([165902, 134302], visits.Select(v => v.StopCode));
+            Assert.Equal((3, 1, 2, false), (visits[0].Boardings, visits[0].Alightings, visits[0].Occupancy, visits[0].IsPassThrough));
+            Assert.True(visits[1].IsPassThrough);
+            var doors = visits[0].DoorCounts.ToDictionary(d => d.CountingDevice.DeviceNumber);
+            Assert.Equal((2, 0, false), (doors[41].Boardings, doors[41].Alightings, doors[41].IsFlaggedInvalid));
+            Assert.Equal((1, 1, true), (doors[42].Boardings, doors[42].Alightings, doors[42].IsFlaggedInvalid));
+
+            var stops = await db.Stops.ToDictionaryAsync(s => s.Code);
+            Assert.Equal("Technologicky park", stops[165902].Name);
+            Assert.Equal(49.231468, stops[165902].Latitude);
+            Assert.Equal(("Lipova", "Garaz ED Pisarky", "Komarov"), (stops[134302].Name, stops[941002].Name, stops[125601].Name));
+            Assert.Equal(12, (await db.Patterns.SingleAsync()).LineId);
+
+            // Re-running replaces the trips instead of adding more; an import-time run finds nothing new.
+            var again = await reconstruction.ReconstructAsync();
+            Assert.Equal((1, 1, 0), (again.Files, again.TripsReplaced, again.NewStops));
+            Assert.Equal(0, (await reconstruction.ReconstructAsync(onlyNew: true)).Files);
+            db.ChangeTracker.Clear();
+            Assert.Equal((1, 2, 2), (await db.Trips.CountAsync(), await db.StopVisits.CountAsync(), await db.DoorCounts.CountAsync()));
         }
         finally
         {

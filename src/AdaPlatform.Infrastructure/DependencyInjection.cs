@@ -1,4 +1,5 @@
 using AdaPlatform.Infrastructure.Persistence;
+using AdaPlatform.Infrastructure.Reconstruction;
 using AdaPlatform.Infrastructure.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -45,6 +46,14 @@ public static class DependencyInjection
         services.AddScoped<DeviceHealthReport>();
         services.AddScoped<DailyQualityReport>();
         services.AddScoped<DatasetProfiler>();
+        return services;
+    }
+
+    /// <summary>Trip reconstruction from raw events and its settings (the "Reconstruction" section).</summary>
+    public static IServiceCollection AddAdaPlatformReconstruction(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<ReconstructionOptions>().Bind(configuration.GetSection(ReconstructionOptions.SectionName));
+        services.AddScoped<TripReconstruction>();
         return services;
     }
 
