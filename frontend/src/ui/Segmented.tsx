@@ -18,6 +18,8 @@ export function SegmentedItem({ className, ...props }: ComponentProps<typeof Tog
         'inline-flex h-[26px] min-w-[30px] touch-target cursor-pointer items-center justify-center rounded-md px-[9px] font-display text-sm font-semibold text-ink-2',
         'hover:bg-surface hover:text-ink focus-visible:outline-offset-1',
         'data-[state=on]:cursor-default data-[state=on]:bg-route data-[state=on]:text-on-route',
+        // Also by aria-checked/aria-pressed: a tooltip trigger around an item overwrites its data-state.
+        'aria-checked:cursor-default aria-checked:bg-route aria-checked:text-on-route aria-pressed:bg-route aria-pressed:text-on-route',
         className,
       )}
       {...props}
