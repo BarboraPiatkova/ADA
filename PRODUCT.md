@@ -15,6 +15,12 @@ web
 
 AdaPlatform automates what the desktop tool ADA did by hand: importing, checking and evaluating APC data, then showing the results on the web to many users of one operator. Success means an operator sees, without manual work, which counting devices are faulty, how much of the data can be trusted, and what the trustworthy data says about passengers on the network.
 
+It brings two sources together for the operator's staff: **Transportella supplies the operations**
+(planned against actual arrival and departure, delay, dwell time at each stop) and **AdaPlatform
+supplies the passengers** (boardings, alightings and occupancy from the counting units, checked for
+trust). Joined per vehicle and stop, they answer questions neither answers alone, e.g. whether a
+long stop was passengers boarding or something else, and how many passengers a delay affected.
+
 It is also the implementation part of a diploma thesis (FI MU): comparing methods for filling in missing counts, and detecting faulty counting devices from their data.
 
 ## Positioning
@@ -31,11 +37,11 @@ AdaPlatform works from the counting units' own raw, unmodified event logs (Herma
 
 ## Capabilities and Constraints
 
-- Today: raw log import, per-stop passenger counts per door (counter readings are running totals; per stop = stop reading − start reading), device and vehicle health with reasons, a fleet × day view, the network map with stops and line routes, cross-filtering between charts and the vehicle table.
+- Today: raw log import, trips reconstructed from the raw logs (stop visits and per-door counts, each trip marked valid or not), per-stop passenger counts per door (counter readings are running totals; per stop = stop reading − start reading), device and vehicle health with reasons, a fleet × day view, the network map with stops and line routes, cross-filtering between charts and the vehicle table.
 - Terms users know: vůz (vehicle), sčítací jednotka (counting device), zastávka, linka, trasa, nástupy/výstupy, obsazenost, spoj.
 - Health thresholds are provisional; calibrating them is part of the thesis and they are configurable per deployment.
 - Undecided: the source of occupancy %, kilometres and energy (the verified Transportella export has none of them); vehicle capacities are not available yet, so occupancy can't be shown as a share of capacity.
-- Planned, not built: trip reconstruction, gap-filling comparison, Transportella delay data, the stop × trip matrix, exports.
+- Planned, not built: gap-filling comparison, Transportella delay data, the stop × trip matrix, exports.
 
 ## Brand Commitments
 
