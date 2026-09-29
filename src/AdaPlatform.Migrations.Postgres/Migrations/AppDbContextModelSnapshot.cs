@@ -292,6 +292,9 @@ namespace AdaPlatform.Migrations.Postgres.Migrations
                     b.Property<int>("InitialDelaySeconds")
                         .HasColumnType("integer");
 
+                    b.Property<bool>("IsDepotRun")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsValid")
                         .HasColumnType("boolean");
 
