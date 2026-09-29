@@ -51,6 +51,13 @@ export const stopDwellQuery = (code: number, line: number | null) =>
     staleTime: REPORT_STALE_MS,
   })
 
+export const punctualityQuery = (line: number | null) =>
+  queryOptions({
+    queryKey: ['operations', 'punctuality', line],
+    queryFn: ({ signal }) => api.punctuality(line, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
 export const vehicleDayQuery = (vehicle: number, day: string) =>
   queryOptions({
     queryKey: ['operations', 'vehicles', vehicle, day],

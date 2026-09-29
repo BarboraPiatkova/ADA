@@ -266,6 +266,49 @@ export interface DwellReport {
   unexplained: UnexplainedDwell[]
 }
 
+export interface PunctualityRules {
+  earlySeconds: number
+  lateSeconds: number
+  veryLateSeconds: number
+  minDeparturesPerStop: number
+}
+
+export interface PunctualitySummary {
+  departures: number
+  early: number
+  onTime: number
+  late: number
+  veryLate: number
+  /** Negative = early. */
+  medianDelaySeconds: number
+  /** Passengers on board × minutes beyond the on-time limit, summed. */
+  passengerMinutesLate: number
+  /** Share of passengers on board who left on time; null without trusted counts. */
+  passengersOnTimeShare: number | null
+}
+
+export interface PunctualityStop {
+  code: number
+  name: string
+  latitude: number | null
+  longitude: number | null
+  toward: string | null
+  bearing: number | null
+  summary: PunctualitySummary
+}
+
+export interface PunctualityReport {
+  from: string | null
+  to: string | null
+  line: number | null
+  lines: number[]
+  rules: PunctualityRules
+  total: PunctualitySummary
+  hours: { hour: number; summary: PunctualitySummary }[]
+  byLine: { line: number; summary: PunctualitySummary }[]
+  stops: PunctualityStop[]
+}
+
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
 export class ApiError extends Error {
   readonly path: string
@@ -310,6 +353,8 @@ export const api = {
     getJson<DwellReport>(line === null ? '/api/operations/dwell' : `/api/operations/dwell?line=${line}`, signal),
   stopDwell: (code: number, line: number | null, signal?: AbortSignal) =>
     getJson<StopDwellDetail>(`/api/operations/dwell/stops/${code}${line === null ? '' : `?line=${line}`}`, signal),
+  punctuality: (line: number | null, signal?: AbortSignal) =>
+    getJson<PunctualityReport>(line === null ? '/api/operations/punctuality' : `/api/operations/punctuality?line=${line}`, signal),
   vehicleDay: (vehicle: number, day: string, signal?: AbortSignal) =>
     getJson<VehicleTripsDay>(`/api/operations/vehicles/${vehicle}/days/${day}`, signal),
 }
