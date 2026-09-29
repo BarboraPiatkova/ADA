@@ -264,6 +264,8 @@ export interface DwellReport {
   stops: StopDwell[]
   unexplainedTotal: number
   unexplained: UnexplainedDwell[]
+  /** Every day with data, whatever period the report covers: the days the period picker offers. */
+  days: string[]
 }
 
 export interface PunctualityRules {
@@ -307,6 +309,7 @@ export interface PunctualityReport {
   hours: { hour: number; summary: PunctualitySummary }[]
   byLine: { line: number; summary: PunctualitySummary }[]
   stops: PunctualityStop[]
+  days: string[]
 }
 
 export interface LoadPattern {
@@ -359,6 +362,7 @@ export interface LoadReport {
   pattern: number | null
   profile: LoadProfileStop[]
   crowded: CrowdedTrip[]
+  days: string[]
 }
 
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
@@ -394,6 +398,17 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T
 }
 
+/** A report's days, both ends included; null = every day. */
+export type Period = { from: string; to: string } | null
+
+/** "?line=1&from=…&to=…" with only the parameters that are set, or "". */
+function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string } | null) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params ?? {})) if (value !== null && value !== undefined) query.set(key, String(value))
+  const qs = query.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export const api = {
   mapConfig: (signal?: AbortSignal) => getJson<MapConfig>('/api/map/config', signal),
   stops: (signal?: AbortSignal) => getJson<Stop[]>('/api/stops', signal),
@@ -401,19 +416,14 @@ export const api = {
   patternStops: (code: number, signal?: AbortSignal) => getJson<PatternStop[]>(`/api/patterns/${code}/stops`, signal),
   deviceHealth: (signal?: AbortSignal) => getJson<DeviceHealthReport>('/api/quality/devices', signal),
   dailyQuality: (signal?: AbortSignal) => getJson<VehicleDay[]>('/api/quality/daily', signal),
-  dwell: (line: number | null, signal?: AbortSignal) =>
-    getJson<DwellReport>(line === null ? '/api/operations/dwell' : `/api/operations/dwell?line=${line}`, signal),
-  stopDwell: (code: number, line: number | null, signal?: AbortSignal) =>
-    getJson<StopDwellDetail>(`/api/operations/dwell/stops/${code}${line === null ? '' : `?line=${line}`}`, signal),
-  punctuality: (line: number | null, signal?: AbortSignal) =>
-    getJson<PunctualityReport>(line === null ? '/api/operations/punctuality' : `/api/operations/punctuality?line=${line}`, signal),
-  load: (line: number | null, pattern: number | null, signal?: AbortSignal) => {
-    const query = new URLSearchParams()
-    if (line !== null) query.set('line', String(line))
-    if (pattern !== null) query.set('pattern', String(pattern))
-    const qs = query.toString()
-    return getJson<LoadReport>(`/api/operations/load${qs ? `?${qs}` : ''}`, signal)
-  },
+  dwell: (line: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<DwellReport>(`/api/operations/dwell${operationsQuery({ line, ...period })}`, signal),
+  stopDwell: (code: number, line: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<StopDwellDetail>(`/api/operations/dwell/stops/${code}${operationsQuery({ line, ...period })}`, signal),
+  punctuality: (line: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<PunctualityReport>(`/api/operations/punctuality${operationsQuery({ line, ...period })}`, signal),
+  load: (line: number | null, pattern: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<LoadReport>(`/api/operations/load${operationsQuery({ line, pattern, ...period })}`, signal),
   vehicleDay: (vehicle: number, day: string, signal?: AbortSignal) =>
     getJson<VehicleTripsDay>(`/api/operations/vehicles/${vehicle}/days/${day}`, signal),
 }

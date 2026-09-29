@@ -56,20 +56,21 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
     [ImmutableObject(true)]
     private sealed record Cached(DwellReportDto Report);
 
-    public async Task<DwellReportDto> GetAsync(int? line, CancellationToken ct = default)
+    public async Task<DwellReportDto> GetAsync(int? line, ReportPeriod period = default, CancellationToken ct = default)
     {
         // Reconstruction replaces trips without a new import, so the trips are part of the version.
         var version = $"{await db.SourceFiles.MaxAsync(f => (long?)f.Id, ct) ?? 0}.{await db.Trips.MaxAsync(t => (long?)t.Id, ct) ?? 0}";
-        var key = $"operations/dwell/{version}/{line?.ToString() ?? "all"}";
-        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, token)), cancellationToken: ct)).Report;
+        var key = $"operations/dwell/{version}/{line?.ToString() ?? "all"}/{period.Key}";
+        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, period, token)), cancellationToken: ct)).Report;
     }
 
-    public async Task<DwellReportDto> BuildAsync(int? line, CancellationToken ct = default)
+    public async Task<DwellReportDto> BuildAsync(int? line, ReportPeriod period = default, CancellationToken ct = default)
     {
         var rules = options.Value;
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
-        var visits = await LoadVisitsAsync(line, stopCode: null, ct);
+        var visits = await LoadVisitsAsync(line, stopCode: null, period, ct);
+        var days = await ReportPeriod.DaysWithDataAsync(db, ct);
 
         var lines = await db.Trips.AsNoTracking()
             .Where(t => t.SourceFileId != null && t.Pattern != null)
@@ -130,14 +131,14 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
             visits.Count == 0 ? null : DateOnly.FromDateTime(visits.Min(v => v.Arrival)),
             visits.Count == 0 ? null : DateOnly.FromDateTime(visits.Max(v => v.Arrival)),
             line, lines, DwellTimeSource.VehicleLog, rules,
-            model, bands, stopRows, visits.Count(IsUnexplained), unexplained);
+            model, bands, stopRows, visits.Count(IsUnexplained), unexplained, days);
     }
 
     /// <summary>
-    /// The trustworthy visits (see the class summary), optionally of one line and one stop. The last
-    /// stop is judged per trip, so a stop filter doesn't change which visits count.
+    /// The trustworthy visits (see the class summary) of trips starting in the period, optionally of one
+    /// line and one stop. The last stop is judged per trip, so a stop filter doesn't change which visits count.
     /// </summary>
-    private async Task<List<Visit>> LoadVisitsAsync(int? line, int? stopCode, CancellationToken ct)
+    private async Task<List<Visit>> LoadVisitsAsync(int? line, int? stopCode, ReportPeriod period, CancellationToken ct)
     {
         var query = db.StopVisits.AsNoTracking()
             .Where(v => v.Trip.SourceFileId != null && v.Trip.IsValid && !v.Trip.IsDepotRun
@@ -150,6 +151,14 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
         if (stopCode is { } code)
         {
             query = query.Where(v => v.StopCode == code);
+        }
+        if (period.Start is { } start)
+        {
+            query = query.Where(v => v.Trip.StartTime >= start);
+        }
+        if (period.End is { } end)
+        {
+            query = query.Where(v => v.Trip.StartTime < end);
         }
 
         var raw = await query
@@ -175,12 +184,12 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
     /// Every trustworthy visit of one stop, each with the dwell its passengers explain (the same line
     /// model as the overview), for the stop detail: when the stop is slow, and whether passengers explain it.
     /// </summary>
-    public async Task<StopDwellDetailDto> GetStopAsync(int stopCode, int? line, CancellationToken ct = default)
+    public async Task<StopDwellDetailDto> GetStopAsync(int stopCode, int? line, ReportPeriod period = default, CancellationToken ct = default)
     {
         var rules = options.Value;
-        var model = (await GetAsync(line, ct)).Model;
+        var model = (await GetAsync(line, period, ct)).Model;
         var name = await db.Stops.AsNoTracking().Where(s => s.Code == stopCode).Select(s => s.Name).FirstOrDefaultAsync(ct);
-        var visits = (await LoadVisitsAsync(line, stopCode, ct))
+        var visits = (await LoadVisitsAsync(line, stopCode, period, ct))
             .OrderBy(v => v.Arrival)
             .Select(v =>
             {
@@ -339,7 +348,7 @@ public sealed record UnexplainedDwellDto(
 public sealed record DwellReportDto(
     DateOnly? From, DateOnly? To, int? Line, IReadOnlyList<int> Lines, DwellTimeSource TimeSource, DwellRules Rules,
     DwellModelDto Model, IReadOnlyList<DwellBandDto> Bands, IReadOnlyList<StopDwellDto> Stops,
-    int UnexplainedTotal, IReadOnlyList<UnexplainedDwellDto> Unexplained);
+    int UnexplainedTotal, IReadOnlyList<UnexplainedDwellDto> Unexplained, IReadOnlyList<DateOnly> Days);
 
 /// <param name="Unexplained">Long and not explained by its passengers (the same rule as the overview list).</param>
 public sealed record StopVisitDwellDto(DateTime Arrival, int VehicleId, int? Line, int DwellSeconds, int Passengers, int ExpectedSeconds, int DelaySeconds, bool Unexplained);

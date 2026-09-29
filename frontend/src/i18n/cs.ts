@@ -385,6 +385,16 @@ export const cs = {
       search: 'Linka, vůz nebo zastávka',
     },
   },
+  dates: {
+    period: 'Období',
+    allDays: 'Všechny dny',
+    lastDay: 'Poslední den',
+    previousMonth: 'Předchozí měsíc',
+    nextMonth: 'Další měsíc',
+    hint: 'Klikněte na první a poslední den období. Dvakrát na tentýž den vybere jen ten den. Přeškrtnuté dny nemají data.',
+    pickEnd: 'Od {{day}} – teď klikněte na poslední den (nebo znovu na tentýž).',
+    noData: '{{day}}, bez dat',
+  },
   dwell: {
     loading: 'Načítám doby stání…',
     empty: 'Zatím nejsou data o stání v zastávkách. Naimportujte logy vozidel (import-ucp).',

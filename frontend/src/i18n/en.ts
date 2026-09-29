@@ -373,6 +373,16 @@ export const en = {
       search: 'Line, vehicle or stop',
     },
   },
+  dates: {
+    period: 'Period',
+    allDays: 'All days',
+    lastDay: 'Last day',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
+    hint: 'Click the first and the last day of the period. The same day twice picks that day alone. Crossed-out days have no data.',
+    pickEnd: 'From {{day}} – now click the last day (or the same one again).',
+    noData: '{{day}}, no data',
+  },
   dwell: {
     loading: 'Loading dwell times…',
     empty: 'No stop dwell data yet. Import the vehicles’ logs (import-ucp).',

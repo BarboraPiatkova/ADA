@@ -1,8 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { StopVisitDwell } from '../api'
+import type { Period, StopVisitDwell } from '../api'
 import { ChartFigure } from '../charts/ChartFigure'
 import type { Format } from '../i18n/format'
 import { stopDwellQuery } from '../queries'
@@ -22,16 +22,18 @@ const NUMERIC = ['vehicle', 'line', 'dwell', 'passengers', 'expected', 'delay']
 export function StopDetail({
   code,
   line,
+  period,
   format,
   onOpenVehicle,
 }: {
   code: number
   line: number | null
+  period: Period
   format: Format
   onOpenVehicle: (vehicle: number, day: string, at: string) => void
 }) {
   const { t } = useTranslation()
-  const query = useQuery(stopDwellQuery(code, line))
+  const query = useQuery({ ...stopDwellQuery(code, line, period), placeholderData: keepPreviousData })
   return (
     <QueryState query={query} loading={t('dwell.loading')}>
       {(detail) =>

@@ -40,16 +40,14 @@ export function UnexplainedList({
   const { t, i18n } = useTranslation()
   const [search, setSearch] = useState('')
   const [cause, setCause] = useState<DwellCause | typeof ALL>(ALL)
-  const [day, setDay] = useState<string>(ALL)
   const stops = useMemo(() => new Map(report.stops.map((s) => [s.code, s])), [report.stops])
   const labelOf = (r: UnexplainedDwell) => (stops.has(r.stopCode) ? stopLabel(stops.get(r.stopCode)) : r.stopName || String(r.stopCode))
-  const days = useMemo(() => [...new Set(report.unexplained.map((r) => dayOf(r.arrival)))].sort(), [report.unexplained])
   const rows = useMemo(
     () =>
       report.unexplained.filter(
-        (r) => (cause === ALL || r.cause === cause) && (day === ALL || dayOf(r.arrival) === day) && matchesRow(search, { exact: [r.vehicleId, r.line], prefix: [r.stopCode], texts: [r.stopName, stops.get(r.stopCode)?.toward] }),
+        (r) => (cause === ALL || r.cause === cause) && matchesRow(search, { exact: [r.vehicleId, r.line], prefix: [r.stopCode], texts: [r.stopName, stops.get(r.stopCode)?.toward] }),
       ),
-    [report.unexplained, cause, day, search, stops],
+    [report.unexplained, cause, search, stops],
   )
   const signed = (seconds: number) => (seconds > 0 ? '+' : '') + format.seconds(seconds)
 
@@ -119,12 +117,6 @@ export function UnexplainedList({
         <>
           <div role="search" className="mt-3 mb-2.5 flex flex-wrap items-center gap-3">
             <SearchInput label={t('dwell.search')} placeholder={t('dwell.searchList')} value={search} onChange={setSearch} />
-            <Select
-              label={t('dwell.day')}
-              value={day}
-              options={[{ value: ALL, label: t('dwell.allDays') }, ...days.map((d) => ({ value: d, label: format.date(d) }))]}
-              onChange={setDay}
-            />
             <Select
               label={t('dwell.cause')}
               value={cause}

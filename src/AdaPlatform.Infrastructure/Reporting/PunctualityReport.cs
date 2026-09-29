@@ -39,14 +39,14 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
     [ImmutableObject(true)]
     private sealed record Cached(PunctualityReportDto Report);
 
-    public async Task<PunctualityReportDto> GetAsync(int? line, CancellationToken ct = default)
+    public async Task<PunctualityReportDto> GetAsync(int? line, ReportPeriod period = default, CancellationToken ct = default)
     {
         var version = $"{await db.SourceFiles.MaxAsync(f => (long?)f.Id, ct) ?? 0}.{await db.Trips.MaxAsync(t => (long?)t.Id, ct) ?? 0}";
-        var key = $"operations/punctuality/{version}/{line?.ToString() ?? "all"}";
-        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, token)), cancellationToken: ct)).Report;
+        var key = $"operations/punctuality/{version}/{line?.ToString() ?? "all"}/{period.Key}";
+        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, period, token)), cancellationToken: ct)).Report;
     }
 
-    public async Task<PunctualityReportDto> BuildAsync(int? line, CancellationToken ct = default)
+    public async Task<PunctualityReportDto> BuildAsync(int? line, ReportPeriod period = default, CancellationToken ct = default)
     {
         var rules = options.Value;
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
@@ -55,6 +55,14 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
         if (line is { } l)
         {
             query = query.Where(v => v.Trip.Pattern != null && v.Trip.Pattern.LineId == l);
+        }
+        if (period.Start is { } start)
+        {
+            query = query.Where(v => v.Trip.StartTime >= start);
+        }
+        if (period.End is { } end)
+        {
+            query = query.Where(v => v.Trip.StartTime < end);
         }
         var rows = await query
             .Select(v => new
@@ -122,7 +130,7 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
         return new PunctualityReportDto(
             departures.Count == 0 ? null : DateOnly.FromDateTime(departures.Min(d => d.At)),
             departures.Count == 0 ? null : DateOnly.FromDateTime(departures.Max(d => d.At)),
-            line, lines, rules, Summarize(departures), byHour, byLine, byStop);
+            line, lines, rules, Summarize(departures), byHour, byLine, byStop, await ReportPeriod.DaysWithDataAsync(db, ct));
     }
 
     private static Punctuality Judge(int delay, PunctualityRules rules) =>
@@ -159,4 +167,4 @@ public sealed record PunctualityStopDto(
 public sealed record PunctualityReportDto(
     DateOnly? From, DateOnly? To, int? Line, IReadOnlyList<int> Lines, PunctualityRules Rules,
     PunctualitySummaryDto Total, IReadOnlyList<PunctualityHourDto> Hours, IReadOnlyList<PunctualityLineDto> ByLine,
-    IReadOnlyList<PunctualityStopDto> Stops);
+    IReadOnlyList<PunctualityStopDto> Stops, IReadOnlyList<DateOnly> Days);

@@ -11,7 +11,9 @@ import { Empty } from '../ui/Empty'
 import { LinkButton } from '../ui/LinkButton'
 import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
+import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
+import { usePeriod } from './period'
 import { ColumnChart } from './BarCharts'
 import { dayOf, lineOptionMatch, matchesRow } from './shared'
 import { SortableTable } from './SortableTable'
@@ -25,11 +27,12 @@ export function LoadScreen() {
   const { t } = useTranslation()
   const [line, setLine] = useState<number | null>(null)
   const [pattern, setPattern] = useState<number | null>(null)
-  const report = useQuery({ ...loadQuery(line, pattern), placeholderData: keepPreviousData })
+  const [period] = usePeriod()
+  const report = useQuery({ ...loadQuery(line, pattern, period), placeholderData: keepPreviousData })
   return (
     <QueryState query={report} loading={t('load.loading')} skeleton={<HealthSkeleton label={t('load.loading')} />}>
       {(data) =>
-        data.trips === 0 && line === null ? (
+        data.trips === 0 && line === null && period === null ? (
           <Empty>{t('load.empty')}</Empty>
         ) : (
           <LoadView
@@ -60,6 +63,7 @@ function LoadView({
 }) {
   const { t } = useTranslation()
   const format = useFormat()
+  const [period, setPeriod] = usePeriod()
   const [vehicleDay, setVehicleDay] = useState<{ vehicle: number; day: string; tripId?: number } | null>(null)
   const panel = useRef<HTMLElement>(null)
   const openVehicle = useCallback((vehicle: number, day: string, tripId: number) => setVehicleDay({ vehicle, day, tripId }), [])
@@ -117,6 +121,7 @@ function LoadView({
           match={lineOptionMatch}
           onChange={(v) => onLineChange(v === ALL ? null : Number(v))}
         />
+        <DateRangePicker label={t('dates.period')} days={report.days} value={period} onChange={setPeriod} format={format} />
         {patternOptions.length > 0 && report.pattern !== null && (
           <SearchSelect
             label={t('load.pattern')}

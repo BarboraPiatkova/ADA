@@ -11,7 +11,9 @@ import { HealthSkeleton } from '../quality/HealthSkeleton'
 import { Empty } from '../ui/Empty'
 import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
+import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
+import { usePeriod } from './period'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import { cn } from '../ui/cn'
 import { StackedShareChart, type Segment } from './BarCharts'
@@ -36,12 +38,13 @@ const lateStep = (share: number) => {
 export function PunctualityScreen() {
   const { t } = useTranslation()
   const [line, setLine] = useState<number | null>(null)
-  const report = useQuery({ ...punctualityQuery(line), placeholderData: keepPreviousData })
+  const [period] = usePeriod()
+  const report = useQuery({ ...punctualityQuery(line, period), placeholderData: keepPreviousData })
   const mapConfig = useQuery(mapConfigQuery)
   return (
     <QueryState query={report} loading={t('punctuality.loading')} skeleton={<HealthSkeleton label={t('punctuality.loading')} />}>
       {(data) =>
-        data.total.departures === 0 && line === null ? (
+        data.total.departures === 0 && line === null && period === null ? (
           <Empty>{t('punctuality.empty')}</Empty>
         ) : (
           <PunctualityView report={data} layers={mapConfig.data?.baseLayers} line={line} onLineChange={setLine} />
@@ -64,6 +67,7 @@ function PunctualityView({
 }) {
   const { t, i18n } = useTranslation()
   const format = useFormat()
+  const [period, setPeriod] = usePeriod()
   const { total, rules } = report
   const share = (n: number, of: number) => (of === 0 ? '–' : format.percentWhole(n / of))
   const segments = (s: PunctualitySummary): Segment[] =>
@@ -132,6 +136,7 @@ function PunctualityView({
           match={lineOptionMatch}
           onChange={(v) => onLineChange(v === ALL ? null : Number(v))}
         />
+        <DateRangePicker label={t('dates.period')} days={report.days} value={period} onChange={setPeriod} format={format} />
       </div>
 
       <div className="mb-6 grid gap-5 xl:grid-cols-2">
