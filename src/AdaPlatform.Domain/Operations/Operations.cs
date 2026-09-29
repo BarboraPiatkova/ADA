@@ -36,6 +36,13 @@ public class Trip
     /// <summary>False when a counting device reported an error during the trip.</summary>
     public bool IsValid { get; set; }
 
+    /// <summary>
+    /// The trip starts or ends at a depot (e.g. "Garaz ED Medlanky"). Such trips may still
+    /// carry passengers over part of the route, so this says where the trip runs, not that
+    /// it is empty; analyses decide whether to leave them out.
+    /// </summary>
+    public bool IsDepotRun { get; set; }
+
     public DataOrigin Origin { get; set; }
 
     /// <summary>Raw log the trip was reconstructed from; null for trips imported from legacy ADA.</summary>

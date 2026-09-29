@@ -34,6 +34,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<StopVisit> StopVisits => Set<StopVisit>();
     public DbSet<DoorCount> DoorCounts => Set<DoorCount>();
 
+    // Operations as the dispatch system recorded them (Transportella), joined to the counts per stop.
+    public DbSet<RecordedCall> RecordedCalls => Set<RecordedCall>();
+
     // Quality.
     public DbSet<DeviceFault> DeviceFaults => Set<DeviceFault>();
 

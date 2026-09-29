@@ -216,6 +216,86 @@ namespace AdaPlatform.Migrations.Postgres.Migrations
                     b.ToTable("DoorCounts");
                 });
 
+            modelBuilder.Entity("AdaPlatform.Domain.Operations.RecordedCall", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ActualArrival")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("ActualDeparture")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<long>("ExternalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Line")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("LineCourse")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime?>("PlannedArrival")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("PlannedDeparture")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<short>("Post")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int>("StationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("StopCode")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StopName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Traction")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("TripNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("TripStart")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("VehicleCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<int?>("VehicleId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Source", "ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("StationId", "PlannedDeparture");
+
+                    b.HasIndex("VehicleId", "ActualArrival");
+
+                    b.ToTable("RecordedCalls");
+                });
+
             modelBuilder.Entity("AdaPlatform.Domain.Operations.StopVisit", b =>
                 {
                     b.Property<long>("Id")
@@ -291,6 +371,9 @@ namespace AdaPlatform.Migrations.Postgres.Migrations
 
                     b.Property<int>("InitialDelaySeconds")
                         .HasColumnType("integer");
+
+                    b.Property<bool>("IsDepotRun")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsValid")
                         .HasColumnType("boolean");

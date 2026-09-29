@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { api } from './api'
+import { api, type Period } from './api'
 
 // Every server read goes through TanStack Query: one cache, request de-duplication and
 // cancellation (the AbortSignal is passed down to fetch) for free.
@@ -36,6 +36,41 @@ export const deviceHealthQuery = queryOptions({
   queryFn: ({ signal }) => api.deviceHealth(signal),
   staleTime: REPORT_STALE_MS,
 })
+
+export const dwellQuery = (line: number | null, period: Period) =>
+  queryOptions({
+    queryKey: ['operations', 'dwell', line, period],
+    queryFn: ({ signal }) => api.dwell(line, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const stopDwellQuery = (code: number, line: number | null, period: Period) =>
+  queryOptions({
+    queryKey: ['operations', 'dwell', 'stops', code, line, period],
+    queryFn: ({ signal }) => api.stopDwell(code, line, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const punctualityQuery = (line: number | null, period: Period) =>
+  queryOptions({
+    queryKey: ['operations', 'punctuality', line, period],
+    queryFn: ({ signal }) => api.punctuality(line, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const loadQuery = (line: number | null, pattern: number | null, period: Period) =>
+  queryOptions({
+    queryKey: ['operations', 'load', line, pattern, period],
+    queryFn: ({ signal }) => api.load(line, pattern, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const vehicleDayQuery = (vehicle: number, day: string) =>
+  queryOptions({
+    queryKey: ['operations', 'vehicles', vehicle, day],
+    queryFn: ({ signal }) => api.vehicleDay(vehicle, day, signal),
+    staleTime: REPORT_STALE_MS,
+  })
 
 export const dailyQualityQuery = queryOptions({
   queryKey: ['quality', 'daily'],

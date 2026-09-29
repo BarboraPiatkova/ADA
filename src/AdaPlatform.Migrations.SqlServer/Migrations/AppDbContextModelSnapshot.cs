@@ -216,6 +216,86 @@ namespace AdaPlatform.Migrations.SqlServer.Migrations
                     b.ToTable("DoorCounts");
                 });
 
+            modelBuilder.Entity("AdaPlatform.Domain.Operations.RecordedCall", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("ActualArrival")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ActualDeparture")
+                        .HasColumnType("datetime2");
+
+                    b.Property<long>("ExternalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Line")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("LineCourse")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("PlannedArrival")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("PlannedDeparture")
+                        .HasColumnType("datetime2");
+
+                    b.Property<short>("Post")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int>("StationId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("StopCode")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StopName")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Traction")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("TripNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("TripStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VehicleCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<int?>("VehicleId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Source", "ExternalId")
+                        .IsUnique();
+
+                    b.HasIndex("StationId", "PlannedDeparture");
+
+                    b.HasIndex("VehicleId", "ActualArrival");
+
+                    b.ToTable("RecordedCalls");
+                });
+
             modelBuilder.Entity("AdaPlatform.Domain.Operations.StopVisit", b =>
                 {
                     b.Property<long>("Id")
@@ -291,6 +371,9 @@ namespace AdaPlatform.Migrations.SqlServer.Migrations
 
                     b.Property<int>("InitialDelaySeconds")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsDepotRun")
+                        .HasColumnType("bit");
 
                     b.Property<bool>("IsValid")
                         .HasColumnType("bit");
