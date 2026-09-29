@@ -58,6 +58,13 @@ export const punctualityQuery = (line: number | null) =>
     staleTime: REPORT_STALE_MS,
   })
 
+export const loadQuery = (line: number | null, pattern: number | null) =>
+  queryOptions({
+    queryKey: ['operations', 'load', line, pattern],
+    queryFn: ({ signal }) => api.load(line, pattern, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
 export const vehicleDayQuery = (vehicle: number, day: string) =>
   queryOptions({
     queryKey: ['operations', 'vehicles', vehicle, day],

@@ -10,7 +10,7 @@ import { HealthSkeleton } from './quality/HealthSkeleton'
  */
 export interface Screen {
   /** URL hash and i18n key (app.views.<id>). */
-  id: 'mapa' | 'jednotky' | 'provoz' | 'dochvilnost'
+  id: 'mapa' | 'jednotky' | 'provoz' | 'dochvilnost' | 'obsazenost'
   permission: Permission
   Component: LazyExoticComponent<ComponentType>
   skeleton: (label: string) => ReactNode
@@ -39,6 +39,12 @@ export const SCREENS: readonly Screen[] = [
     id: 'dochvilnost',
     permission: PERMISSIONS.operationsRead,
     Component: lazy(() => import('./operations/PunctualityScreen').then((m) => ({ default: m.PunctualityScreen }))),
+    skeleton: (label) => <HealthSkeleton label={label} />,
+  },
+  {
+    id: 'obsazenost',
+    permission: PERMISSIONS.operationsRead,
+    Component: lazy(() => import('./operations/LoadScreen').then((m) => ({ default: m.LoadScreen }))),
     skeleton: (label) => <HealthSkeleton label={label} />,
   },
 ]
