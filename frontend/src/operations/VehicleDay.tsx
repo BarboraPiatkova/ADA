@@ -22,23 +22,40 @@ const col = createColumnHelper<typeof sortableFeatures, VehicleStop>()
 const NUMERIC = ['seq', 'dwell', 'boardings', 'alightings', 'occupancy', 'delay']
 
 /** One vehicle's day: its trips, and for the chosen one a strip of every stop's dwell and passengers. */
-export function VehicleDay({ vehicle, day, at, format, onDayChange }: { vehicle: number; day: string; at?: string; format: Format; onDayChange: (day: string) => void }) {
+export function VehicleDay({
+  vehicle,
+  day,
+  at,
+  tripId,
+  format,
+  onDayChange,
+}: {
+  vehicle: number
+  day: string
+  /** Open on the trip with an arrival at this time… */
+  at?: string
+  /** …or on this trip. */
+  tripId?: number
+  format: Format
+  onDayChange: (day: string) => void
+}) {
   const { t } = useTranslation()
   const query = useQuery(vehicleDayQuery(vehicle, day))
   return (
     <QueryState query={query} loading={t('dwell.loading')}>
-      {(data) => <VehicleDayView key={`${vehicle}-${day}`} data={data} at={at} format={format} onDayChange={onDayChange} />}
+      {(data) => <VehicleDayView key={`${vehicle}-${day}-${tripId ?? ''}`} data={data} at={at} openTripId={tripId} format={format} onDayChange={onDayChange} />}
     </QueryState>
   )
 }
 
-function VehicleDayView({ data, at, format, onDayChange }: { data: VehicleTripsDay; at?: string; format: Format; onDayChange: (day: string) => void }) {
+function VehicleDayView({ data, at, openTripId, format, onDayChange }: { data: VehicleTripsDay; at?: string; openTripId?: number; format: Format; onDayChange: (day: string) => void }) {
   const { t } = useTranslation()
   // Open on the trip that contains the arrival the reader came from.
   const initial = useMemo(() => {
+    if (openTripId !== undefined && data.trips.some((x) => x.id === openTripId)) return openTripId
     if (!at) return data.trips[0]?.id
     return (data.trips.find((trip) => trip.stops.some((s) => s.arrival === at)) ?? data.trips[0])?.id
-  }, [data.trips, at])
+  }, [data.trips, at, openTripId])
   const [tripId, setTripId] = useState(initial)
   const trip = data.trips.find((x) => x.id === tripId)
   const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })

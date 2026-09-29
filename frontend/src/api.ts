@@ -309,6 +309,58 @@ export interface PunctualityReport {
   stops: PunctualityStop[]
 }
 
+export interface LoadPattern {
+  code: number
+  line: number | null
+  firstStopName: string | null
+  lastStopName: string | null
+  trips: number
+}
+
+export interface LoadProfileStop {
+  sequence: number
+  stopCode: number
+  stopName: string
+  trips: number
+  meanBoardings: number
+  meanAlightings: number
+  medianLoad: number
+  p90Load: number
+  maxLoad: number
+}
+
+export interface CrowdedTrip {
+  tripId: number
+  vehicleId: number
+  start: string
+  line: number | null
+  patternCode: number | null
+  firstStopName: string | null
+  lastStopName: string | null
+  peakLoad: number
+  peakStopName: string | null
+  peakStopCode: number | null
+  boardings: number
+  capacity: number | null
+  /** Peak load as a share of capacity; null when the capacity is unknown. */
+  peakShare: number | null
+}
+
+export interface LoadReport {
+  from: string | null
+  to: string | null
+  line: number | null
+  lines: number[]
+  trips: number
+  boardings: number
+  tripsWithCapacity: number
+  boardingsByHour: { hour: number; boardings: number; alightings: number }[]
+  patterns: LoadPattern[]
+  pattern: number | null
+  profile: LoadProfileStop[]
+  crowded: CrowdedTrip[]
+}
+
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
 export class ApiError extends Error {
   readonly path: string
@@ -355,6 +407,13 @@ export const api = {
     getJson<StopDwellDetail>(`/api/operations/dwell/stops/${code}${line === null ? '' : `?line=${line}`}`, signal),
   punctuality: (line: number | null, signal?: AbortSignal) =>
     getJson<PunctualityReport>(line === null ? '/api/operations/punctuality' : `/api/operations/punctuality?line=${line}`, signal),
+  load: (line: number | null, pattern: number | null, signal?: AbortSignal) => {
+    const query = new URLSearchParams()
+    if (line !== null) query.set('line', String(line))
+    if (pattern !== null) query.set('pattern', String(pattern))
+    const qs = query.toString()
+    return getJson<LoadReport>(`/api/operations/load${qs ? `?${qs}` : ''}`, signal)
+  },
   vehicleDay: (vehicle: number, day: string, signal?: AbortSignal) =>
     getJson<VehicleTripsDay>(`/api/operations/vehicles/${vehicle}/days/${day}`, signal),
 }
