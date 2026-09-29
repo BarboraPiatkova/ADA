@@ -62,14 +62,14 @@ export function StopRanking({
 
   return (
     <section className="mb-8" aria-labelledby="dwell-stops">
-      <div className="mb-2.5 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <div className="mb-2.5">
         <div>
           <h2 id="dwell-stops" className="text-xl">
             {t('dwell.stops.title')}
           </h2>
           <p className="mt-0.5 max-w-[72ch] text-sm text-ink-2">{t('dwell.stops.subtitle', { min: minVisits })}</p>
         </div>
-        <div role="search" className="flex items-center gap-3">
+        <div role="search" className="mt-3 flex flex-wrap items-center gap-3">
           <SearchInput label={t('dwell.search')} placeholder={t('dwell.searchStops')} value={search} onChange={setSearch} />
           <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(stops.length) })}</span>
         </div>

@@ -15,7 +15,7 @@ import { Select } from '../ui/Select'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import { cn } from '../ui/cn'
 import { StackedShareChart, type Segment } from './BarCharts'
-import { matches } from './shared'
+import { matches, matchesRow } from './shared'
 import { SortableTable } from './SortableTable'
 import { StopValueMap } from './StopValueMap'
 import { sortableFeatures } from './tableFeatures'
@@ -160,14 +160,7 @@ function PunctualityView({
         />
       </div>
 
-      {line === null && report.byLine.length > 0 && (
-        <section className="mb-8" aria-labelledby="punctuality-lines">
-          <h2 id="punctuality-lines" className="mb-2.5 text-xl">
-            {t('punctuality.lines.title')}
-          </h2>
-          <SummarySortable rows={report.byLine.map((l) => ({ key: l.line, label: t('dwell.lineN', { line: l.line }), sortLabel: l.line, summary: l.summary }))} labelHeader={t('punctuality.lines.line')} format={format} />
-        </section>
-      )}
+      {line === null && report.byLine.length > 0 && <LineTable lines={report.byLine} format={format} />}
 
       <StopTable stops={report.stops} minDepartures={rules.minDeparturesPerStop} format={format} />
     </div>
@@ -247,6 +240,32 @@ function SummaryTable({ rows, labelHeader, format }: { rows: SummaryRow[]; label
   )
 }
 
+function LineTable({ lines, format }: { lines: PunctualityReport['byLine']; format: Format }) {
+  const { t } = useTranslation()
+  const [search, setSearch] = useState('')
+  const rows = useMemo(
+    () =>
+      lines
+        .filter((l) => matchesRow(search, { exact: [l.line], texts: [l.line] }))
+        .map((l) => ({ key: l.line, label: t('dwell.lineN', { line: l.line }), sortLabel: l.line, summary: l.summary })),
+    [lines, search, t],
+  )
+  return (
+    <section className="mb-8" aria-labelledby="punctuality-lines">
+      <div className="mb-2.5">
+        <h2 id="punctuality-lines" className="text-xl">
+          {t('punctuality.lines.title')}
+        </h2>
+        <div role="search" className="mt-3 flex flex-wrap items-center gap-3">
+          <SearchInput label={t('dwell.search')} placeholder={t('punctuality.lines.search')} value={search} onChange={setSearch} />
+          <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(lines.length) })}</span>
+        </div>
+      </div>
+      <SummarySortable rows={rows} labelHeader={t('punctuality.lines.line')} format={format} />
+    </section>
+  )
+}
+
 function StopTable({ stops, minDepartures, format }: { stops: PunctualityStop[]; minDepartures: number; format: Format }) {
   const { t, i18n } = useTranslation()
   const [search, setSearch] = useState('')
@@ -262,14 +281,14 @@ function StopTable({ stops, minDepartures, format }: { stops: PunctualityStop[];
 
   return (
     <section aria-labelledby="punctuality-stops">
-      <div className="mb-2.5 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+      <div className="mb-2.5">
         <div>
           <h2 id="punctuality-stops" className="text-xl">
             {t('punctuality.stops.title')}
           </h2>
           <p className="mt-0.5 text-sm text-ink-2">{t('punctuality.stops.subtitle', { min: minDepartures })}</p>
         </div>
-        <div role="search" className="flex items-center gap-3">
+        <div role="search" className="mt-3 flex flex-wrap items-center gap-3">
           <SearchInput label={t('dwell.search')} placeholder={t('dwell.searchStops')} value={search} onChange={setSearch} />
           <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(stops.length) })}</span>
         </div>

@@ -7,7 +7,7 @@ import { cn } from '../ui/cn'
 import { LinkButton } from '../ui/LinkButton'
 import { SearchInput } from '../ui/SearchInput'
 import { Select } from '../ui/Select'
-import { dayOf, matches, stopLabel } from './shared'
+import { dayOf, matchesRow, stopLabel } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 
@@ -47,7 +47,7 @@ export function UnexplainedList({
   const rows = useMemo(
     () =>
       report.unexplained.filter(
-        (r) => (cause === ALL || r.cause === cause) && (day === ALL || dayOf(r.arrival) === day) && matches(search, r.stopName, r.stopCode, r.vehicleId, r.line, stops.get(r.stopCode)?.toward),
+        (r) => (cause === ALL || r.cause === cause) && (day === ALL || dayOf(r.arrival) === day) && matchesRow(search, { exact: [r.vehicleId, r.line], prefix: [r.stopCode], texts: [r.stopName, stops.get(r.stopCode)?.toward] }),
       ),
     [report.unexplained, cause, day, search, stops],
   )
