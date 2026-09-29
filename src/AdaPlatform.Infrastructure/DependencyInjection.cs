@@ -1,4 +1,5 @@
 using AdaPlatform.Infrastructure.Fleet;
+using AdaPlatform.Infrastructure.Import.Transportella;
 using AdaPlatform.Infrastructure.Persistence;
 using AdaPlatform.Infrastructure.Reconstruction;
 using AdaPlatform.Infrastructure.Reporting;
@@ -84,6 +85,50 @@ public static class DependencyInjection
         });
         services.AddScoped<FleetSync>();
         return services;
+    }
+
+    /// <summary>
+    /// Transportella's per-stop operations (the "Transportella:Statistics" section): the configured
+    /// source and the import. <see cref="CreateTransportellaSource"/> also serves a one-off file.
+    /// </summary>
+    public static IServiceCollection AddAdaPlatformTransportella(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<TransportellaStatisticsOptions>().Bind(configuration.GetSection(TransportellaStatisticsOptions.SectionName));
+        services.AddScoped<TransportellaStatisticsImporter>();
+        return services;
+    }
+
+    /// <summary>
+    /// The source for a file given on the command line (by extension: .xlsx = report, otherwise a dump),
+    /// or the configured one when <paramref name="file"/> is null.
+    /// </summary>
+    public static ITransportellaStatisticsSource CreateTransportellaSource(this IServiceProvider services, string? file = null)
+    {
+        var options = services.GetRequiredService<IOptions<TransportellaStatisticsOptions>>().Value;
+        var kind = file is null
+            ? options.Source
+            : file.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ? TransportellaStatisticsSourceKind.Report : TransportellaStatisticsSourceKind.Dump;
+        var path = file ?? options.Path;
+        string RequirePath() => path is { Length: > 0 }
+            ? path
+            : throw new InvalidOperationException($"Transportella:Statistics:Path is required for source {kind}.");
+
+        return kind switch
+        {
+            TransportellaStatisticsSourceKind.Dump => new TransportellaDumpSource(RequirePath(), DumpEncoding(options.DumpCodePage)),
+            TransportellaStatisticsSourceKind.Report => new TransportellaReportXlsxSource(RequirePath()),
+            TransportellaStatisticsSourceKind.Database => new TransportellaDatabaseSource(
+                services.GetRequiredService<IConfiguration>().GetConnectionString(TransportellaStatisticsOptions.ConnectionStringName)
+                ?? throw new InvalidOperationException(
+                    $"Connection string '{TransportellaStatisticsOptions.ConnectionStringName}' is not configured (keep it in user-secrets or the environment).")),
+            _ => throw new InvalidOperationException("No Transportella statistics source configured (Transportella:Statistics:Source)."),
+        };
+
+        static System.Text.Encoding DumpEncoding(int codePage)
+        {
+            System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+            return System.Text.Encoding.GetEncoding(codePage);
+        }
     }
 
     public static async Task MigrateAdaPlatformDatabaseAsync(this IServiceProvider services)

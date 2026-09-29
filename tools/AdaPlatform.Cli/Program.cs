@@ -4,12 +4,14 @@
 //   dotnet run --project tools/AdaPlatform.Cli -- import-ucp --source T:\Projects\DPMB\ADA\ADA_20220808\APC_Logs.zip
 //   dotnet run --project tools/AdaPlatform.Cli -- reconstruct
 //   dotnet run --project tools/AdaPlatform.Cli -- sync-fleet
+//   dotnet run --project tools/AdaPlatform.Cli -- import-transportella --source <dump or .xlsx> [--from 2026-09-01] [--to 2026-09-30]
 //
 // Target engine and connection come from appsettings.json / environment, exactly as for the API.
 
 using AdaPlatform.Infrastructure;
 using AdaPlatform.Infrastructure.Fleet;
 using AdaPlatform.Infrastructure.Import.Ada;
+using AdaPlatform.Infrastructure.Import.Transportella;
 using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
 using AdaPlatform.Infrastructure.Reconstruction;
@@ -24,6 +26,9 @@ const string Usage = """
       AdaPlatform.Cli import-ucp --source <folder or .zip>      ingest raw UCP logs (APC_*.csv) and reconstruct their trips; safe to re-run
       AdaPlatform.Cli reconstruct                               rebuild every trip from the raw logs (after a rule change)
       AdaPlatform.Cli sync-fleet                                update vehicles from the fleet register (Fleet:Source)
+      AdaPlatform.Cli import-transportella [--source <file>] [--from <date>] [--to <date>]
+                                                                load Transportella's per-stop operations (a dump or an .xlsx report,
+                                                                else the configured source); safe to re-run
       AdaPlatform.Cli profile --out <folder>                    write the thesis data report (Markdown + CSV)
     """;
 
@@ -45,6 +50,7 @@ builder.Services.AddAdaPlatformDatabase(builder.Configuration);
 builder.Services.AddAdaPlatformReporting(builder.Configuration);
 builder.Services.AddAdaPlatformReconstruction(builder.Configuration);
 builder.Services.AddAdaPlatformFleet(builder.Configuration);
+builder.Services.AddAdaPlatformTransportella(builder.Configuration);
 using var host = builder.Build();
 
 var source = builder.Configuration["source"];
@@ -52,7 +58,7 @@ var output = builder.Configuration["out"];
 var missingArgument = command switch
 {
     "profile" => string.IsNullOrWhiteSpace(output),
-    "reconstruct" or "sync-fleet" => false,
+    "reconstruct" or "sync-fleet" or "import-transportella" => false,
     _ => string.IsNullOrWhiteSpace(source),
 };
 if (missingArgument)
@@ -74,6 +80,8 @@ try
         "import-ucp" => $"{await new UcpLogIngestor(db).IngestAsync(source!)}\n{await Reconstruction().ReconstructAsync(onlyNew: true)}",
         "reconstruct" => await Reconstruction().ReconstructAsync(),
         "sync-fleet" => await scope.ServiceProvider.GetRequiredService<FleetSync>().SyncAsync(),
+        "import-transportella" => await scope.ServiceProvider.GetRequiredService<TransportellaStatisticsImporter>().ImportAsync(
+            scope.ServiceProvider.CreateTransportellaSource(source), Day("from"), Day("to")),
         "profile" => await scope.ServiceProvider.GetRequiredService<DatasetProfiler>().ProfileAsync(output!, CodeVersion()),
         _ => throw new ArgumentException($"Unknown command '{command}'."),
     };
@@ -86,6 +94,10 @@ catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
     Console.Error.WriteLine(Usage);
     return 2;
 }
+
+DateOnly? Day(string name) => builder.Configuration[name] is { Length: > 0 } value
+    ? DateOnly.ParseExact(value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture)
+    : null;
 
 TripReconstruction Reconstruction() => scope.ServiceProvider.GetRequiredService<TripReconstruction>();
 
