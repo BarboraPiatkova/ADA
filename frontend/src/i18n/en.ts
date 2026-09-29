@@ -323,6 +323,8 @@ export const en = {
     loading: 'Loading occupancy…',
     empty: 'No valid trips with counts yet. Import the vehicles’ logs (import-ucp).',
     title: 'Occupancy',
+    searchPattern: 'Stop on the pattern',
+    searchPatternAll: 'Line number or stop',
     facts: {
       period: 'Period',
       trips: 'Valid trips',
@@ -332,6 +334,7 @@ export const en = {
     note: 'Occupancy is the running sum of boardings minus alightings from the trip’s start (never below zero); the vehicle’s own figure carries errors from earlier trips. Valid trips only, no depot runs.',
     pattern: 'Pattern',
     patternOption: '{{from}} → {{to}} ({{trips}} trips)',
+    patternOnLine: '{{line}}: {{route}}',
     hours: {
       title: 'Boardings over the day',
       subtitle: 'A bar is the number of people boarding in that hour.',
@@ -386,6 +389,8 @@ export const en = {
     allLines: 'All lines',
     search: 'Search',
     searchStops: 'Stop or code',
+    searchLine: 'Line number',
+    noOption: 'Nothing matches the search.',
     searchList: 'Stop, vehicle or line number',
     noMatch: 'No row matches the search.',
     cause: 'Cause',

@@ -8,10 +8,10 @@ import { dwellQuery, mapConfigQuery } from '../queries'
 import { HealthSkeleton } from '../quality/HealthSkeleton'
 import { Empty } from '../ui/Empty'
 import { QueryState } from '../ui/QueryState'
-import { Select } from '../ui/Select'
+import { SearchSelect } from '../ui/SearchSelect'
 import { DwellBandsChart, DwellBandsTable } from './DwellBandsChart'
 import { DwellMap } from './DwellMap'
-import { stopLabel, type DwellDetail } from './shared'
+import { lineOptionMatch, stopLabel, type DwellDetail } from './shared'
 import { StopDetail } from './StopDetail'
 import { StopRanking } from './StopRanking'
 import { UnexplainedList } from './UnexplainedList'
@@ -106,10 +106,13 @@ function DwellView({
       </header>
 
       <div className="my-5 flex flex-wrap items-center gap-3">
-        <Select
+        <SearchSelect
           label={t('dwell.line')}
           value={line === null ? ALL : String(line)}
           options={lineOptions}
+          placeholder={t('dwell.searchLine')}
+          empty={t('dwell.noOption')}
+          match={lineOptionMatch}
           onChange={(value) => {
             onLineChange(value === ALL ? null : Number(value))
             setDetail(null)

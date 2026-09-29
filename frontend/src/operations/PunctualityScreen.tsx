@@ -11,11 +11,11 @@ import { HealthSkeleton } from '../quality/HealthSkeleton'
 import { Empty } from '../ui/Empty'
 import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
-import { Select } from '../ui/Select'
+import { SearchSelect } from '../ui/SearchSelect'
 import { NUM, TABLE, TD_COMPACT, TH_COMPACT } from '../ui/table'
 import { cn } from '../ui/cn'
 import { StackedShareChart, type Segment } from './BarCharts'
-import { matches, matchesRow } from './shared'
+import { lineOptionMatch, matches, matchesRow } from './shared'
 import { SortableTable } from './SortableTable'
 import { StopValueMap } from './StopValueMap'
 import { sortableFeatures } from './tableFeatures'
@@ -123,7 +123,15 @@ function PunctualityView({
       </header>
 
       <div className="my-5 flex flex-wrap items-center gap-3">
-        <Select label={t('dwell.line')} value={line === null ? ALL : String(line)} options={lineOptions} onChange={(v) => onLineChange(v === ALL ? null : Number(v))} />
+        <SearchSelect
+          label={t('dwell.line')}
+          value={line === null ? ALL : String(line)}
+          options={lineOptions}
+          placeholder={t('dwell.searchLine')}
+          empty={t('dwell.noOption')}
+          match={lineOptionMatch}
+          onChange={(v) => onLineChange(v === ALL ? null : Number(v))}
+        />
       </div>
 
       <div className="mb-6 grid gap-5 xl:grid-cols-2">
