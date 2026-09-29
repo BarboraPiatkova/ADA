@@ -70,6 +70,26 @@ internal sealed class DoorCountConfiguration : IEntityTypeConfiguration<DoorCoun
     }
 }
 
+internal sealed class RecordedCallConfiguration : IEntityTypeConfiguration<RecordedCall>
+{
+    public void Configure(EntityTypeBuilder<RecordedCall> builder)
+    {
+        builder.Property(c => c.Source).HasConversion<string>().HasMaxLength(30);
+        builder.Property(c => c.VehicleCode).HasMaxLength(30);
+        builder.Property(c => c.Line).HasMaxLength(30);
+        builder.Property(c => c.LineCourse).HasMaxLength(100);
+        builder.Property(c => c.TripNumber).HasMaxLength(20);
+        builder.Property(c => c.StopName).HasMaxLength(255);
+        builder.Property(c => c.Traction).HasMaxLength(30);
+
+        // No foreign keys: a dispatch system knows vehicles and stops before, or without, any log.
+        builder.HasIndex(c => new { c.Source, c.ExternalId }).IsUnique();
+        // The join to the counting data: vehicle and time, then stop.
+        builder.HasIndex(c => new { c.VehicleId, c.ActualArrival });
+        builder.HasIndex(c => new { c.StationId, c.PlannedDeparture });
+    }
+}
+
 internal sealed class DeviceFaultConfiguration : IEntityTypeConfiguration<DeviceFault>
 {
     public void Configure(EntityTypeBuilder<DeviceFault> builder)
