@@ -5,12 +5,14 @@
 //   dotnet run --project tools/AdaPlatform.Cli -- reconstruct
 //   dotnet run --project tools/AdaPlatform.Cli -- sync-fleet
 //   dotnet run --project tools/AdaPlatform.Cli -- import-transportella --source <dump or .xlsx> [--from 2026-09-01] [--to 2026-09-30]
+//   dotnet run --project tools/AdaPlatform.Cli -- import-stations --source <EPComp export>\General\stations.xml
 //
 // Target engine and connection come from appsettings.json / environment, exactly as for the API.
 
 using AdaPlatform.Infrastructure;
 using AdaPlatform.Infrastructure.Fleet;
 using AdaPlatform.Infrastructure.Import.Ada;
+using AdaPlatform.Infrastructure.Import.Epcomp;
 using AdaPlatform.Infrastructure.Import.Transportella;
 using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
@@ -29,6 +31,8 @@ const string Usage = """
       AdaPlatform.Cli import-transportella [--source <file>] [--from <date>] [--to <date>]
                                                                 load Transportella's per-stop operations (a dump or an .xlsx report,
                                                                 else the configured source); safe to re-run
+      AdaPlatform.Cli import-stations --source <stations.xml>   take stop names with diacritics (and missing positions) from
+                                                                EPComp's stop list; safe to re-run
       AdaPlatform.Cli profile --out <folder>                    write the thesis data report (Markdown + CSV)
     """;
 
@@ -82,6 +86,7 @@ try
         "sync-fleet" => await scope.ServiceProvider.GetRequiredService<FleetSync>().SyncAsync(),
         "import-transportella" => await scope.ServiceProvider.GetRequiredService<TransportellaStatisticsImporter>().ImportAsync(
             scope.ServiceProvider.CreateTransportellaSource(source), Day("from"), Day("to")),
+        "import-stations" => await new EpcompStationsImporter(db).ImportAsync(source!),
         "profile" => await scope.ServiceProvider.GetRequiredService<DatasetProfiler>().ProfileAsync(output!, CodeVersion()),
         _ => throw new ArgumentException($"Unknown command '{command}'."),
     };

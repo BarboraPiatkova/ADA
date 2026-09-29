@@ -136,6 +136,18 @@ dotnet run -c Release --project tools/AdaPlatform.Cli -- import-transportella --
 Without `--source` it uses the configured source. Re-runs only add new rows. Driver columns are never
 read. Stops join on the operator's EPComp numbering: post code = station × 100 + post.
 
+### Stop names (EPComp)
+
+The vehicles' logs write stop names without diacritics ("Namesti Miru"). EPComp's stop list has them
+as the operator writes them; every EPComp export carries it:
+
+```bash
+dotnet run -c Release --project tools/AdaPlatform.Cli -- import-stations --source <EPComp export>\General\stations.xml
+```
+
+Only accents are corrected, and route ends get the same names. A name that differs in more than accents is
+kept and listed, to be checked by hand. Restart the API afterwards: the reports are cached.
+
 ### Calendar (public and school holidays)
 
 The statistics can keep one kind of day: working days (all, in school term, in school holidays),
