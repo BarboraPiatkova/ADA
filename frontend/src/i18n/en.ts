@@ -410,8 +410,11 @@ export const en = {
     kinds: {
       all: 'All',
       workdays: 'Working days',
+      schoolWorkdays: 'Working days in school term',
+      holidayWorkdays: 'Working days in school holidays',
       saturday: 'Saturdays',
-      sunday: 'Sundays',
+      sundayOrHoliday: 'Sundays and public holidays',
+      publicHoliday: 'Public holidays only',
     },
     views: {
       label: 'Breakdown over time',

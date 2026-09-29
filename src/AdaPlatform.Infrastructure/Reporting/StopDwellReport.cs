@@ -47,7 +47,7 @@ public sealed record DwellRules
 /// Times come from the vehicles' own logs today. When Transportella's records for the same operator
 /// exist (<c>RecordedCalls</c>), they can supply the times instead; the report says which it used.
 /// </summary>
-public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> options, HybridCache cache, StopDirections stopDirections)
+public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> options, HybridCache cache, StopDirections stopDirections, DayCalendar calendar)
 {
     public static readonly (int Min, int? Max)[] Bands = [(0, 0), (1, 2), (3, 5), (6, 10), (11, 20), (21, null)];
     // All of them for a normal operator; the cap only keeps a broken data set from flooding the page.
@@ -176,7 +176,7 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
             .ToListAsync(ct);
 
         return raw
-            .Where(v => period.Keeps(v.StartTime))
+            .Where(v => calendar.Keeps(period.Days, v.StartTime))
             .Select(v => new Visit(v.VehicleId, v.Line, v.StopCode, v.Arrival, (int)(v.Departure - v.Arrival).TotalSeconds, v.Passengers, v.DelaySeconds))
             .Where(v => v.Dwell >= 0 && v.Dwell <= 1800)
             .ToList();

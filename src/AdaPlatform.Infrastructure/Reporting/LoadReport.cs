@@ -13,7 +13,7 @@ namespace AdaPlatform.Infrastructure.Reporting;
 /// at zero: the vehicle's own on-board figure carries drift from earlier trips (report F6). Occupancy as
 /// a share of capacity is given where the fleet register knows the vehicle's capacity.
 /// </summary>
-public sealed class LoadReport(AppDbContext db, HybridCache cache)
+public sealed class LoadReport(AppDbContext db, HybridCache cache, DayCalendar calendar)
 {
     private const int CrowdedTripsListed = 200;
 
@@ -56,7 +56,7 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache)
                     .Select(v => new { v.StopCode, v.ArrivalTime, v.Boardings, v.Alightings, v.IsPassThrough }).ToList(),
             })
             .ToListAsync(ct);
-        rows = rows.Where(t => period.Keeps(t.StartTime)).ToList();
+        rows = rows.Where(t => calendar.Keeps(period.Days, t.StartTime)).ToList();
 
         var lines = await db.Trips.AsNoTracking()
             .Where(t => t.SourceFileId != null && t.Pattern != null)

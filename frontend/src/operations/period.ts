@@ -37,4 +37,4 @@ export function useReportPeriod(): { period: Period; isAll: boolean } {
   )
 }
 
-export const DAY_KINDS: DayKind[] = ['all', 'workdays', 'saturday', 'sunday']
+export const DAY_KINDS: DayKind[] = ['all', 'workdays', 'schoolWorkdays', 'holidayWorkdays', 'saturday', 'sundayOrHoliday', 'publicHoliday']

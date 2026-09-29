@@ -34,7 +34,7 @@ public enum Punctuality { Early, OnTime, Late, VeryLate }
 /// Passenger-weighted figures (passengers on board × delay) use only valid trips, whose counts can be
 /// trusted; the load on board is the running sum of boardings minus alightings from the trip's start.
 /// </summary>
-public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules> options, HybridCache cache, StopDirections stopDirections)
+public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules> options, HybridCache cache, StopDirections stopDirections, DayCalendar calendar)
 {
     [ImmutableObject(true)]
     private sealed record Cached(PunctualityReportDto Report);
@@ -72,7 +72,7 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
                 Line = v.Trip.Pattern != null ? (int?)v.Trip.Pattern.LineId : null,
             })
             .ToListAsync(ct);
-        rows = rows.Where(r => period.Keeps(r.StartTime)).ToList();
+        rows = rows.Where(r => calendar.Keeps(period.Days, r.StartTime)).ToList();
 
         // Load on board after each stop: running sum over the trip, never below zero (drift).
         var departures = new List<Departure>();

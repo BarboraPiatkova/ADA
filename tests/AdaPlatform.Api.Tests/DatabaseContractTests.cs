@@ -346,7 +346,7 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         // 1 August 2022 was a Monday: kept on working days, left out on Sundays.
         using var workdays = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?days=workdays"));
         Assert.Equal(12, workdays.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
-        using var sundays = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?days=sunday"));
+        using var sundays = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/operations/dwell?days=sundayOrHoliday"));
         Assert.Equal(0, sundays.RootElement.GetProperty("model").GetProperty("visits").GetInt32());
 
         // A line with no data gives an empty report, not an error.

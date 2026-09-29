@@ -136,6 +136,26 @@ dotnet run -c Release --project tools/AdaPlatform.Cli -- import-transportella --
 Without `--source` it uses the configured source. Re-runs only add new rows. Driver columns are never
 read. Stops join on the operator's EPComp numbering: post code = station × 100 + post.
 
+### Calendar (public and school holidays)
+
+The statistics can keep one kind of day: working days (all, in school term, in school holidays),
+Saturdays, Sundays with public holidays, or public holidays alone. Czech public holidays are computed,
+Easter included. The national school holidays come with the platform (`CzechSchoolHolidays`, from MŠMT's
+"Organizace školního roku"; add each new school year there once MŠMT publishes it). Only the spring
+week differs by district, so an operator names its district, and may add days it ran a holiday
+timetable on anyway:
+
+```json
+"Operations": {
+  "Calendar": {
+    "District": "Brno-město",
+    "SchoolHolidays": [ { "From": "2025-12-29", "To": "2025-12-31" } ]
+  }
+}
+```
+
+An unknown district stops the API at start-up, with the reason.
+
 ### Frontend
 
 ```bash
