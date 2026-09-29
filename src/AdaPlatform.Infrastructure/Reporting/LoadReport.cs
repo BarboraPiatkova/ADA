@@ -56,6 +56,7 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache)
                     .Select(v => new { v.StopCode, v.ArrivalTime, v.Boardings, v.Alightings, v.IsPassThrough }).ToList(),
             })
             .ToListAsync(ct);
+        rows = rows.Where(t => period.Keeps(t.StartTime)).ToList();
 
         var lines = await db.Trips.AsNoTracking()
             .Where(t => t.SourceFileId != null && t.Pattern != null)
@@ -77,6 +78,16 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache)
         var boardingsByHour = loaded.SelectMany(t => t.Stops.Where(s => s.Arrival is not null))
             .GroupBy(s => s.Arrival!.Value.Hour).OrderBy(g => g.Key)
             .Select(g => new LoadHourDto(g.Key, g.Sum(s => s.Boardings), g.Sum(s => s.Alightings)))
+            .ToList();
+
+        // Per day of week, with how many such days there were: the screen shows boardings per day.
+        var weekdayDays = loaded.GroupBy(t => ReportPeriod.Weekday(t.Start)).ToDictionary(g => g.Key, g => g.Select(t => t.Start.Date).Distinct().Count());
+        var byWeekday = loaded.GroupBy(t => ReportPeriod.Weekday(t.Start)).OrderBy(g => g.Key)
+            .Select(g => new LoadWeekdayDto(g.Key, weekdayDays[g.Key], g.Sum(t => t.Stops.Sum(s => s.Boardings)), g.Sum(t => t.Stops.Sum(s => s.Alightings))))
+            .ToList();
+        var byWeekHour = loaded.SelectMany(t => t.Stops.Where(s => s.Arrival is not null).Select(s => (Weekday: ReportPeriod.Weekday(t.Start), s.Arrival!.Value.Hour, s.Boardings)))
+            .GroupBy(x => (x.Weekday, x.Hour)).OrderBy(g => g.Key)
+            .Select(g => new LoadWeekHourDto(g.Key.Weekday, g.Key.Hour, weekdayDays[g.Key.Weekday], g.Sum(x => x.Boardings)))
             .ToList();
 
         var patterns = loaded.Where(t => t.PatternCode is not null)
@@ -135,7 +146,7 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache)
             loaded.Count == 0 ? null : DateOnly.FromDateTime(loaded.Max(t => t.Start)),
             line, lines, loaded.Count, loaded.Sum(t => t.Stops.Sum(s => s.Boardings)),
             loaded.Count(t => t.Capacity is > 0),
-            boardingsByHour, patterns, chosen, profile, crowded, await ReportPeriod.DaysWithDataAsync(db, ct));
+            boardingsByHour, byWeekday, byWeekHour, patterns, chosen, profile, crowded, await ReportPeriod.DaysWithDataAsync(db, ct));
     }
 
     // ADA writes terminus names with the stop code in front ("14901 Purmerendská").
@@ -158,6 +169,13 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache)
 
 public sealed record LoadHourDto(int Hour, int Boardings, int Alightings);
 
+/// <param name="Weekday">1 = Monday … 7 = Sunday.</param>
+/// <param name="Days">How many of these weekdays the period has with trips.</param>
+public sealed record LoadWeekdayDto(int Weekday, int Days, int Boardings, int Alightings);
+
+/// <param name="Days">How many of these weekdays the period has with trips (to give boardings per day).</param>
+public sealed record LoadWeekHourDto(int Weekday, int Hour, int Days, int Boardings);
+
 public sealed record LoadPatternDto(int Code, int? Line, string? FirstStopName, string? LastStopName, int Trips);
 
 /// <param name="MedianLoad">Median passengers on board after the stop, over the pattern's trips.</param>
@@ -173,5 +191,6 @@ public sealed record CrowdedTripDto(
 /// <param name="TripsWithCapacity">Trips whose vehicle has a known capacity (occupancy in % is possible).</param>
 public sealed record LoadReportDto(
     DateOnly? From, DateOnly? To, int? Line, IReadOnlyList<int> Lines, int Trips, int Boardings, int TripsWithCapacity,
-    IReadOnlyList<LoadHourDto> BoardingsByHour, IReadOnlyList<LoadPatternDto> Patterns, int? Pattern,
+    IReadOnlyList<LoadHourDto> BoardingsByHour, IReadOnlyList<LoadWeekdayDto> BoardingsByWeekday, IReadOnlyList<LoadWeekHourDto> BoardingsByWeekHour,
+    IReadOnlyList<LoadPatternDto> Patterns, int? Pattern,
     IReadOnlyList<LoadProfileStopDto> Profile, IReadOnlyList<CrowdedTripDto> Crowded, IReadOnlyList<DateOnly> Days);

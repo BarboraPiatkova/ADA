@@ -10,7 +10,8 @@ import { Empty } from '../ui/Empty'
 import { QueryState } from '../ui/QueryState'
 import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
-import { usePeriod } from './period'
+import { usePeriod, useReportPeriod } from './period'
+import { DayKindSelect } from './TimeView'
 import { DwellBandsChart, DwellBandsTable } from './DwellBandsChart'
 import { DwellMap } from './DwellMap'
 import { lineOptionMatch, stopLabel, type DwellDetail } from './shared'
@@ -28,14 +29,14 @@ const ALL = 'all'
 export function DwellScreen() {
   const { t } = useTranslation()
   const [line, setLine] = useState<number | null>(null)
-  const [period] = usePeriod()
+  const { period, isAll } = useReportPeriod()
   // Switching lines or days keeps the previous report on screen until the next one arrives.
   const report = useQuery({ ...dwellQuery(line, period), placeholderData: keepPreviousData })
   const mapConfig = useQuery(mapConfigQuery)
   return (
     <QueryState query={report} loading={t('dwell.loading')} skeleton={<HealthSkeleton label={t('dwell.loading')} />}>
       {(data) =>
-        data.model.visits === 0 && line === null && period === null ? (
+        data.model.visits === 0 && line === null && isAll ? (
           <Empty>{t('dwell.empty')}</Empty>
         ) : (
           <DwellView report={data} layers={mapConfig.data?.baseLayers} line={line} onLineChange={setLine} />
@@ -61,6 +62,7 @@ function DwellView({
   const { model, rules } = report
   const [detail, setDetail] = useState<DwellDetail | null>(null)
   const [period, setPeriod] = usePeriod()
+  const { period: reportPeriod } = useReportPeriod()
   const panel = useRef<HTMLElement>(null)
   const lineOptions = useMemo(
     () => [{ value: ALL, label: t('dwell.allLines') }, ...report.lines.map((l) => ({ value: String(l), label: t('dwell.lineN', { line: l }) }))],
@@ -123,6 +125,7 @@ function DwellView({
           }}
         />
         <DateRangePicker label={t('dates.period')} days={report.days} value={period} onChange={setPeriod} format={format} />
+        <DayKindSelect />
       </div>
 
       <div className="mb-6 grid gap-5 xl:grid-cols-2">
@@ -154,7 +157,7 @@ function DwellView({
             </button>
           </div>
           {detail.kind === 'stop' ? (
-            <StopDetail key={`${detail.code}-${line}`} code={detail.code} line={line} period={period} format={format} onOpenVehicle={openVehicle} />
+            <StopDetail key={`${detail.code}-${line}`} code={detail.code} line={line} period={reportPeriod} format={format} onOpenVehicle={openVehicle} />
           ) : (
             <VehicleDay
               vehicle={detail.vehicle}

@@ -13,9 +13,11 @@ import { QueryState } from '../ui/QueryState'
 import { SearchInput } from '../ui/SearchInput'
 import { DateRangePicker } from '../ui/DateRangePicker'
 import { SearchSelect } from '../ui/SearchSelect'
-import { usePeriod } from './period'
+import { usePeriod, useReportPeriod } from './period'
+import { DayKindSelect, TimeViewSwitch, type TimeView } from './TimeView'
+import { WeekHourHeatmap } from './WeekHourHeatmap'
 import { ColumnChart } from './BarCharts'
-import { dayOf, lineOptionMatch, matchesRow } from './shared'
+import { dayOf, lineOptionMatch, matchesRow, weekdayNames } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 import { VehicleDay } from './VehicleDay'
@@ -27,12 +29,12 @@ export function LoadScreen() {
   const { t } = useTranslation()
   const [line, setLine] = useState<number | null>(null)
   const [pattern, setPattern] = useState<number | null>(null)
-  const [period] = usePeriod()
+  const { period, isAll } = useReportPeriod()
   const report = useQuery({ ...loadQuery(line, pattern, period), placeholderData: keepPreviousData })
   return (
     <QueryState query={report} loading={t('load.loading')} skeleton={<HealthSkeleton label={t('load.loading')} />}>
       {(data) =>
-        data.trips === 0 && line === null && period === null ? (
+        data.trips === 0 && line === null && isAll ? (
           <Empty>{t('load.empty')}</Empty>
         ) : (
           <LoadView
@@ -61,12 +63,30 @@ function LoadView({
   onLineChange: (line: number | null) => void
   onPatternChange: (pattern: number | null) => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const format = useFormat()
   const [period, setPeriod] = usePeriod()
+  const [timeView, setTimeView] = useState<TimeView>('hour')
+  const shortDay = weekdayNames(i18n.resolvedLanguage)
+  const longDay = weekdayNames(i18n.resolvedLanguage, 'long')
+  // Boardings per day in each weekday × hour, on six equal steps up to the busiest cell.
+  const perDay = report.boardingsByWeekHour.map((c) => ({ ...c, perDay: c.boardings / c.days }))
+  const weekMax = Math.max(1, ...perDay.map((c) => c.perDay))
+  const weekCells = perDay.map((c) => ({
+    weekday: c.weekday,
+    hour: c.hour,
+    step: Math.min(5, Math.floor((c.perDay / weekMax) * 6)),
+    value: format.number(Math.round(c.perDay)),
+    label: t('load.week.cell', { day: longDay[c.weekday - 1], hour: c.hour, boardings: format.number(Math.round(c.perDay)), days: c.days }),
+  }))
+  const weekLegend = Array.from({ length: 6 }, (_, i) => `${format.number(Math.round((weekMax * i) / 6))} – ${format.number(Math.round((weekMax * (i + 1)) / 6))}`)
+  const weekRows: WeekRow[] =
+    timeView === 'weekday'
+      ? report.boardingsByWeekday.map((w) => ({ key: String(w.weekday), order: w.weekday, label: longDay[w.weekday - 1], days: w.days, boardings: w.boardings / w.days, alightings: w.alightings / w.days }))
+      : perDay.map((c) => ({ key: `${c.weekday}-${c.hour}`, order: c.weekday * 100 + c.hour, label: `${shortDay[c.weekday - 1]} ${c.hour}:00`, days: c.days, boardings: c.perDay, alightings: null }))
   const [vehicleDay, setVehicleDay] = useState<{ vehicle: number; day: string; tripId?: number } | null>(null)
   const panel = useRef<HTMLElement>(null)
-  const openVehicle = useCallback((vehicle: number, day: string, tripId: number) => setVehicleDay({ vehicle, day, tripId }), [])
+  const openVehicle = useCallback((vehicle: number, day: string, tripId: number) => setVehicleDay({ vehicle, day, tripId }), [setVehicleDay])
   useEffect(() => {
     if (!vehicleDay) return
     panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -122,6 +142,7 @@ function LoadView({
           onChange={(v) => onLineChange(v === ALL ? null : Number(v))}
         />
         <DateRangePicker label={t('dates.period')} days={report.days} value={period} onChange={setPeriod} format={format} />
+        <DayKindSelect />
         {patternOptions.length > 0 && report.pattern !== null && (
           <SearchSelect
             label={t('load.pattern')}
@@ -137,29 +158,56 @@ function LoadView({
 
       <div className="mb-6 grid gap-5 xl:grid-cols-2">
         <ChartFigure
-          title={t('load.hours.title')}
-          subtitle={t('load.hours.subtitle')}
+          title={t(`load.${timeView}.title`)}
+          subtitle={t(`load.${timeView}.subtitle`)}
+          controls={<TimeViewSwitch value={timeView} onChange={setTimeView} />}
           chart={
-            <ColumnChart
-              keys={t('load.hours.keys')}
-              formatValue={format.number}
-              columns={report.boardingsByHour.map((h) => ({
-                key: h.hour,
-                label: String(h.hour),
-                value: h.boardings,
-                description: t('load.hours.cell', { hour: h.hour, boardings: format.number(h.boardings), alightings: format.number(h.alightings) }),
-              }))}
-            />
+            timeView === 'week' ? (
+              <WeekHourHeatmap keys={t('load.week.keys')} legend={weekLegend} cells={weekCells} />
+            ) : timeView === 'weekday' ? (
+              <ColumnChart
+                keys={t('load.weekday.keys')}
+                formatValue={format.number}
+                columns={report.boardingsByWeekday.map((w) => ({
+                  key: w.weekday,
+                  label: shortDay[w.weekday - 1],
+                  value: Math.round(w.boardings / w.days),
+                  description: t('load.weekday.cell', { day: longDay[w.weekday - 1], days: w.days, boardings: format.number(Math.round(w.boardings / w.days)), alightings: format.number(Math.round(w.alightings / w.days)) }),
+                }))}
+              />
+            ) : (
+              <ColumnChart
+                keys={t('load.hour.keys')}
+                formatValue={format.number}
+                columns={report.boardingsByHour.map((h) => ({
+                  key: h.hour,
+                  label: String(h.hour),
+                  value: h.boardings,
+                  description: t('load.hour.cell', { hour: h.hour, boardings: format.number(h.boardings), alightings: format.number(h.alightings) }),
+                }))}
+              />
+            )
           }
           table={
-            <SortableTable
-              columns={hourColumns(t, format)}
-              numeric={['boardings', 'alightings']}
-              data={report.boardingsByHour}
-              rowId={(h) => String(h.hour)}
-              sorting={[{ id: 'hour', desc: false }]}
-              pageSize={24}
-            />
+            timeView === 'hour' ? (
+              <SortableTable
+                columns={hourColumns(t, format)}
+                numeric={['boardings', 'alightings']}
+                data={report.boardingsByHour}
+                rowId={(h) => String(h.hour)}
+                sorting={[{ id: 'hour', desc: false }]}
+                pageSize={24}
+              />
+            ) : (
+              <SortableTable
+                columns={weekColumns(t, format)}
+                numeric={['days', 'boardings', 'alightings']}
+                data={weekRows}
+                rowId={(r) => r.key}
+                sorting={[{ id: 'order', desc: false }]}
+                pageSize={24}
+              />
+            )
           }
         />
         <ChartFigure
@@ -217,6 +265,25 @@ function hourColumns(t: ReturnType<typeof useTranslation>['t'], format: Format) 
     hourCol.accessor('hour', { id: 'hour', header: t('load.hours.hour'), cell: (info) => `${info.getValue()}:00` }),
     hourCol.accessor('boardings', { id: 'boardings', header: t('load.hours.boardings'), cell: (info) => format.number(info.getValue()) }),
     hourCol.accessor('alightings', { id: 'alightings', header: t('load.hours.alightings'), cell: (info) => format.number(info.getValue()) }),
+  ]
+}
+
+/** A row of the weekday table: boardings and alightings per day of that kind. */
+interface WeekRow {
+  key: string
+  order: number
+  label: string
+  days: number
+  boardings: number
+  alightings: number | null
+}
+const weekCol = createColumnHelper<typeof sortableFeatures, WeekRow>()
+function weekColumns(t: ReturnType<typeof useTranslation>['t'], format: Format) {
+  return [
+    weekCol.accessor('order', { id: 'order', header: t('dates.weekday'), cell: (info) => info.row.original.label }),
+    weekCol.accessor('days', { id: 'days', header: t('load.weekday.days') }),
+    weekCol.accessor('boardings', { id: 'boardings', header: t('load.weekday.boardings'), cell: (info) => format.number(Math.round(info.getValue())) }),
+    weekCol.accessor((r) => r.alightings ?? -1, { id: 'alightings', header: t('load.weekday.alightings'), cell: (info) => (info.row.original.alightings === null ? '–' : format.number(Math.round(info.row.original.alightings))) }),
   ]
 }
 
