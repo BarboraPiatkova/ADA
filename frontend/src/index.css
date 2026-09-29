@@ -58,6 +58,11 @@
   --color-map-seq-3: var(--map-seq-3);
   --color-map-seq-4: var(--map-seq-4);
   --color-map-seq-5: var(--map-seq-5);
+  --color-map-div-alight-2: var(--map-div-alight-2);
+  --color-map-div-alight-1: var(--map-div-alight-1);
+  --color-map-div-even: var(--map-div-even);
+  --color-map-div-board-1: var(--map-div-board-1);
+  --color-map-div-board-2: var(--map-div-board-2);
 
   --font-sans: var(--text);
   --font-display: var(--display);

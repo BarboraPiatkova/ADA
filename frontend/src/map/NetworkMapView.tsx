@@ -9,18 +9,41 @@ import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
 import { cn } from '../ui/cn'
 import { matchesRow } from '../operations/shared'
 import { Empty } from '../ui/Empty'
+import { Hint } from '../ui/Hint'
 import { Chevron } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
+import { SegmentedItem, SegmentedRoot } from '../ui/Segmented'
 import { SearchInput } from '../ui/SearchInput'
 import { useCoarsePointer } from '../ui/useCoarsePointer'
 import { BaseMap } from './BaseMap'
 import { ARROW_STYLE, layoutDirections, stopLabel, useZoom } from './directions'
 import { LINE_PANEL, LinePickerSkeleton, MapSkeleton } from './MapSkeleton'
 
-/** Marker radius grows with the square root of mean boardings, so area tracks volume. */
-function radiusFor(stop: Stop) {
+/** What the stop circles show: their size is the measure per visit; "balance" colours them by who gets on vs off. */
+type Measure = 'boardings' | 'alightings' | 'exchange' | 'balance'
+const MEASURES: Measure[] = ['boardings', 'alightings', 'exchange', 'balance']
+
+function perVisit(stop: Stop, measure: Measure) {
+  const total = measure === 'boardings' ? stop.boardings : measure === 'alightings' ? stop.alightings : stop.boardings + stop.alightings
+  return total / stop.visits
+}
+
+/** Marker radius grows with the square root of the measure per visit, so area tracks volume. */
+function radiusFor(stop: Stop, measure: Measure) {
   if (stop.visits === 0) return 3
-  return Math.min(4 + Math.sqrt(stop.boardings / stop.visits) * 2.5, 14)
+  // Both directions together are about twice one of them, so they get a smaller scale.
+  const scale = measure === 'exchange' || measure === 'balance' ? 1.8 : 2.5
+  return Math.min(4 + Math.sqrt(perVisit(stop, measure)) * scale, 14)
+}
+
+/** Share of boardings among the stop's passengers, in five steps from mostly alighting to mostly boarding. */
+const BALANCE_STEPS = ['alight-2', 'alight-1', 'even', 'board-1', 'board-2'] as const
+const BALANCE_CLASS = ['bg-map-div-alight-2', 'bg-map-div-alight-1', 'bg-map-div-even', 'bg-map-div-board-1', 'bg-map-div-board-2']
+function balanceStep(stop: Stop) {
+  const passengers = stop.boardings + stop.alightings
+  if (passengers === 0) return null
+  const share = stop.boardings / passengers
+  return BALANCE_STEPS[share < 0.35 ? 0 : share < 0.45 ? 1 : share <= 0.55 ? 2 : share <= 0.65 ? 3 : 4]
 }
 
 /** A stop marker as drawn on the map: white fill, route-coloured ring. */
@@ -104,18 +127,19 @@ const TOUCH_HIT_RADIUS = 12
 // react-leaflet doesn't restyle every hit circle on each render.
 const TOUCH_HIT_STYLE = { stroke: false, fillColor: '#000', fillOpacity: 0 }
 
-function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number> }) {
+function StopsLayer({ stops, onPattern, measure }: { stops: Stop[]; onPattern: Set<number>; measure: Measure }) {
   const { t } = useTranslation()
   const coarse = useCoarsePointer()
   const map = useMap()
   const { zoom, zooming } = useZoom()
   // Offsets and arrows are in pixels, so the layout follows the zoom.
   // eslint-disable-next-line react-hooks/exhaustive-deps -- layer points change with the zoom
-  const markers = useMemo(() => layoutDirections(map, stops, radiusFor), [map, stops, zoom])
+  const markers = useMemo(() => layoutDirections(map, stops, (s) => radiusFor(s, measure)), [map, stops, zoom, measure])
   return markers.map(({ stop: s, center, arrow }) => {
     const highlighted = onPattern.has(s.code)
     const dimmed = onPattern.size > 0 && !highlighted
-    const radius = radiusFor(s)
+    const radius = radiusFor(s, measure)
+    const step = measure === 'balance' ? balanceStep(s) : null
     const details = (
       <>
         <strong>{stopLabel(s)}</strong> <span className="text-ink-2">({s.code})</span>
@@ -135,7 +159,7 @@ function StopsLayer({ stops, onPattern }: { stops: Stop[]; onPattern: Set<number
           pathOptions={{
             color: s.visits === 0 ? 'var(--map-no-data)' : 'var(--map-route)',
             weight: highlighted ? 3.5 : 2,
-            fillColor: 'var(--map-stop)',
+            fillColor: step ? `var(--map-div-${step})` : 'var(--map-stop)',
             fillOpacity: dimmed ? 0.5 : 0.95,
             opacity: dimmed ? 0.3 : s.visits === 0 ? 0.6 : 1,
           }}
@@ -161,6 +185,7 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
   const stops = useQuery(stopsQuery)
   const lines = useQuery(linesQuery)
   const [selected, setSelected] = useState<number | null>(null)
+  const [measure, setMeasure] = useState<Measure>('boardings')
   const pattern = useQuery({ ...patternStopsQuery(selected ?? 0), enabled: selected !== null })
 
   const patternData = selected !== null ? pattern.data : undefined
@@ -194,18 +219,39 @@ export function NetworkMapView({ baseLayers }: { baseLayers: BaseLayer[] }) {
                       <FitTo points={patternPoints} />
                     </>
                   )}
-                  <StopsLayer stops={stopList} onPattern={onPattern} />
+                  <StopsLayer stops={stopList} onPattern={onPattern} measure={measure} />
                 </BaseMap>
+                <div className="absolute top-2.5 left-14 z-[500] rounded-lg shadow-float">
+                  <SegmentedRoot type="single" value={measure} aria-label={t('map.measure')} onValueChange={(value) => value && setMeasure(value as Measure)}>
+                    {MEASURES.map((m) => (
+                      <Hint key={m} text={t(`map.measureHints.${m}`)}>
+                        <SegmentedItem value={m}>{t(`map.measures.${m}`)}</SegmentedItem>
+                      </Hint>
+                    ))}
+                  </SegmentedRoot>
+                </div>
                 <div
-                  className="absolute right-3 bottom-[26px] z-[500] flex items-center gap-3.5 rounded-lg bg-paper px-3 py-1.5 text-xs shadow-float [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5"
+                  className="absolute right-3 bottom-[26px] z-[500] flex flex-wrap items-center gap-x-3.5 gap-y-1 rounded-lg bg-paper px-3 py-1.5 text-xs shadow-float [&>span]:inline-flex [&>span]:items-center [&>span]:gap-1.5"
                   aria-hidden="true"
                 >
-                  <span>
-                    <i className={cn(LEGEND_STOP, 'size-[9px]')} /> {t('map.legendFewer')}
-                  </span>
-                  <span>
-                    <i className={cn(LEGEND_STOP, 'size-[17px]')} /> {t('map.legendMore')}
-                  </span>
+                  {measure === 'balance' ? (
+                    <span>
+                      {t('map.legendAlighting')}
+                      {BALANCE_CLASS.map((fill) => (
+                        <i key={fill} className={cn(LEGEND_STOP, 'size-[13px]', fill)} />
+                      ))}
+                      {t('map.legendBoarding')}
+                    </span>
+                  ) : (
+                    <>
+                      <span>
+                        <i className={cn(LEGEND_STOP, 'size-[9px]')} /> {t(`map.legendFewer.${measure}`)}
+                      </span>
+                      <span>
+                        <i className={cn(LEGEND_STOP, 'size-[17px]')} /> {t(`map.legendMore.${measure}`)}
+                      </span>
+                    </>
+                  )}
                   <span>
                     <i className={cn(LEGEND_STOP, 'size-[9px] border-map-no-data')} /> {t('map.legendNoData')}
                   </span>
