@@ -57,6 +57,8 @@ export const cs = {
     loadingLines: 'Načítám linky…',
     noStops: 'Zatím nejsou importované žádné zastávky.',
     lines: 'Linky',
+    searchLines: 'Číslo linky nebo zastávka',
+    noLine: 'Hledání neodpovídá žádná linka.',
     linesHint: 'Trasy seřazené podle počtu jízd v datech. Trasy bez jízd jsou skryté.',
     patternsWithTrips_one: '{{count}} trasa s jízdami',
     patternsWithTrips_few: '{{count}} trasy s jízdami',

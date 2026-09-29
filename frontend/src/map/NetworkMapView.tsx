@@ -7,9 +7,11 @@ import { CircleMarker, Polygon, Polyline, Popup, Tooltip, useMap } from 'react-l
 import type { BaseLayer, Line, PatternSummary, Stop } from '../api'
 import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
 import { cn } from '../ui/cn'
+import { matchesRow } from '../operations/shared'
 import { Empty } from '../ui/Empty'
 import { Chevron } from '../ui/icons'
 import { QueryState } from '../ui/QueryState'
+import { SearchInput } from '../ui/SearchInput'
 import { useCoarsePointer } from '../ui/useCoarsePointer'
 import { BaseMap } from './BaseMap'
 import { ARROW_STYLE, layoutDirections, stopLabel, useZoom } from './directions'
@@ -41,6 +43,9 @@ function patternLabel(p: PatternSummary) {
 
 function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: number | null; onSelect: (code: number | null) => void }) {
   const { t } = useTranslation()
+  const [search, setSearch] = useState('')
+  // A number finds that line exactly; words find the lines with a pattern to or from that stop.
+  const shown = lines.filter((line) => matchesRow(search, { exact: [line.id], texts: line.patterns.filter((p) => p.trips > 0).map(patternLabel) }))
   return (
     <nav
       className={cn(LINE_PANEL, 'overflow-y-auto')}
@@ -48,8 +53,12 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
     >
       <h2 className="mb-1 px-1.5 text-xl">{t('map.lines')}</h2>
       <p className="mb-3 px-1.5 text-sm text-ink-2">{t('map.linesHint')}</p>
+      <div role="search" className="mb-3 px-1.5">
+        <SearchInput label={t('dwell.search')} placeholder={t('map.searchLines')} value={search} onChange={setSearch} />
+      </div>
+      {shown.length === 0 && <p className="px-1.5 text-sm text-ink-2">{t('map.noLine')}</p>}
       <Accordion.Root type="single" collapsible className="flex flex-col gap-0.5">
-        {lines.map((line) => {
+        {shown.map((line) => {
           const withTrips = line.patterns.filter((p) => p.trips > 0)
           const hidden = line.patterns.length - withTrips.length
           return (

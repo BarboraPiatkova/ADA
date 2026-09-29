@@ -57,6 +57,8 @@ export const en = {
     loadingLines: 'Loading lines…',
     noStops: 'No stops have been imported yet.',
     lines: 'Lines',
+    searchLines: 'Line number or stop',
+    noLine: 'No line matches the search.',
     linesHint: 'Patterns sorted by the number of trips in the data. Patterns without trips are hidden.',
     patternsWithTrips_one: '{{count}} pattern with trips',
     patternsWithTrips_other: '{{count}} patterns with trips',
