@@ -12,7 +12,8 @@ public static class OperationsEndpoints
 
         // ?line=18 narrows everything to one line; without it, all lines. ?from=2022-08-01&to=2022-08-07
         // narrows it to trips starting on those days (both included; either end may be left open), and
-        // ?days=workdays|saturday|sunday to those days of the week.
+        // ?days=workdays|schoolWorkdays|holidayWorkdays|saturday|sundayOrHoliday|publicHoliday to those days
+        // (public and school holidays: DayCalendar).
         operations.MapGet("/dwell", (StopDwellReport report, int? line, DateOnly? from, DateOnly? to, string? days, CancellationToken ct) =>
             report.GetAsync(line, Period(from, to, days), ct));
         // One stop's visits (stop detail) and one vehicle's day (trip strip).

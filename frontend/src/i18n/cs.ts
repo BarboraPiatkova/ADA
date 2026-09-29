@@ -422,8 +422,11 @@ export const cs = {
     kinds: {
       all: 'Všechny',
       workdays: 'Pracovní dny',
+      schoolWorkdays: 'Pracovní dny ve školním roce',
+      holidayWorkdays: 'Pracovní dny o prázdninách',
       saturday: 'Soboty',
-      sunday: 'Neděle',
+      sundayOrHoliday: 'Neděle a svátky',
+      publicHoliday: 'Jen státní svátky',
     },
     views: {
       label: 'Členění v čase',

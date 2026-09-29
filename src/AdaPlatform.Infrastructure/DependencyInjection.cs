@@ -50,6 +50,11 @@ public static class DependencyInjection
         services.AddScoped<DatasetProfiler>();
         services.AddOptions<DwellRules>().Bind(configuration.GetSection(DwellRules.SectionName));
         services.AddScoped<StopDirections>();
+        services.AddOptions<CalendarOptions>().Bind(configuration.GetSection(CalendarOptions.SectionName))
+            .Validate(o => o.District is null || CzechSchoolHolidays.IsKnownDistrict(o.District),
+                $"{CalendarOptions.SectionName}:District is not a district MŠMT lists for the spring holidays (e.g. \"Brno-město\", \"Praha 1 až 5\").")
+            .ValidateOnStart();
+        services.AddSingleton<DayCalendar>();
         services.AddScoped<StopDwellReport>();
         services.AddOptions<PunctualityRules>().Bind(configuration.GetSection(PunctualityRules.SectionName));
         services.AddScoped<PunctualityReport>();

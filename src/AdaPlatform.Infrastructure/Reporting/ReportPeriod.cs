@@ -3,18 +3,25 @@ using Microsoft.EntityFrameworkCore;
 
 namespace AdaPlatform.Infrastructure.Reporting;
 
-/// <summary>Which days of the week a report counts: timetables differ between working days and weekends.</summary>
+/// <summary>
+/// Which days a report counts, as timetables run: working days (in term or in school holidays),
+/// Saturdays, Sundays with public holidays (they run the Sunday timetable), or public holidays alone.
+/// See <see cref="DayCalendar"/>.
+/// </summary>
 public enum DayKind
 {
     All,
     Workdays,
+    SchoolWorkdays,
+    HolidayWorkdays,
     Saturday,
-    Sunday,
+    SundayOrHoliday,
+    PublicHoliday,
 }
 
 /// <summary>
-/// The days a report covers, both ends included; a missing end is open, and <see cref="Days"/> can keep
-/// only working days, Saturdays or Sundays (public holidays count as the weekday they fall on). Trips
+/// The days a report covers, both ends included; a missing end is open, and <see cref="Days"/> keeps only
+/// one kind of day (judged by <see cref="DayCalendar"/>). Trips
 /// belong to the day they start on, so a trip that runs past midnight stays whole in one day.
 /// </summary>
 public readonly record struct ReportPeriod(DateOnly? From, DateOnly? To, DayKind Days = DayKind.All)
@@ -30,16 +37,8 @@ public readonly record struct ReportPeriod(DateOnly? From, DateOnly? To, DayKind
     /// <summary>Part of a cache key.</summary>
     public string Key => $"{From?.ToString("yyyy-MM-dd") ?? "start"}..{To?.ToString("yyyy-MM-dd") ?? "end"}/{Days}";
 
-    /// <summary>Whether a trip starting then falls on the kind of day kept (the date range is filtered in the query).</summary>
-    public bool Keeps(DateTime tripStart) => Days switch
-    {
-        DayKind.Workdays => tripStart.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday),
-        DayKind.Saturday => tripStart.DayOfWeek is DayOfWeek.Saturday,
-        DayKind.Sunday => tripStart.DayOfWeek is DayOfWeek.Sunday,
-        _ => true,
-    };
-
-    /// <summary>"workdays", "saturday" or "sunday" from a query string; anything else is every day.</summary>
+    /// <summary>"workdays", "schoolWorkdays", "holidayWorkdays", "saturday", "sundayOrHoliday" or "publicHoliday"
+    /// from a query string (any case); anything else is every day.</summary>
     public static DayKind ParseDays(string? days) =>
         Enum.TryParse<DayKind>(days, ignoreCase: true, out var kind) ? kind : DayKind.All;
 

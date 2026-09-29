@@ -404,8 +404,11 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T
 }
 
-/** Which days of the week a report counts. */
-export type DayKind = 'all' | 'workdays' | 'saturday' | 'sunday'
+/**
+ * Which days a report counts, as timetables run: working days (all, in school term, in school holidays),
+ * Saturdays, Sundays with public holidays, or public holidays alone.
+ */
+export type DayKind = 'all' | 'workdays' | 'schoolWorkdays' | 'holidayWorkdays' | 'saturday' | 'sundayOrHoliday' | 'publicHoliday'
 
 /** A report's days: from–to, both included (either end may be open), and which days of the week. */
 export type Period = { from?: string; to?: string; days?: Exclude<DayKind, 'all'> }
