@@ -23,7 +23,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $App = 'AdaPlatform'                                   # must equal Tokari:Audience
-$PermissionNames = @('network:read', 'quality:read')   # src/AdaPlatform.Api/Auth/Permissions.cs
+$PermissionNames = @('network:read', 'quality:read', 'operations:read')   # src/AdaPlatform.Api/Auth/Permissions.cs
 
 function Invoke-Tokari([string] $Method, [string] $Path, $Body) {
     $params = @{ Method = $Method; Uri = "$TokariUrl$Path"; Headers = $script:Headers; ContentType = 'application/json' }

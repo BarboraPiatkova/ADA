@@ -15,5 +15,8 @@ public static class Permissions
     /// <summary>See device health and data quality.</summary>
     public const string QualityRead = "quality:read";
 
-    public static readonly IReadOnlyList<string> All = [NetworkRead, QualityRead];
+    /// <summary>See stop operations: dwell times and what explains them.</summary>
+    public const string OperationsRead = "operations:read";
+
+    public static readonly IReadOnlyList<string> All = [NetworkRead, QualityRead, OperationsRead];
 }

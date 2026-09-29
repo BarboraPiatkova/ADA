@@ -48,6 +48,8 @@ public static class DependencyInjection
         services.AddScoped<DeviceHealthReport>();
         services.AddScoped<DailyQualityReport>();
         services.AddScoped<DatasetProfiler>();
+        services.AddOptions<DwellRules>().Bind(configuration.GetSection(DwellRules.SectionName));
+        services.AddScoped<StopDwellReport>();
         return services;
     }
 
