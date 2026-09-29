@@ -9,7 +9,7 @@ import { weekdayNames } from './shared'
 
 const SEQ_FILL = ['fill-seq-1', 'fill-seq-2', 'fill-seq-3', 'fill-seq-4', 'fill-seq-5', 'fill-seq-6']
 const SEQ_BG = ['bg-seq-1', 'bg-seq-2', 'bg-seq-3', 'bg-seq-4', 'bg-seq-5', 'bg-seq-6']
-const CELL_H = 26
+const DEFAULT_CELL_H = 26
 const LEFT = 44
 
 /** One cell of the week: weekday 1 = Monday … 7 = Sunday, the ramp step (0 = lightest), and its texts. */
@@ -27,7 +27,9 @@ export interface WeekHourCell {
  * Weekday × hour on one petrol ramp: rows Monday to Sunday, columns the hours with data. One Tab stop;
  * arrow keys move between cells. `legend` names the ramp steps, lightest first.
  */
-export function WeekHourHeatmap({ cells, keys, legend }: { cells: WeekHourCell[]; keys: string; legend: string[] }) {
+export function WeekHourHeatmap({ cells, keys, legend, height }: { cells: WeekHourCell[]; keys: string; legend: string[]; height?: number }) {
+  // Seven rows share the height (with the hour axis), no taller than 44 px each.
+  const CELL_H = height ? Math.min(44, Math.floor((height - 26) / 7)) : DEFAULT_CELL_H
   const { i18n } = useTranslation()
   const [wrap, available] = useElementWidth<HTMLDivElement>()
   const { box, tooltip, show, hide } = useTooltip()

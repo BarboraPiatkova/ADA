@@ -6,7 +6,8 @@ import { useElementWidth, useTooltip } from '../charts/useChart'
 import { useRovingFocus } from '../charts/useRovingFocus'
 import { cn } from '../ui/cn'
 
-const H = 180
+/** Plot height when the chart doesn't set one. */
+const DEFAULT_H = 180
 const LEFT = 48
 const RIGHT = 12
 const TOP = 12
@@ -36,11 +37,15 @@ export function StackedShareChart({
   columns,
   keys,
   describe,
+  height = DEFAULT_H,
 }: {
   columns: { key: string | number; label: string; segments: Segment[] }[]
   keys: string
   describe: (column: { label: string; segments: Segment[] }) => string
+  /** Plot height, e.g. to match a map beside the chart. */
+  height?: number
 }) {
+  const H = height
   const [wrap, available] = useElementWidth<HTMLDivElement>()
   const { box, tooltip, show, hide } = useTooltip()
   const roving = useRovingFocus(columns.map((_, i) => [0, i] as const))
@@ -116,12 +121,16 @@ export function ColumnChart({
   keys,
   formatValue,
   labelEvery = 1,
+  height = DEFAULT_H,
 }: {
   columns: { key: string | number; label: string; value: number; whisker?: number; description: string }[]
   keys: string
   formatValue: (value: number) => string
   labelEvery?: number
+  /** Plot height, e.g. to match a map beside the chart. */
+  height?: number
 }) {
+  const H = height
   const { t } = useTranslation()
   const [wrap, available] = useElementWidth<HTMLDivElement>()
   const { box, tooltip, show, hide } = useTooltip()
