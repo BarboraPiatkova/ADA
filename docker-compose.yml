@@ -18,6 +18,9 @@ services:
       retries: 10
 
   api:
+    # Only with --profile api: a plain "docker compose up -d" starts the database alone, so a
+    # container API never takes port 8080 from the API run from source (dotnet run).
+    profiles: [api]
     build:
       context: .
       dockerfile: src/AdaPlatform.Api/Dockerfile

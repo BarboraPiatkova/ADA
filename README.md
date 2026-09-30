@@ -21,11 +21,12 @@ Planning workspace for the project (claude.ai artifact, private to the organisat
 ## Run it
 
 ```bash
-docker compose up -d                                  # API + PostgreSQL
+docker compose --profile api up -d                    # API + PostgreSQL
+docker compose up -d                                  # PostgreSQL only (then run the API from source: dotnet run --project src/AdaPlatform.Api)
 docker compose -f docker-compose.sqlserver.yml up -d  # API + SQL Server (same image)
 
 # With a local Tokari for sign-in (built from ../Tokari), then register AdaPlatform in it once:
-docker compose -f docker-compose.yml -f docker-compose.tokari.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.tokari.yml up -d --build   # add --profile api for the API container
 ./tools/tokari/seed-dev.ps1                           # user "dispecer", password "Dispecer-dev-1"
 ```
 
