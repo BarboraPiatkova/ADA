@@ -21,6 +21,7 @@ import { dayOf, lineOptionMatch, matchesRow, weekdayNames } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 import { VehicleDay } from './VehicleDay'
+import { Findings, type Finding } from './Findings'
 
 const ALL = 'all'
 
@@ -87,6 +88,7 @@ function LoadView({
   const [vehicleDay, setVehicleDay] = useState<{ vehicle: number; day: string; tripId?: number } | null>(null)
   const panel = useRef<HTMLElement>(null)
   const openVehicle = useCallback((vehicle: number, day: string, tripId: number) => setVehicleDay({ vehicle, day, tripId }), [setVehicleDay])
+
   useEffect(() => {
     if (!vehicleDay) return
     panel.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -103,7 +105,23 @@ function LoadView({
   const patternMatch = (query: string, option: { value: string; label: string }) =>
     matchesRow(query, { exact: [patternLine.get(option.value) ?? null], texts: [option.label] })
   const chosen = report.patterns.find((p) => p.code === report.pattern)
-
+  // The answer first: when people travel, where the chosen route is fullest, and the fullest trip.
+  const busiestHour = report.boardingsByHour.reduce<LoadReport['boardingsByHour'][number] | null>((b, h) => (h.boardings > (b?.boardings ?? 0) ? h : b), null)
+  const peakStop = report.profile.reduce<LoadProfileStop | null>((p, s) => (s.medianLoad > (p?.medianLoad ?? 0) ? s : p), null)
+  const fullest = report.crowded[0]
+  const findings: Finding[] = [
+    ...(busiestHour ? [{ key: 'hour', text: t('findings.loadBusiestHour', { hour: busiestHour.hour, boardings: format.number(busiestHour.boardings) }) }] : []),
+    ...(peakStop && chosen
+      ? [{ key: 'route', text: t('findings.loadRoutePeak', { route: `${chosen.firstStopName ?? '?'} → ${chosen.lastStopName ?? '?'}`, stop: peakStop.stopName || String(peakStop.stopCode), median: format.number(peakStop.medianLoad) }) }]
+      : []),
+    ...(fullest
+      ? [{
+          key: 'trip',
+          text: t('findings.loadFullest', { vehicle: fullest.vehicleId, line: fullest.line ?? '?', peak: format.number(fullest.peakLoad), stop: fullest.peakStopName ?? '?', start: format.dateTime(fullest.start) }),
+          action: { label: t('findings.showTrip'), onClick: () => openVehicle(fullest.vehicleId, dayOf(fullest.start), fullest.tripId) },
+        }]
+      : []),
+  ]
   return (
     <div className="flex-1 overflow-y-auto p-4 md:px-7 md:pt-6 md:pb-10">
       <header>
@@ -130,8 +148,15 @@ function LoadView({
             </div>
           )}
         </dl>
-        <p className="mt-3 max-w-[72ch] text-sm text-ink-2">{t('load.note')}</p>
-        {report.tripsWithCapacity === 0 && <p className="mt-1 max-w-[72ch] text-sm text-ink-2">{t('load.noCapacity')}</p>}
+        <Findings
+          items={findings}
+          method={
+            <>
+              <p className="m-0">{t('load.note')}</p>
+              {report.tripsWithCapacity === 0 && <p className="m-0">{t('load.noCapacity')}</p>}
+            </>
+          }
+        />
       </header>
 
       <div className={FILTER_BAR} role="group" aria-label={t('dates.filters')}>

@@ -24,6 +24,7 @@ import { SortableTable } from './SortableTable'
 import { StopValueMap } from './StopValueMap'
 import { sortableFeatures } from './tableFeatures'
 import { FlagLegend, StepSwatch, type RowFlag } from './RowFlag'
+import { Findings, type Finding } from './Findings'
 
 const ALL = 'all'
 /** Plot height of a chart beside a stop map, so the two cards line up. */
@@ -33,6 +34,8 @@ const FILL = { Early: 'fill-seq-1', OnTime: 'fill-seq-2', Late: 'fill-seq-4', Ve
 const SWATCH = { Early: 'bg-seq-1', OnTime: 'bg-seq-2', Late: 'bg-seq-4', VeryLate: 'bg-seq-6' } as const
 // Share of departures late → one of five map steps.
 const LATE_BINS = [0.05, 0.1, 0.2, 0.35]
+/** Departures a line or hour needs before it can be named the worst: a handful of trips proves nothing. */
+const FINDING_MIN_DEPARTURES = 100
 /** Late shares from which a line or stop is flagged: the map's two darkest steps. */
 const LATE_WARNING = LATE_BINS[2]
 const LATE_FAULT = LATE_BINS[3]
@@ -81,6 +84,32 @@ function PunctualityView({
   const longDay = weekdayNames(i18n.resolvedLanguage, 'long')
   const { total, rules } = report
   const share = (n: number, of: number) => (of === 0 ? '–' : format.percentWhole(n / of))
+  // The answer first: how punctual overall, the worst line and hour, and where delays hit most passengers.
+  const worst = <T,>(items: T[], score: (item: T) => number, enough: (item: T) => boolean) =>
+    items.filter(enough).reduce<T | null>((w, item) => (w === null || score(item) > score(w) ? item : w), null)
+  const worstLine = line === null ? worst(report.byLine, (l) => lateShare(l.summary), (l) => l.summary.departures >= FINDING_MIN_DEPARTURES) : null
+  const worstHour = worst(report.hours, (h) => lateShare(h.summary), (h) => h.summary.departures >= FINDING_MIN_DEPARTURES)
+  const worstStop = worst(report.stops, (s) => s.summary.passengerMinutesLate, (s) => s.summary.passengerMinutesLate > 0)
+  const findings: Finding[] = [
+    ...(total.departures > 0
+      ? [{
+          key: 'overall',
+          text:
+            total.passengersOnTimeShare === null
+              ? t('findings.punctOverall', { onTime: share(total.onTime, total.departures) })
+              : t('findings.punctOverallPassengers', { onTime: share(total.onTime, total.departures), passengers: format.percentWhole(total.passengersOnTimeShare) }),
+        }]
+      : []),
+    ...(worstLine
+      ? [{
+          key: 'line',
+          text: t('findings.punctWorstLine', { line: worstLine.line, late: format.percentWhole(lateShare(worstLine.summary)) }),
+          action: { label: t('findings.showLine'), onClick: () => onLineChange(worstLine.line) },
+        }]
+      : []),
+    ...(worstHour && lateShare(worstHour.summary) > 0 ? [{ key: 'hour', text: t('findings.punctWorstHour', { hour: worstHour.hour, late: format.percentWhole(lateShare(worstHour.summary)) }) }] : []),
+    ...(worstStop ? [{ key: 'stop', text: t('findings.punctWorstStop', { stop: stopLabel(worstStop), minutes: format.number(worstStop.summary.passengerMinutesLate) }) }] : []),
+  ]
   const limits = { early: format.seconds(rules.earlySeconds), late: format.seconds(rules.lateSeconds), veryLate: format.seconds(rules.veryLateSeconds) }
   const segments = (s: PunctualitySummary): Segment[] =>
     (['Early', 'OnTime', 'Late', 'VeryLate'] as const).map((k) => ({
@@ -135,10 +164,15 @@ function PunctualityView({
             <dd>{format.number(total.passengerMinutesLate)}</dd>
           </div>
         </dl>
-        <p className="mt-3 max-w-[72ch] text-sm text-ink-2">
-          {t('punctuality.summary', { early: format.seconds(rules.earlySeconds), late: format.seconds(rules.lateSeconds), veryLate: format.seconds(rules.veryLateSeconds) })}{' '}
-          {t('punctuality.weighting')}
-        </p>
+        <Findings
+          items={findings}
+          method={
+            <>
+              <p className="m-0">{t('punctuality.summary', { early: format.seconds(rules.earlySeconds), late: format.seconds(rules.lateSeconds), veryLate: format.seconds(rules.veryLateSeconds) })}</p>
+              <p className="m-0">{t('punctuality.weighting')}</p>
+            </>
+          }
+        />
       </header>
 
       <div className={FILTER_BAR} role="group" aria-label={t('dates.filters')}>

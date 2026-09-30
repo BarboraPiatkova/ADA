@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { BaseLayer, DwellReport } from '../api'
+import type { BaseLayer, DwellCause, DwellReport } from '../api'
 import { ChartFigure } from '../charts/ChartFigure'
 import { useFormat } from '../i18n/format'
 import { dwellQuery, mapConfigQuery } from '../queries'
@@ -19,6 +19,7 @@ import { StopDetail } from './StopDetail'
 import { StopRanking } from './StopRanking'
 import { UnexplainedList } from './UnexplainedList'
 import { VehicleDay } from './VehicleDay'
+import { Findings, type Finding } from './Findings'
 
 const ALL = 'all'
 /** Plot height of a chart beside a stop map, so the two cards line up. */
@@ -74,6 +75,34 @@ function DwellView({
 
   const openStop = useCallback((code: number) => setDetail({ kind: 'stop', code }), [])
   const openVehicle = useCallback((vehicle: number, day: string, at?: string) => setDetail({ kind: 'vehicle', vehicle, day, at }), [])
+
+  // The answer first: the stop that loses most time, what the long dwells were, and what a passenger costs.
+  const worstStop = report.stops.reduce<(typeof report.stops)[number] | null>((worst, s) => (s.medianExcessSeconds > (worst?.medianExcessSeconds ?? 0) ? s : worst), null)
+  const causeCounts = report.unexplained.reduce<Record<string, number>>((counts, r) => ({ ...counts, [r.cause]: (counts[r.cause] ?? 0) + 1 }), {})
+  const topCause = Object.entries(causeCounts).sort((a, b) => b[1] - a[1])[0] as [DwellCause, number] | undefined
+  const findings: Finding[] = [
+    ...(worstStop
+      ? [{
+          key: 'stop',
+          text: t('findings.dwellWorstStop', { stop: stopLabel(worstStop), excess: format.seconds(worstStop.medianExcessSeconds), visits: format.number(worstStop.visits) }),
+          action: { label: t('findings.showStop'), onClick: () => openStop(worstStop.code) },
+        }]
+      : []),
+    ...(report.unexplainedTotal > 0 && topCause
+      ? [{
+          key: 'unexplained',
+          text: t('findings.dwellUnexplained', {
+            count: report.unexplainedTotal,
+            total: format.number(report.unexplainedTotal),
+            cause: t(`dwell.list.causes.${topCause[0]}`),
+            share: format.percentWhole(topCause[1] / report.unexplained.length),
+          }),
+        }]
+      : []),
+    ...(model.visits > 0
+      ? [{ key: 'model', text: t('findings.dwellModel', { perPassenger: `${format.decimal(model.secondsPerPassenger)} s`, base: format.seconds(model.baseSeconds) }) }]
+      : []),
+  ]
   // Bring the detail into view and give it focus, so keyboard and screen-reader users land on it too.
   useEffect(() => {
     if (!detail) return
@@ -101,16 +130,23 @@ function DwellView({
             <dd>{format.number(report.unexplainedTotal)}</dd>
           </div>
         </dl>
-        <p className="mt-3 max-w-[72ch] text-lg">
-          {model.correlation === null
-            ? t('dwell.modelNoCorrelation', { base: format.seconds(model.baseSeconds), perPassenger: `${format.decimal(model.secondsPerPassenger)} s` })
-            : t('dwell.model', {
-                base: format.seconds(model.baseSeconds),
-                perPassenger: `${format.decimal(model.secondsPerPassenger)} s`,
-                correlation: format.decimal(model.correlation),
-              })}
-        </p>
-        <p className="mt-1.5 max-w-[72ch] text-sm text-ink-2">{t('dwell.note')}</p>
+        <Findings
+          items={findings}
+          method={
+            <>
+              <p className="m-0">
+                {model.correlation === null
+                  ? t('dwell.modelNoCorrelation', { base: format.seconds(model.baseSeconds), perPassenger: `${format.decimal(model.secondsPerPassenger)} s` })
+                  : t('dwell.model', {
+                      base: format.seconds(model.baseSeconds),
+                      perPassenger: `${format.decimal(model.secondsPerPassenger)} s`,
+                      correlation: format.decimal(model.correlation),
+                    })}
+              </p>
+              <p className="m-0">{t('dwell.note')}</p>
+            </>
+          }
+        />
       </header>
 
       <div className={FILTER_BAR} role="group" aria-label={t('dates.filters')}>
