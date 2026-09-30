@@ -22,14 +22,17 @@ import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
 import { VehicleDay } from './VehicleDay'
 import { Findings, type Finding } from './Findings'
+import { numberParam, useScreenParams } from '../navigation'
+import { ScreenLink } from './ScreenLink'
 
 const ALL = 'all'
 
 /** How full vehicles are: boardings over the day, a pattern's load stop by stop, and the fullest trips. */
 export function LoadScreen() {
   const { t } = useTranslation()
-  const [line, setLine] = useState<number | null>(null)
-  const [pattern, setPattern] = useState<number | null>(null)
+  const params = useScreenParams()
+  const [line, setLine] = useState<number | null>(() => numberParam(params, 'line'))
+  const [pattern, setPattern] = useState<number | null>(() => numberParam(params, 'pattern'))
   const { period, isAll } = useReportPeriod()
   const report = useQuery({ ...loadQuery(line, pattern, period), placeholderData: keepPreviousData })
   return (
@@ -385,7 +388,18 @@ function CrowdedTrips({
       tripCol.accessor((r) => r.line ?? -1, { id: 'line', header: t('load.crowded.line'), cell: (info) => info.row.original.line ?? t('load.crowded.unknown') }),
       tripCol.accessor((r) => `${r.firstStopName ?? '?'} → ${r.lastStopName ?? '?'}`, { id: 'route', header: t('load.crowded.route') }),
       tripCol.accessor('peakLoad', { id: 'peak', header: t('load.crowded.peak'), cell: (info) => <span className="font-semibold">{format.number(info.getValue())}</span> }),
-      tripCol.accessor((r) => r.peakStopName ?? '', { id: 'at', header: t('load.crowded.at') }),
+      tripCol.accessor((r) => r.peakStopName ?? '', {
+        id: 'at',
+        header: t('load.crowded.at'),
+        cell: (info) => (
+          <>
+            {info.getValue()}
+            {info.row.original.peakStopCode !== null && (
+              <ScreenLink screen="provoz" params={{ stop: info.row.original.peakStopCode }} label={t('links.dwell')} title={t('links.dwellTitle', { name: info.getValue() })} />
+            )}
+          </>
+        ),
+      }),
       tripCol.accessor('boardings', { id: 'boardings', header: t('load.crowded.boardings'), cell: (info) => format.number(info.getValue()) }),
       tripCol.accessor((r) => r.peakShare ?? -1, {
         id: 'share',

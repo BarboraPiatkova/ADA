@@ -436,6 +436,12 @@ export const en = {
     loadRoutePeak: 'On {{route}} vehicles are fullest after {{stop}}: typically {{median}} passengers.',
     loadFullest: 'Fullest trip: vehicle {{vehicle}}, line {{line}}, {{start}} – {{peak}} passengers after {{stop}}.',
   },
+  links: {
+    dwell: 'dwell',
+    dwellTitle: 'Dwell at {{name}}',
+    load: 'occupancy',
+    loadTitle: 'Occupancy – {{name}}',
+  },
   flags: {
     legend: 'Row marks:',
     dwellWarning: 'Vehicles typically stand {{excess}} longer here than their passengers need',

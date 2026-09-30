@@ -20,6 +20,7 @@ import { StopRanking } from './StopRanking'
 import { UnexplainedList } from './UnexplainedList'
 import { VehicleDay } from './VehicleDay'
 import { Findings, type Finding } from './Findings'
+import { numberParam, useScreenParams } from '../navigation'
 
 const ALL = 'all'
 /** Plot height of a chart beside a stop map, so the two cards line up. */
@@ -31,7 +32,8 @@ const MAP_SIDE_HEIGHT = 380
  */
 export function DwellScreen() {
   const { t } = useTranslation()
-  const [line, setLine] = useState<number | null>(null)
+  const params = useScreenParams()
+  const [line, setLine] = useState<number | null>(() => numberParam(params, 'line'))
   const { period, isAll } = useReportPeriod()
   // Switching lines or days keeps the previous report on screen until the next one arrives.
   const report = useQuery({ ...dwellQuery(line, period), placeholderData: keepPreviousData })
@@ -42,7 +44,7 @@ export function DwellScreen() {
         data.model.visits === 0 && line === null && isAll ? (
           <Empty>{t('dwell.empty')}</Empty>
         ) : (
-          <DwellView report={data} layers={mapConfig.data?.baseLayers} line={line} onLineChange={setLine} />
+          <DwellView report={data} layers={mapConfig.data?.baseLayers} line={line} onLineChange={setLine} initialStop={numberParam(params, 'stop')} />
         )
       }
     </QueryState>
@@ -54,16 +56,19 @@ function DwellView({
   layers,
   line,
   onLineChange,
+  initialStop,
 }: {
   report: DwellReport
   layers: BaseLayer[] | undefined
   line: number | null
   onLineChange: (line: number | null) => void
+  /** A stop to open in detail straight away (a link from another screen). */
+  initialStop: number | null
 }) {
   const { t } = useTranslation()
   const format = useFormat()
   const { model, rules } = report
-  const [detail, setDetail] = useState<DwellDetail | null>(null)
+  const [detail, setDetail] = useState<DwellDetail | null>(() => (initialStop === null ? null : { kind: 'stop', code: initialStop }))
   const [period, setPeriod] = usePeriod()
   const { period: reportPeriod } = useReportPeriod()
   const panel = useRef<HTMLElement>(null)

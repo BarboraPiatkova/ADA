@@ -25,6 +25,8 @@ import { StopValueMap } from './StopValueMap'
 import { sortableFeatures } from './tableFeatures'
 import { FlagLegend, StepSwatch, type RowFlag } from './RowFlag'
 import { Findings, type Finding } from './Findings'
+import { numberParam, useScreenParams } from '../navigation'
+import { ScreenLink } from './ScreenLink'
 
 const ALL = 'all'
 /** Plot height of a chart beside a stop map, so the two cards line up. */
@@ -48,7 +50,8 @@ const lateStep = (share: number) => {
 /** Punctuality of departures, and how many passengers were on board when vehicles left late. */
 export function PunctualityScreen() {
   const { t } = useTranslation()
-  const [line, setLine] = useState<number | null>(null)
+  const params = useScreenParams()
+  const [line, setLine] = useState<number | null>(() => numberParam(params, 'line'))
   const { period, isAll } = useReportPeriod()
   const report = useQuery({ ...punctualityQuery(line, period), placeholderData: keepPreviousData })
   const mapConfig = useQuery(mapConfigQuery)
@@ -311,7 +314,18 @@ function summaryColumns(
 function SummarySortable({ rows, labelHeader, rules, format }: { rows: SummaryRow[]; labelHeader: string; rules: PunctualityRules; format: Format }) {
   const { t, i18n } = useTranslation()
   // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-  const columns = useMemo(() => summaryColumns(t, format, labelHeader, rules), [i18n.resolvedLanguage, format, labelHeader, rules])
+  // Each line links to its occupancy.
+  const columns = useMemo(
+    () =>
+      summaryColumns(t, format, labelHeader, rules, (r) => (
+        <>
+          {r.label}
+          <ScreenLink screen="obsazenost" params={{ line: r.key }} label={t('links.load')} title={t('links.loadTitle', { name: r.label })} />
+        </>
+      )),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
+    [i18n.resolvedLanguage, format, labelHeader, rules],
+  )
   return (
     <>
       <SortableTable columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} flag={(r) => lateFlag(r.summary, t, format)} />
@@ -401,8 +415,18 @@ function StopTable({ stops, rules, format }: { stops: PunctualityStop[]; rules: 
         .map((s) => ({ key: s.code, label: stopLabel(s), summary: s.summary })),
     [stops, search],
   )
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-  const columns = useMemo(() => summaryColumns(t, format, t('punctuality.stops.stop'), rules, (r) => <>{r.label} <span className="text-xs text-ink-2 tabular-nums">{r.key}</span></>), [i18n.resolvedLanguage, format, rules])
+  // Each stop links to its dwell.
+  const columns = useMemo(
+    () =>
+      summaryColumns(t, format, t('punctuality.stops.stop'), rules, (r) => (
+        <>
+          {r.label} <span className="text-xs text-ink-2 tabular-nums">{r.key}</span>
+          <ScreenLink screen="provoz" params={{ stop: r.key }} label={t('links.dwell')} title={t('links.dwellTitle', { name: r.label })} />
+        </>
+      )),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
+    [i18n.resolvedLanguage, format, rules],
+  )
 
   return (
     <section aria-labelledby="punctuality-stops">

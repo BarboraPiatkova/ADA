@@ -449,6 +449,12 @@ export const cs = {
     loadRoutePeak: 'Na trase {{route}} je nejplněji po zastávce {{stop}}: typicky {{median}} cestujících.',
     loadFullest: 'Nejplnější jízda: vůz {{vehicle}}, linka {{line}}, {{start}} – {{peak}} cestujících po zastávce {{stop}}.',
   },
+  links: {
+    dwell: 'stání',
+    dwellTitle: 'Stání v zastávce {{name}}',
+    load: 'obsazenost',
+    loadTitle: 'Obsazenost – {{name}}',
+  },
   flags: {
     legend: 'Značky u řádků:',
     dwellWarning: 'Vozy tu stojí typicky o {{excess}} déle, než potřebují cestující',

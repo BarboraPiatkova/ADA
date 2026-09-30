@@ -18,6 +18,7 @@ import { useCoarsePointer } from '../ui/useCoarsePointer'
 import { BaseMap } from './BaseMap'
 import { ARROW_STYLE, layoutDirections, stopLabel, useZoom } from './directions'
 import { LINE_PANEL, LinePickerSkeleton, MapSkeleton } from './MapSkeleton'
+import { ScreenLink } from '../operations/ScreenLink'
 
 /** What the stop circles show: their size is the measure per visit; "balance" colours them by who gets on vs off. */
 type Measure = 'boardings' | 'alightings' | 'exchange' | 'balance'
@@ -165,6 +166,13 @@ function StopsLayer({ stops, onPattern, measure }: { stops: Stop[]; onPattern: S
           }}
         >
           {!coarse && <Tooltip>{details}</Tooltip>}
+          {!coarse && s.visits > 0 && (
+            <Popup>
+              {details}
+              <br />
+              <ScreenLink screen="provoz" params={{ stop: s.code }} label={t('links.dwell')} title={t('links.dwellTitle', { name: stopLabel(s) })} />
+            </Popup>
+          )}
         </CircleMarker>
         {/* Touch: a finger can't hit a 4px circle, so a larger invisible one takes the tap.
             A tap has no hover, so the details open as a popup that stays until dismissed. */}
