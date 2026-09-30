@@ -24,6 +24,8 @@ import { formatMetricValue, indexDaily, METRICS, type MetricId } from './metrics
 import { RulesPanel } from './RulesPanel'
 import { useReportPeriod } from '../operations/period'
 import { useHealthAnalysis, type GroupBy } from './useHealthAnalysis'
+import { FLAG_EDGE } from '../operations/flagEdge'
+import { FlagLegend } from '../operations/RowFlag'
 
 const EMPTY_DAYS: VehicleDay[] = []
 
@@ -160,8 +162,17 @@ function HealthScreen({ report, daily, dailyPending }: { report: DeviceHealthRep
                   onClick={() => row.toggleExpanded()}
                   aria-expanded={row.getIsExpanded()}
                 >
-                  {row.getAllCells().map((cell) => (
-                    <td key={cell.id} className={cn(TD, VEHICLE_NUMERIC.has(cell.column.id) && NUM, cell.column.id === 'reasons' && WRAP)}>
+                  {row.getAllCells().map((cell, i) => (
+                    <td
+                      key={cell.id}
+                      className={cn(
+                        TD,
+                        VEHICLE_NUMERIC.has(cell.column.id) && NUM,
+                        cell.column.id === 'reasons' && WRAP,
+                        // A faulty or warned vehicle is marked at the row's edge, as on every table.
+                        i === 0 && (row.original.status === 'Fault' || row.original.status === 'Warning') && FLAG_EDGE[row.original.status],
+                      )}
+                    >
                       <table.FlexRender cell={cell} />
                     </td>
                   ))}
@@ -178,6 +189,17 @@ function HealthScreen({ report, daily, dailyPending }: { report: DeviceHealthRep
           </tbody>
         </table>
       </div>
+      <FlagLegend
+        warning={t('flags.healthLegendWarning', {
+          imbalance: format.percentWhole(report.thresholds.imbalanceWarning),
+          negative: format.percentWhole(report.thresholds.negativeOccupancyWarning),
+          flagged: format.percentWhole(report.thresholds.flaggedStopsWarning),
+        })}
+        fault={t('flags.healthLegendFault', {
+          imbalance: format.percentWhole(report.thresholds.imbalanceFault),
+          negative: format.percentWhole(report.thresholds.negativeOccupancyFault),
+        })}
+      />
 
       <Pagination
         pageIndex={pageIndex}

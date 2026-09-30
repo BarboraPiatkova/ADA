@@ -465,6 +465,8 @@ export const cs = {
     lateFault: 'Pozdě odjíždí {{late}} odjezdů – víc než třetina',
     lateLegendWarning: 'pozdě víc než {{from}} odjezdů',
     lateLegendFault: 'víc než {{from}}',
+    healthLegendWarning: 'varování: nesoulad nástupů a výstupů od {{imbalance}}, záporná obsazenost od {{negative}} zastavení, příznak chyby od {{flagged}}, nebo některá jednotka nic nenapočítala',
+    healthLegendFault: 'porucha: nesoulad od {{imbalance}}, záporná obsazenost od {{negative}}, nebo žádná jednotka vozu nic nenapočítala',
   },
   dates: {
     period: 'Období',

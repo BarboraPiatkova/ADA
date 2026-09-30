@@ -452,6 +452,8 @@ export const en = {
     lateFault: '{{late}} of departures leave late – over a third',
     lateLegendWarning: 'more than {{from}} of departures late',
     lateLegendFault: 'more than {{from}}',
+    healthLegendWarning: 'warning: boardings and alightings off by {{imbalance}} or more, negative occupancy at {{negative}} of stops or more, error flags at {{flagged}} or more, or one of the units counted nothing',
+    healthLegendFault: 'fault: off by {{imbalance}} or more, negative occupancy at {{negative}} or more, or none of the vehicle’s units counted anything',
   },
   dates: {
     period: 'Period',

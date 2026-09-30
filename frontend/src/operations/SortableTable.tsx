@@ -4,14 +4,9 @@ import { SortableHeader } from '../quality/SortableHeader'
 import { cn } from '../ui/cn'
 import { Pagination } from '../ui/Pagination'
 import { NUM, TABLE, TD } from '../ui/table'
+import { FLAG_EDGE } from './flagEdge'
 import { FlagMark, type RowFlag } from './RowFlag'
 import { sortableFeatures, type SortableColumn } from './tableFeatures'
-
-/** The left edge of a flagged row, in its status colour. */
-const FLAG_EDGE: Record<RowFlag['status'], string> = {
-  Warning: 'shadow-[inset_4px_0_0_var(--warning)]',
-  Fault: 'shadow-[inset_4px_0_0_var(--fault)]',
-}
 
 /**
  * A table every dwell view uses: click a header to sort (the direction is shown and announced),
