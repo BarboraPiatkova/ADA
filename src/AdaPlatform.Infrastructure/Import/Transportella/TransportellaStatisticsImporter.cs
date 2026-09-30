@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using AdaPlatform.Domain.Operations;
 using AdaPlatform.Infrastructure.Persistence;
+using AdaPlatform.Infrastructure.Import.Epcomp;
 using Microsoft.EntityFrameworkCore;
 
 namespace AdaPlatform.Infrastructure.Import.Transportella;
@@ -29,7 +30,15 @@ public sealed class TransportellaStatisticsImporter(AppDbContext db)
         var after = known.Length > 0 ? known[^1] : 0;
         // Statistics ids are the table's primary key, unique already; report ids are hashes and a
         // report could list a trip twice, so only those are checked within the run.
-        HashSet<long>? inThisRun = source.Kind == RecordedCallSource.TransportellaReport ? [] : null;
+        HashSet<long>? inThisRun = source.Kind != RecordedCallSource.TransportellaStatistics ? [] : null;
+
+        // Sources that name stops without numbers get the station from the operator's stop list, by name
+        // (accents and spacing aside). A name used by more than one station stays unmatched.
+        var stationByName = (await db.Stops.AsNoTracking().Select(s => new { s.Code, s.Name }).ToListAsync(ct))
+            .Where(s => s.Name.Length > 0)
+            .GroupBy(s => EpcompStationsImporter.Fold(s.Name))
+            .Where(g => g.Select(s => s.Code / 100).Distinct().Count() == 1)
+            .ToDictionary(g => g.Key, g => g.First().Code / 100);
 
         db.ChangeTracker.AutoDetectChangesEnabled = false;
         var batch = new List<RecordedCall>(BatchSize);
@@ -48,6 +57,18 @@ public sealed class TransportellaStatisticsImporter(AppDbContext db)
                 {
                     report.AlreadyImported++;
                     continue;
+                }
+
+                if (call.StationId == 0 && call.StopName is { } stopName)
+                {
+                    if (stationByName.TryGetValue(EpcompStationsImporter.Fold(stopName), out var station))
+                    {
+                        call.StationId = station;
+                    }
+                    else
+                    {
+                        report.UnknownStops.Add(stopName);
+                    }
                 }
 
                 batch.Add(call);
@@ -94,8 +115,11 @@ public sealed class TransportellaImportReport
     public long WithoutActualTimes { get; set; }
     public TimeSpan Elapsed { get; set; }
 
+    /// <summary>Stop names no station of the stop list matches (sources without stop numbers).</summary>
+    public HashSet<string> UnknownStops { get; } = [];
+
     public override string ToString() => $"""
         Transportella statistics import ({Source}, {Elapsed:hh\:mm\:ss}): {Read} rows read
           imported {Imported} (without actual times {WithoutActualTimes}), already imported {AlreadyImported}, outside the period {OutsidePeriod}
-        """;
+        """ + (UnknownStops.Count == 0 ? "" : $"\n  {UnknownStops.Count} stop names not in the stop list, e.g. {string.Join(", ", UnknownStops.Order().Take(8))}");
 }

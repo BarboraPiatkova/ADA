@@ -110,15 +110,18 @@ public static class DependencyInjection
     }
 
     /// <summary>
-    /// The source for a file given on the command line (by extension: .xlsx = report, otherwise a dump),
-    /// or the configured one when <paramref name="file"/> is null.
+    /// The source for a file given on the command line (.xlsx = report; a .zip or a folder = daily service
+    /// reports; otherwise a dump), or the configured one when <paramref name="file"/> is null.
+    /// <paramref name="carrier"/> overrides Transportella:Statistics:Carrier for the daily service reports.
     /// </summary>
-    public static ITransportellaStatisticsSource CreateTransportellaSource(this IServiceProvider services, string? file = null)
+    public static ITransportellaStatisticsSource CreateTransportellaSource(this IServiceProvider services, string? file = null, string? carrier = null)
     {
         var options = services.GetRequiredService<IOptions<TransportellaStatisticsOptions>>().Value;
         var kind = file is null
             ? options.Source
-            : file.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ? TransportellaStatisticsSourceKind.Report : TransportellaStatisticsSourceKind.Dump;
+            : file.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase) ? TransportellaStatisticsSourceKind.Report
+            : file.EndsWith(".zip", StringComparison.OrdinalIgnoreCase) || Directory.Exists(file) ? TransportellaStatisticsSourceKind.DailyService
+            : TransportellaStatisticsSourceKind.Dump;
         var path = file ?? options.Path;
         string RequirePath() => path is { Length: > 0 }
             ? path
@@ -128,6 +131,7 @@ public static class DependencyInjection
         {
             TransportellaStatisticsSourceKind.Dump => new TransportellaDumpSource(RequirePath(), DumpEncoding(options.DumpCodePage)),
             TransportellaStatisticsSourceKind.Report => new TransportellaReportXlsxSource(RequirePath()),
+            TransportellaStatisticsSourceKind.DailyService => new TransportellaDailyServiceSource(RequirePath(), carrier ?? options.Carrier),
             TransportellaStatisticsSourceKind.Database => new TransportellaDatabaseSource(
                 services.GetRequiredService<IConfiguration>().GetConnectionString(TransportellaStatisticsOptions.ConnectionStringName)
                 ?? throw new InvalidOperationException(

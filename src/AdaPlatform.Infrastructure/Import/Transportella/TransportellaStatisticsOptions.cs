@@ -15,6 +15,12 @@ public sealed record TransportellaStatisticsOptions
 
     /// <summary>Code page of a dump; Transportella's dumps are 852 (DOS Latin 2).</summary>
     public int DumpCodePage { get; init; } = 852;
+
+    /// <summary>
+    /// For the daily service reports of a regional system: the carrier to take (part of its name, e.g.
+    /// "Dopravní podnik města Brna"); null takes every carrier.
+    /// </summary>
+    public string? Carrier { get; init; }
 }
 
 public enum TransportellaStatisticsSourceKind
@@ -29,4 +35,7 @@ public enum TransportellaStatisticsSourceKind
 
     /// <summary>The per-trip statistics report exported as XLSX.</summary>
     Report,
+
+    /// <summary>The daily service reports (OneDayTraffic): a folder or zip of per-duty workbooks.</summary>
+    DailyService,
 }

@@ -28,9 +28,10 @@ const string Usage = """
       AdaPlatform.Cli import-ucp --source <folder or .zip>      ingest raw UCP logs (APC_*.csv) and reconstruct their trips; safe to re-run
       AdaPlatform.Cli reconstruct                               rebuild every trip from the raw logs (after a rule change)
       AdaPlatform.Cli sync-fleet                                update vehicles from the fleet register (Fleet:Source)
-      AdaPlatform.Cli import-transportella [--source <file>] [--from <date>] [--to <date>]
-                                                                load Transportella's per-stop operations (a dump or an .xlsx report,
-                                                                else the configured source); safe to re-run
+      AdaPlatform.Cli import-transportella [--source <file>] [--from <date>] [--to <date>] [--carrier <name>]
+                                                                load Transportella's per-stop operations (a dump, an .xlsx report,
+                                                                or a .zip/folder of daily service reports; else the configured
+                                                                source); --carrier keeps one carrier of a regional system; safe to re-run
       AdaPlatform.Cli import-stations --source <stations.xml>   take stop names with diacritics (and missing positions) from
                                                                 EPComp's stop list; safe to re-run
       AdaPlatform.Cli profile --out <folder>                    write the thesis data report (Markdown + CSV)
@@ -85,7 +86,7 @@ try
         "reconstruct" => await Reconstruction().ReconstructAsync(),
         "sync-fleet" => await scope.ServiceProvider.GetRequiredService<FleetSync>().SyncAsync(),
         "import-transportella" => await scope.ServiceProvider.GetRequiredService<TransportellaStatisticsImporter>().ImportAsync(
-            scope.ServiceProvider.CreateTransportellaSource(source), Day("from"), Day("to")),
+            scope.ServiceProvider.CreateTransportellaSource(source, builder.Configuration["carrier"]), Day("from"), Day("to")),
         "import-stations" => await new EpcompStationsImporter(db).ImportAsync(source!),
         "profile" => await scope.ServiceProvider.GetRequiredService<DatasetProfiler>().ProfileAsync(output!, CodeVersion()),
         _ => throw new ArgumentException($"Unknown command '{command}'."),

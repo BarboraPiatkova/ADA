@@ -63,4 +63,7 @@ public enum RecordedCallSource
 
     /// <summary>Transportella's per-trip statistics report exported as XLSX.</summary>
     TransportellaReport,
+
+    /// <summary>Transportella's daily service reports ("Vypravenost – detail", OneDayTraffic), one workbook per duty.</summary>
+    TransportellaDailyService,
 }
