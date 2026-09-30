@@ -301,7 +301,12 @@ export interface PunctualityStop {
   summary: PunctualitySummary
 }
 
+/** Where arrival and departure times come from: the vehicles' logs (with passengers) or Transportella (times only). */
+export type TimesSource = 'vehicleLog' | 'transportella'
+
 export interface PunctualityReport {
+  /** False for Transportella's times: nobody was counted, so the passenger figures are empty. */
+  hasPassengers: boolean
   from: string | null
   to: string | null
   line: number | null
@@ -418,7 +423,7 @@ export type DayKind = 'all' | 'workdays' | 'schoolWorkdays' | 'holidayWorkdays' 
 export type Period = { from?: string; to?: string; days?: Exclude<DayKind, 'all'> }
 
 /** "?line=1&from=…&to=…" with only the parameters that are set, or "". */
-function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string; days?: string }) {
+function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string; days?: string; times?: string }) {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value))
   const qs = query.toString()
@@ -436,8 +441,8 @@ export const api = {
     getJson<DwellReport>(`/api/operations/dwell${operationsQuery({ line, ...period })}`, signal),
   stopDwell: (code: number, line: number | null, period: Period, signal?: AbortSignal) =>
     getJson<StopDwellDetail>(`/api/operations/dwell/stops/${code}${operationsQuery({ line, ...period })}`, signal),
-  punctuality: (line: number | null, period: Period, signal?: AbortSignal) =>
-    getJson<PunctualityReport>(`/api/operations/punctuality${operationsQuery({ line, ...period })}`, signal),
+  punctuality: (line: number | null, period: Period, times: TimesSource, signal?: AbortSignal) =>
+    getJson<PunctualityReport>(`/api/operations/punctuality${operationsQuery({ line, ...period, times: times === 'transportella' ? times : undefined })}`, signal),
   load: (line: number | null, pattern: number | null, period: Period, signal?: AbortSignal) =>
     getJson<LoadReport>(`/api/operations/load${operationsQuery({ line, pattern, ...period })}`, signal),
   vehicleDay: (vehicle: number, day: string, signal?: AbortSignal) =>

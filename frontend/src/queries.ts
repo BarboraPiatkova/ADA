@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { api, type Period } from './api'
+import { api, type Period, type TimesSource } from './api'
 
 // Every server read goes through TanStack Query: one cache, request de-duplication and
 // cancellation (the AbortSignal is passed down to fetch) for free.
@@ -52,10 +52,10 @@ export const stopDwellQuery = (code: number, line: number | null, period: Period
     staleTime: REPORT_STALE_MS,
   })
 
-export const punctualityQuery = (line: number | null, period: Period) =>
+export const punctualityQuery = (line: number | null, period: Period, times: TimesSource = 'vehicleLog') =>
   queryOptions({
-    queryKey: ['operations', 'punctuality', line, period],
-    queryFn: ({ signal }) => api.punctuality(line, period, signal),
+    queryKey: ['operations', 'punctuality', line, period, times],
+    queryFn: ({ signal }) => api.punctuality(line, period, times, signal),
     staleTime: REPORT_STALE_MS,
   })
 

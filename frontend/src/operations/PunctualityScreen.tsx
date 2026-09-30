@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PunctualityReport, PunctualityRules, PunctualityStop, PunctualitySummary } from '../api'
+import type { PunctualityReport, PunctualityRules, PunctualityStop, PunctualitySummary, TimesSource } from '../api'
 import { ChartFigure } from '../charts/ChartFigure'
 import { useFormat, type Format } from '../i18n/format'
 import { stopLabel } from '../map/directions'
@@ -27,6 +27,7 @@ import { FlagLegend, StepSwatch, type RowFlag } from './RowFlag'
 import { Findings, type Finding } from './Findings'
 import { numberParam, useScreenParams } from '../navigation'
 import { ScreenLink } from './ScreenLink'
+import { Select } from '../ui/Select'
 
 const ALL = 'all'
 /** Plot height of a chart beside a stop map, so the two cards line up. */
@@ -52,8 +53,9 @@ export function PunctualityScreen() {
   const { t } = useTranslation()
   const params = useScreenParams()
   const [line, setLine] = useState<number | null>(() => numberParam(params, 'line'))
+  const [times, setTimes] = useState<TimesSource>('vehicleLog')
   const { period, isAll } = useReportPeriod()
-  const report = useQuery({ ...punctualityQuery(line, period), placeholderData: keepPreviousData })
+  const report = useQuery({ ...punctualityQuery(line, period, times), placeholderData: keepPreviousData })
   const mapConfig = useQuery(mapConfigQuery)
   return (
     <QueryState query={report} loading={t('punctuality.loading')} skeleton={<HealthSkeleton label={t('punctuality.loading')} />}>
@@ -61,7 +63,7 @@ export function PunctualityScreen() {
         data.total.departures === 0 && line === null && isAll ? (
           <Empty>{t('punctuality.empty')}</Empty>
         ) : (
-          <PunctualityView report={data} layers={mapConfig.data?.baseLayers} line={line} onLineChange={setLine} />
+          <PunctualityView report={data} layers={mapConfig.data?.baseLayers} line={line} onLineChange={setLine} times={times} onTimesChange={setTimes} />
         )
       }
     </QueryState>
@@ -73,11 +75,15 @@ function PunctualityView({
   layers,
   line,
   onLineChange,
+  times,
+  onTimesChange,
 }: {
   report: PunctualityReport
   layers: import('../api').BaseLayer[] | undefined
   line: number | null
   onLineChange: (line: number | null) => void
+  times: TimesSource
+  onTimesChange: (times: TimesSource) => void
 }) {
   const { t, i18n } = useTranslation()
   const format = useFormat()
@@ -92,7 +98,10 @@ function PunctualityView({
     items.filter(enough).reduce<T | null>((w, item) => (w === null || score(item) > score(w) ? item : w), null)
   const worstLine = line === null ? worst(report.byLine, (l) => lateShare(l.summary), (l) => l.summary.departures >= FINDING_MIN_DEPARTURES) : null
   const worstHour = worst(report.hours, (h) => lateShare(h.summary), (h) => h.summary.departures >= FINDING_MIN_DEPARTURES)
-  const worstStop = worst(report.stops, (s) => s.summary.passengerMinutesLate, (s) => s.summary.passengerMinutesLate > 0)
+  // With passengers, the stop where delays held up most people; without, the stop left late most often.
+  const worstStop = report.hasPassengers
+    ? worst(report.stops, (s) => s.summary.passengerMinutesLate, (s) => s.summary.passengerMinutesLate > 0)
+    : worst(report.stops, (s) => lateShare(s.summary), (s) => s.summary.departures >= FINDING_MIN_DEPARTURES)
   const findings: Finding[] = [
     ...(total.departures > 0
       ? [{
@@ -111,7 +120,14 @@ function PunctualityView({
         }]
       : []),
     ...(worstHour && lateShare(worstHour.summary) > 0 ? [{ key: 'hour', text: t('findings.punctWorstHour', { hour: worstHour.hour, late: format.percentWhole(lateShare(worstHour.summary)) }) }] : []),
-    ...(worstStop ? [{ key: 'stop', text: t('findings.punctWorstStop', { stop: stopLabel(worstStop), minutes: format.number(worstStop.summary.passengerMinutesLate) }) }] : []),
+    ...(worstStop
+      ? [{
+          key: 'stop',
+          text: report.hasPassengers
+            ? t('findings.punctWorstStop', { stop: stopLabel(worstStop), minutes: format.number(worstStop.summary.passengerMinutesLate) })
+            : t('findings.punctWorstStopLate', { stop: stopLabel(worstStop), late: format.percentWhole(lateShare(worstStop.summary)) }),
+        }]
+      : []),
   ]
   const limits = { early: format.seconds(rules.earlySeconds), late: format.seconds(rules.lateSeconds), veryLate: format.seconds(rules.veryLateSeconds) }
   const segments = (s: PunctualitySummary): Segment[] =>
@@ -158,14 +174,18 @@ function PunctualityView({
             <dt>{t('punctuality.facts.onTime')}</dt>
             <dd>{share(total.onTime, total.departures)}</dd>
           </div>
-          <div>
-            <dt>{t('punctuality.facts.passengersOnTime')}</dt>
-            <dd>{total.passengersOnTimeShare === null ? '–' : format.percentWhole(total.passengersOnTimeShare)}</dd>
-          </div>
-          <div>
-            <dt>{t('punctuality.facts.passengerMinutes')}</dt>
-            <dd>{format.number(total.passengerMinutesLate)}</dd>
-          </div>
+          {report.hasPassengers && (
+            <>
+              <div>
+                <dt>{t('punctuality.facts.passengersOnTime')}</dt>
+                <dd>{total.passengersOnTimeShare === null ? '–' : format.percentWhole(total.passengersOnTimeShare)}</dd>
+              </div>
+              <div>
+                <dt>{t('punctuality.facts.passengerMinutes')}</dt>
+                <dd>{format.number(total.passengerMinutesLate)}</dd>
+              </div>
+            </>
+          )}
         </dl>
         <Findings
           items={findings}
@@ -179,6 +199,15 @@ function PunctualityView({
       </header>
 
       <div className={FILTER_BAR} role="group" aria-label={t('dates.filters')}>
+        <Select
+          label={t('punctuality.source.label')}
+          value={times}
+          options={[
+            { value: 'vehicleLog', label: t('punctuality.source.vehicleLog') },
+            { value: 'transportella', label: t('punctuality.source.transportella') },
+          ]}
+          onChange={(v) => onTimesChange(v as TimesSource)}
+        />
         <SearchSelect
           label={t('dwell.line')}
           value={line === null ? ALL : String(line)}
@@ -258,9 +287,9 @@ function PunctualityView({
         />
       </div>
 
-      {line === null && report.byLine.length > 0 && <LineTable lines={report.byLine} rules={rules} format={format} />}
+      {line === null && report.byLine.length > 0 && <LineTable lines={report.byLine} rules={rules} passengers={report.hasPassengers} format={format} />}
 
-      <StopTable stops={report.stops} rules={rules} format={format} />
+      <StopTable stops={report.stops} rules={rules} passengers={report.hasPassengers} format={format} />
     </div>
   )
 }
@@ -282,11 +311,12 @@ function summaryColumns(
   format: Format,
   labelHeader: string,
   rules: PunctualityRules,
+  passengers: boolean,
   renderLabel?: (row: SummaryRow) => ReactNode,
 ) {
   const pct = (n: number, of: number) => (of === 0 ? 0 : n / of)
   const limits = { early: format.seconds(rules.earlySeconds), late: format.seconds(rules.lateSeconds) }
-  return [
+  const columns = [
     summaryCol.accessor((r) => r.sortLabel ?? r.label, { id: 'label', header: labelHeader, cell: (info) => (renderLabel ? renderLabel(info.row.original) : info.row.original.label) }),
     summaryCol.accessor((r) => r.summary.departures, { id: 'departures', header: t('punctuality.columns.departures'), cell: (info) => format.number(info.getValue()) }),
     summaryCol.accessor((r) => pct(r.summary.onTime, r.summary.departures), { id: 'onTime', header: t('punctuality.columns.onTimeRange', limits), cell: (info) => format.percentWhole(info.getValue()) }),
@@ -309,26 +339,30 @@ function summaryColumns(
       cell: (info) => (info.row.original.summary.passengersOnTimeShare === null ? '–' : format.percentWhole(info.row.original.summary.passengersOnTimeShare)),
     }),
   ]
+  return passengers ? columns : columns.filter((c) => c.id !== 'passengerMinutes' && c.id !== 'passengersOnTime')
 }
 
-function SummarySortable({ rows, labelHeader, rules, format }: { rows: SummaryRow[]; labelHeader: string; rules: PunctualityRules; format: Format }) {
+/** Tables start with the most passenger-minutes late, or without passengers, the largest share late. */
+const summarySorting = (passengers: boolean) => [{ id: passengers ? 'passengerMinutes' : 'late', desc: true }]
+
+function SummarySortable({ rows, labelHeader, rules, passengers, format }: { rows: SummaryRow[]; labelHeader: string; rules: PunctualityRules; passengers: boolean; format: Format }) {
   const { t, i18n } = useTranslation()
   // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
   // Each line links to its occupancy.
   const columns = useMemo(
     () =>
-      summaryColumns(t, format, labelHeader, rules, (r) => (
+      summaryColumns(t, format, labelHeader, rules, passengers, (r) => (
         <>
           {r.label}
           <ScreenLink screen="obsazenost" params={{ line: r.key }} label={t('links.load')} title={t('links.loadTitle', { name: r.label })} />
         </>
       )),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-    [i18n.resolvedLanguage, format, labelHeader, rules],
+    [i18n.resolvedLanguage, format, labelHeader, rules, passengers],
   )
   return (
     <>
-      <SortableTable columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} flag={(r) => lateFlag(r.summary, t, format)} />
+      <SortableTable key={String(passengers)} columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={summarySorting(passengers)} flag={(r) => lateFlag(r.summary, t, format)} />
       <LateLegend format={format} />
     </>
   )
@@ -378,7 +412,7 @@ function SummaryTable({ rows, labelHeader, format }: { rows: SummaryRow[]; label
   )
 }
 
-function LineTable({ lines, rules, format }: { lines: PunctualityReport['byLine']; rules: PunctualityRules; format: Format }) {
+function LineTable({ lines, rules, passengers, format }: { lines: PunctualityReport['byLine']; rules: PunctualityRules; passengers: boolean; format: Format }) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const rows = useMemo(
@@ -399,12 +433,12 @@ function LineTable({ lines, rules, format }: { lines: PunctualityReport['byLine'
           <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(lines.length) })}</span>
         </div>
       </div>
-      <SummarySortable rows={rows} labelHeader={t('punctuality.lines.line')} rules={rules} format={format} />
+      <SummarySortable rows={rows} labelHeader={t('punctuality.lines.line')} rules={rules} passengers={passengers} format={format} />
     </section>
   )
 }
 
-function StopTable({ stops, rules, format }: { stops: PunctualityStop[]; rules: PunctualityRules; format: Format }) {
+function StopTable({ stops, rules, passengers, format }: { stops: PunctualityStop[]; rules: PunctualityRules; passengers: boolean; format: Format }) {
   const minDepartures = rules.minDeparturesPerStop
   const { t, i18n } = useTranslation()
   const [search, setSearch] = useState('')
@@ -418,14 +452,14 @@ function StopTable({ stops, rules, format }: { stops: PunctualityStop[]; rules: 
   // Each stop links to its dwell.
   const columns = useMemo(
     () =>
-      summaryColumns(t, format, t('punctuality.stops.stop'), rules, (r) => (
+      summaryColumns(t, format, t('punctuality.stops.stop'), rules, passengers, (r) => (
         <>
           {r.label} <span className="text-xs text-ink-2 tabular-nums">{r.key}</span>
           <ScreenLink screen="provoz" params={{ stop: r.key }} label={t('links.dwell')} title={t('links.dwellTitle', { name: r.label })} />
         </>
       )),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-    [i18n.resolvedLanguage, format, rules],
+    [i18n.resolvedLanguage, format, rules, passengers],
   )
 
   return (
@@ -442,7 +476,16 @@ function StopTable({ stops, rules, format }: { stops: PunctualityStop[]; rules: 
           <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(stops.length) })}</span>
         </div>
       </div>
-      <SortableTable flag={(r) => lateFlag(r.summary, t, format)} columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} empty={t('dwell.noMatch')} />
+      <SortableTable
+        key={String(passengers)}
+        flag={(r) => lateFlag(r.summary, t, format)}
+        columns={columns}
+        numeric={SUMMARY_NUMERIC}
+        data={rows}
+        rowId={(r) => String(r.key)}
+        sorting={summarySorting(passengers)}
+        empty={t('dwell.noMatch')}
+      />
       <LateLegend format={format} />
     </section>
   )

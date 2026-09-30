@@ -270,6 +270,11 @@ export const en = {
     total: 'Total',
   },
   punctuality: {
+    source: {
+      label: 'Times from',
+      vehicleLog: 'Vehicle logs',
+      transportella: 'Transportella',
+    },
     loading: 'Loading punctuality…',
     empty: 'No departures yet. Import the vehicles’ logs (import-ucp).',
     title: 'Punctuality',
@@ -431,6 +436,7 @@ export const en = {
     punctOverallPassengers: '{{onTime}} of departures left on time, carrying {{passengers}} of passengers.',
     punctWorstLine: 'Line {{line}} is late most often: {{late}} of departures.',
     punctWorstHour: 'Worst around {{hour}}:00: {{late}} of departures late.',
+    punctWorstStopLate: 'Departures leave {{stop}} late most often: {{late}} of them.',
     punctWorstStop: 'Delays held up most passengers at {{stop}} ({{minutes}} passenger-minutes).',
     loadBusiestHour: 'Most people board around {{hour}}:00 ({{boardings}} over the period).',
     loadRoutePeak: 'On {{route}} vehicles are fullest after {{stop}}: typically {{median}} passengers.',

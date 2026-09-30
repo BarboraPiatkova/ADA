@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using System.Globalization;
+using AdaPlatform.Infrastructure.Import.Epcomp;
 using AdaPlatform.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Hybrid;
@@ -39,62 +41,23 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
     [ImmutableObject(true)]
     private sealed record Cached(PunctualityReportDto Report);
 
-    public async Task<PunctualityReportDto> GetAsync(int? line, ReportPeriod period = default, CancellationToken ct = default)
+    public async Task<PunctualityReportDto> GetAsync(int? line, ReportPeriod period = default, TimesSource times = TimesSource.VehicleLog, CancellationToken ct = default)
     {
-        var version = $"{await db.SourceFiles.MaxAsync(f => (long?)f.Id, ct) ?? 0}.{await db.Trips.MaxAsync(t => (long?)t.Id, ct) ?? 0}";
-        var key = $"operations/punctuality/{version}/{line?.ToString() ?? "all"}/{period.Key}";
-        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, period, token)), cancellationToken: ct)).Report;
+        var version = $"{await db.SourceFiles.MaxAsync(f => (long?)f.Id, ct) ?? 0}.{await db.Trips.MaxAsync(t => (long?)t.Id, ct) ?? 0}.{await db.RecordedCalls.MaxAsync(c => (long?)c.Id, ct) ?? 0}";
+        var key = $"operations/punctuality/{version}/{times}/{line?.ToString() ?? "all"}/{period.Key}";
+        return (await cache.GetOrCreateAsync(key, async token => new Cached(await BuildAsync(line, period, times, token)), cancellationToken: ct)).Report;
     }
 
-    public async Task<PunctualityReportDto> BuildAsync(int? line, ReportPeriod period = default, CancellationToken ct = default)
+    public async Task<PunctualityReportDto> BuildAsync(int? line, ReportPeriod period = default, TimesSource times = TimesSource.VehicleLog, CancellationToken ct = default)
     {
         var rules = options.Value;
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
-        var query = db.StopVisits.AsNoTracking().Where(v => v.Trip.SourceFileId != null && !v.Trip.IsDepotRun);
-        if (line is { } l)
-        {
-            query = query.Where(v => v.Trip.Pattern != null && v.Trip.Pattern.LineId == l);
-        }
-        if (period.Start is { } start)
-        {
-            query = query.Where(v => v.Trip.StartTime >= start);
-        }
-        if (period.End is { } end)
-        {
-            query = query.Where(v => v.Trip.StartTime < end);
-        }
-        var rows = await query
-            .Select(v => new
-            {
-                v.TripId, v.Sequence, v.StopCode, v.DepartureTime, v.DelaySeconds, v.Boardings, v.Alightings, v.IsPassThrough,
-                v.Trip.IsValid, v.Trip.StartTime,
-                Line = v.Trip.Pattern != null ? (int?)v.Trip.Pattern.LineId : null,
-            })
-            .ToListAsync(ct);
-        rows = rows.Where(r => calendar.Keeps(period.Days, r.StartTime)).ToList();
-
-        // Load on board after each stop: running sum over the trip, never below zero (drift).
-        var departures = new List<Departure>();
-        foreach (var trip in rows.GroupBy(r => r.TripId))
-        {
-            var load = 0;
-            foreach (var r in trip.OrderBy(r => r.Sequence))
-            {
-                load = Math.Max(0, load + r.Boardings - r.Alightings);
-                if (r.DepartureTime is { } at && !r.IsPassThrough)
-                {
-                    departures.Add(new Departure(r.StopCode, r.Line, at, r.DelaySeconds, r.IsValid ? load : null, Judge(r.DelaySeconds, rules)));
-                }
-            }
-        }
-
-        var lines = await db.Trips.AsNoTracking()
-            .Where(t => t.SourceFileId != null && t.Pattern != null)
-            .Select(t => t.Pattern!.LineId).Distinct().OrderBy(x => x).ToListAsync(ct);
-        var stops = await db.Stops.AsNoTracking()
-            .Select(s => new { s.Code, s.Name, s.Latitude, s.Longitude })
-            .ToDictionaryAsync(s => s.Code, ct);
+        var stops = (await db.Stops.AsNoTracking().Select(s => new { s.Code, s.Name, s.Latitude, s.Longitude }).ToListAsync(ct))
+            .ToDictionary(s => s.Code, s => new StopInfo(s.Name, s.Latitude, s.Longitude));
+        var (departures, lines, days) = times == TimesSource.Transportella
+            ? await TransportellaDeparturesAsync(line, period, rules, stops, ct)
+            : await VehicleLogDeparturesAsync(line, period, rules, ct);
         var directions = await stopDirections.GetAsync(ct);
 
         PunctualitySummaryDto Summarize(IEnumerable<Departure> group)
@@ -136,7 +99,131 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
         return new PunctualityReportDto(
             departures.Count == 0 ? null : DateOnly.FromDateTime(departures.Min(d => d.At)),
             departures.Count == 0 ? null : DateOnly.FromDateTime(departures.Max(d => d.At)),
-            line, lines, rules, Summarize(departures), byHour, byWeekday, byWeekHour, byLine, byStop, await ReportPeriod.DaysWithDataAsync(db, ct));
+            line, lines, rules, Summarize(departures), byHour, byWeekday, byWeekHour, byLine, byStop, days,
+            times, HasPassengers: times == TimesSource.VehicleLog);
+    }
+
+    /// <summary>
+    /// Departures as Transportella recorded them: planned and actual times, no passengers. Its stops are
+    /// stations (the post isn't recorded), keyed station × 100. A call counts only where its stop name
+    /// matches the operator's stop list for that station, so another network's calls stay out.
+    /// </summary>
+    private async Task<(List<Departure> Departures, List<int> Lines, IReadOnlyList<DateOnly> Days)> TransportellaDeparturesAsync(
+        int? line, ReportPeriod period, PunctualityRules rules, Dictionary<int, StopInfo> stops, CancellationToken ct)
+    {
+        // Each station's post names (folded), and a station-level stop: the posts' name, their average position.
+        var stations = stops.GroupBy(s => s.Key / 100).ToList();
+        var stationNames = stations.ToDictionary(g => g.Key, g => g.Select(s => EpcompStationsImporter.Fold(s.Value.Name)).Where(n => n.Length > 0).ToHashSet());
+        foreach (var station in stations)
+        {
+            var placed = station.Where(s => s.Value.Latitude is not null && s.Value.Longitude is not null).ToList();
+            stops.TryAdd(station.Key * 100, new StopInfo(
+                station.First().Value.Name,
+                placed.Count == 0 ? null : placed.Average(s => s.Value.Latitude!.Value),
+                placed.Count == 0 ? null : placed.Average(s => s.Value.Longitude!.Value)));
+        }
+
+        var calls = db.RecordedCalls.AsNoTracking().Where(c => c.StationId > 0 && c.StopName != null);
+        if (line is { } l)
+        {
+            var lineText = l.ToString(CultureInfo.InvariantCulture);
+            calls = calls.Where(c => c.Line == lineText);
+        }
+        if (period.Start is { } start)
+        {
+            calls = calls.Where(c => c.TripStart >= start);
+        }
+        if (period.End is { } end)
+        {
+            calls = calls.Where(c => c.TripStart < end);
+        }
+
+        var folded = new Dictionary<string, string>();
+        var departures = new List<Departure>();
+        var lines = new HashSet<int>();
+        var days = new HashSet<DateOnly>();
+        await foreach (var c in calls
+                           .Select(c => new { c.StationId, c.StopName, c.Line, c.TripStart, c.PlannedArrival, c.PlannedDeparture, c.ActualArrival, c.ActualDeparture })
+                           .AsAsyncEnumerable().WithCancellation(ct))
+        {
+            if (!folded.TryGetValue(c.StopName!, out var name))
+            {
+                folded[c.StopName!] = name = EpcompStationsImporter.Fold(c.StopName!);
+            }
+            if (!stationNames.TryGetValue(c.StationId, out var names) || !names.Contains(name))
+            {
+                continue;
+            }
+            days.Add(DateOnly.FromDateTime(c.TripStart));
+            var lineNumber = int.TryParse(c.Line, CultureInfo.InvariantCulture, out var number) ? number : (int?)null;
+            if (lineNumber is { } n)
+            {
+                lines.Add(n);
+            }
+            if (!calendar.Keeps(period.Days, c.TripStart))
+            {
+                continue;
+            }
+            // The departure where there is one; at a trip's last stop, the arrival.
+            var (planned, actual) = c.PlannedDeparture is not null && c.ActualDeparture is not null
+                ? (c.PlannedDeparture, c.ActualDeparture)
+                : (c.PlannedArrival, c.ActualArrival);
+            if (planned is not { } p || actual is not { } a)
+            {
+                continue;
+            }
+            var delay = (int)Math.Round((a - p).TotalSeconds);
+            departures.Add(new Departure(c.StationId * 100, lineNumber, a, delay, null, Judge(delay, rules)));
+        }
+        return (departures, lines.Order().ToList(), days.Order().ToList());
+    }
+
+    /// <summary>Departures as the vehicles logged them, with the load on board from their counting units.</summary>
+    private async Task<(List<Departure> Departures, List<int> Lines, IReadOnlyList<DateOnly> Days)> VehicleLogDeparturesAsync(
+        int? line, ReportPeriod period, PunctualityRules rules, CancellationToken ct)
+    {
+        var query = db.StopVisits.AsNoTracking().Where(v => v.Trip.SourceFileId != null && !v.Trip.IsDepotRun);
+        if (line is { } l)
+        {
+            query = query.Where(v => v.Trip.Pattern != null && v.Trip.Pattern.LineId == l);
+        }
+        if (period.Start is { } start)
+        {
+            query = query.Where(v => v.Trip.StartTime >= start);
+        }
+        if (period.End is { } end)
+        {
+            query = query.Where(v => v.Trip.StartTime < end);
+        }
+        var rows = await query
+            .Select(v => new
+            {
+                v.TripId, v.Sequence, v.StopCode, v.DepartureTime, v.DelaySeconds, v.Boardings, v.Alightings, v.IsPassThrough,
+                v.Trip.IsValid, v.Trip.StartTime,
+                Line = v.Trip.Pattern != null ? (int?)v.Trip.Pattern.LineId : null,
+            })
+            .ToListAsync(ct);
+        rows = rows.Where(r => calendar.Keeps(period.Days, r.StartTime)).ToList();
+
+        // Load on board after each stop: running sum over the trip, never below zero (drift).
+        var departures = new List<Departure>();
+        foreach (var trip in rows.GroupBy(r => r.TripId))
+        {
+            var load = 0;
+            foreach (var r in trip.OrderBy(r => r.Sequence))
+            {
+                load = Math.Max(0, load + r.Boardings - r.Alightings);
+                if (r.DepartureTime is { } at && !r.IsPassThrough)
+                {
+                    departures.Add(new Departure(r.StopCode, r.Line, at, r.DelaySeconds, r.IsValid ? load : null, Judge(r.DelaySeconds, rules)));
+                }
+            }
+        }
+
+        var lines = await db.Trips.AsNoTracking()
+            .Where(t => t.SourceFileId != null && t.Pattern != null)
+            .Select(t => t.Pattern!.LineId).Distinct().OrderBy(x => x).ToListAsync(ct);
+        return (departures, lines, await ReportPeriod.DaysWithDataAsync(db, ct));
     }
 
     private static Punctuality Judge(int delay, PunctualityRules rules) =>
@@ -153,6 +240,8 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
     }
 
     /// <param name="Load">Passengers on board when leaving; null on invalid trips (counts not trusted).</param>
+    private sealed record StopInfo(string Name, double? Latitude, double? Longitude);
+
     private sealed record Departure(int StopCode, int? Line, DateTime At, int Delay, int? Load, Punctuality Judgement);
 }
 
@@ -180,4 +269,4 @@ public sealed record PunctualityReportDto(
     DateOnly? From, DateOnly? To, int? Line, IReadOnlyList<int> Lines, PunctualityRules Rules,
     PunctualitySummaryDto Total, IReadOnlyList<PunctualityHourDto> Hours, IReadOnlyList<PunctualityWeekdayDto> Weekdays,
     IReadOnlyList<PunctualityWeekHourDto> WeekHours, IReadOnlyList<PunctualityLineDto> ByLine,
-    IReadOnlyList<PunctualityStopDto> Stops, IReadOnlyList<DateOnly> Days);
+    IReadOnlyList<PunctualityStopDto> Stops, IReadOnlyList<DateOnly> Days, TimesSource Times, bool HasPassengers);

@@ -282,6 +282,11 @@ export const cs = {
     total: 'Celkem',
   },
   punctuality: {
+    source: {
+      label: 'Zdroj časů',
+      vehicleLog: 'Logy vozidel',
+      transportella: 'Transportella',
+    },
     loading: 'Načítám dochvilnost…',
     empty: 'Zatím nejsou data o odjezdech. Naimportujte logy vozidel (import-ucp).',
     title: 'Dochvilnost',
@@ -444,6 +449,7 @@ export const cs = {
     punctOverallPassengers: 'Včas odjelo {{onTime}} odjezdů a s nimi {{passengers}} cestujících.',
     punctWorstLine: 'Nejčastěji pozdě jezdí linka {{line}}: {{late}} odjezdů.',
     punctWorstHour: 'Nejhůř je kolem {{hour}}:00: pozdě {{late}} odjezdů.',
+    punctWorstStopLate: 'Nejčastěji pozdě se odjíždí ze zastávky {{stop}}: {{late}} odjezdů.',
     punctWorstStop: 'Nejvíc cestujících zdrželo zpoždění na zastávce {{stop}} ({{minutes}} cestujících × minut).',
     loadBusiestHour: 'Nejvíc lidí nastupuje kolem {{hour}}:00 ({{boardings}} za celé období).',
     loadRoutePeak: 'Na trase {{route}} je nejplněji po zastávce {{stop}}: typicky {{median}} cestujících.',

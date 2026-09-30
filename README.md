@@ -131,10 +131,14 @@ Transportella supplies the operations: planned and actual arrival and departure 
 | `Database` | Transportella's `Stat.Statistics` table directly (connection string `TransportellaStatistics`, read-only account) |
 | `Dump` | a tab-separated dump of that table (code page 852; `DumpCodePage`) |
 | `Report` | the per-trip statistics report exported as XLSX (`StaLineCourse_*.xlsx`) |
+| `DailyService` | the daily service reports ("Vypravenost – detail", `OneDayTraffic_*`): a zip or folder of per-duty workbooks; `Carrier` (or `--carrier`) keeps one carrier of a regional system. Stops are named, and matched to the stop list by name |
 
 ```bash
 dotnet run -c Release --project tools/AdaPlatform.Cli -- import-transportella --source <dump or .xlsx> [--from 2026-09-01] [--to 2026-09-30]
 ```
+
+Dochvilnost can take its times from these calls ("Zdroj časů: Transportella"): no passengers then, so the
+passenger columns are left out; stops are stations, and only calls whose stop name matches the stop list count.
 
 Without `--source` it uses the configured source. Re-runs only add new rows. Driver columns are never
 read. Stops join on the operator's EPComp numbering: post code = station × 100 + post.

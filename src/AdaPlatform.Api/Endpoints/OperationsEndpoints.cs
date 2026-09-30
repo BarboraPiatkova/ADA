@@ -23,8 +23,9 @@ public static class OperationsEndpoints
             report.GetVehicleDayAsync(vehicle, day, ct));
 
         // Punctuality (with passenger-weighted delay) and occupancy.
-        operations.MapGet("/punctuality", (PunctualityReport report, int? line, DateOnly? from, DateOnly? to, string? days, CancellationToken ct) =>
-            report.GetAsync(line, Period(from, to, days), ct));
+        // ?times=transportella takes the times from Transportella's recorded calls instead of the vehicles' logs.
+        operations.MapGet("/punctuality", (PunctualityReport report, int? line, DateOnly? from, DateOnly? to, string? days, string? times, CancellationToken ct) =>
+            report.GetAsync(line, Period(from, to, days), Times(times), ct));
         operations.MapGet("/load", (LoadReport report, int? line, int? pattern, DateOnly? from, DateOnly? to, string? days, CancellationToken ct) =>
             report.GetAsync(line, pattern, Period(from, to, days), ct));
 
@@ -32,4 +33,7 @@ public static class OperationsEndpoints
     }
 
     private static ReportPeriod Period(DateOnly? from, DateOnly? to, string? days) => new(from, to, ReportPeriod.ParseDays(days));
+
+    private static TimesSource Times(string? times) =>
+        Enum.TryParse<TimesSource>(times, ignoreCase: true, out var source) ? source : TimesSource.VehicleLog;
 }
