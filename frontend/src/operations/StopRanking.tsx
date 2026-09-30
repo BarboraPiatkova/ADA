@@ -5,11 +5,15 @@ import type { StopDwell } from '../api'
 import type { Format } from '../i18n/format'
 import { LinkButton } from '../ui/LinkButton'
 import { SearchInput } from '../ui/SearchInput'
-import { matches, stopLabel } from './shared'
+import { excessStep, matches, stopLabel } from './shared'
 import { SortableTable } from './SortableTable'
 import { sortableFeatures } from './tableFeatures'
+import { FlagLegend, StepSwatch } from './RowFlag'
 
 const col = createColumnHelper<typeof sortableFeatures, StopDwell>()
+/** Extra dwell (s) from which a stop is flagged: past the map's darkest step, and past two minutes. */
+const EXCESS_WARNING = 40
+const EXCESS_FAULT = 120
 const NUMERIC = ['visits', 'median', 'p90', 'passengers', 'excess', 'unexplained']
 
 /** Every stop with enough visits: how long vehicles stand there and how much of it passengers don't explain. */
@@ -48,7 +52,8 @@ export function StopRanking({
         id: 'excess',
         header: t('dwell.stops.excess'),
         cell: (info) => (
-          <span className="font-semibold">
+          <span className="font-semibold whitespace-nowrap">
+            <StepSwatch step={excessStep(info.getValue())} />
             {info.getValue() > 0 ? '+' : ''}
             {format.seconds(info.getValue())}
           </span>
@@ -82,8 +87,16 @@ export function StopRanking({
         sorting={[{ id: 'excess', desc: true }]}
         pageSize={25}
         highlight={(s) => s.code === selected}
+        flag={(s) =>
+          s.medianExcessSeconds > EXCESS_FAULT
+            ? { status: 'Fault', reason: t('flags.dwellFault', { excess: format.seconds(s.medianExcessSeconds) }) }
+            : s.medianExcessSeconds > EXCESS_WARNING
+              ? { status: 'Warning', reason: t('flags.dwellWarning', { excess: format.seconds(s.medianExcessSeconds) }) }
+              : null
+        }
         empty={t('dwell.noMatch')}
       />
+      <FlagLegend warning={t('flags.dwellLegendWarning', { from: format.seconds(EXCESS_WARNING) })} fault={t('flags.dwellLegendFault', { from: format.seconds(EXCESS_FAULT) })} />
     </section>
   )
 }

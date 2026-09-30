@@ -23,6 +23,7 @@ import { lineOptionMatch, matches, matchesRow, weekdayNames } from './shared'
 import { SortableTable } from './SortableTable'
 import { StopValueMap } from './StopValueMap'
 import { sortableFeatures } from './tableFeatures'
+import { FlagLegend, StepSwatch, type RowFlag } from './RowFlag'
 
 const ALL = 'all'
 /** Plot height of a chart beside a stop map, so the two cards line up. */
@@ -32,6 +33,9 @@ const FILL = { Early: 'fill-seq-1', OnTime: 'fill-seq-2', Late: 'fill-seq-4', Ve
 const SWATCH = { Early: 'bg-seq-1', OnTime: 'bg-seq-2', Late: 'bg-seq-4', VeryLate: 'bg-seq-6' } as const
 // Share of departures late → one of five map steps.
 const LATE_BINS = [0.05, 0.1, 0.2, 0.35]
+/** Late shares from which a line or stop is flagged: the map's two darkest steps. */
+const LATE_WARNING = LATE_BINS[2]
+const LATE_FAULT = LATE_BINS[3]
 const lateShare = (s: PunctualitySummary) => (s.departures === 0 ? 0 : (s.late + s.veryLate) / s.departures)
 const lateStep = (share: number) => {
   const i = LATE_BINS.findIndex((upper) => share <= upper)
@@ -244,7 +248,12 @@ function summaryColumns(t: ReturnType<typeof useTranslation>['t'], format: Forma
     summaryCol.accessor((r) => pct(r.summary.late + r.summary.veryLate, r.summary.departures), {
       id: 'late',
       header: t('punctuality.columns.late'),
-      cell: (info) => <span className="font-semibold">{format.percentWhole(info.getValue())}</span>,
+      cell: (info) => (
+        <span className="font-semibold whitespace-nowrap">
+          <StepSwatch step={lateStep(info.getValue())} />
+          {format.percentWhole(info.getValue())}
+        </span>
+      ),
     }),
     summaryCol.accessor((r) => pct(r.summary.early, r.summary.departures), { id: 'early', header: t('punctuality.columns.early'), cell: (info) => format.percentWhole(info.getValue()) }),
     summaryCol.accessor((r) => r.summary.medianDelaySeconds, { id: 'median', header: t('punctuality.columns.median'), cell: (info) => signed(info.getValue(), format) }),
@@ -261,7 +270,24 @@ function SummarySortable({ rows, labelHeader, format }: { rows: SummaryRow[]; la
   const { t, i18n } = useTranslation()
   // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
   const columns = useMemo(() => summaryColumns(t, format, labelHeader), [i18n.resolvedLanguage, format, labelHeader])
-  return <SortableTable columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} />
+  return (
+    <>
+      <SortableTable columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} flag={(r) => lateFlag(r.summary, t, format)} />
+      <LateLegend format={format} />
+    </>
+  )
+}
+
+/** Flag a line or stop by its share of late departures: the map's two darkest steps. */
+function lateFlag(s: PunctualitySummary, t: ReturnType<typeof useTranslation>['t'], format: Format): RowFlag | null {
+  const share = lateShare(s)
+  const late = format.percentWhole(share)
+  return share > LATE_FAULT ? { status: 'Fault', reason: t('flags.lateFault', { late }) } : share > LATE_WARNING ? { status: 'Warning', reason: t('flags.lateWarning', { late }) } : null
+}
+
+function LateLegend({ format }: { format: Format }) {
+  const { t } = useTranslation()
+  return <FlagLegend warning={t('flags.lateLegendWarning', { from: format.percentWhole(LATE_WARNING) })} fault={t('flags.lateLegendFault', { from: format.percentWhole(LATE_FAULT) })} />
 }
 
 /** The table view behind the hour chart: plain rows in hour order. */
@@ -349,7 +375,8 @@ function StopTable({ stops, minDepartures, format }: { stops: PunctualityStop[];
           <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(stops.length) })}</span>
         </div>
       </div>
-      <SortableTable columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} empty={t('dwell.noMatch')} />
+      <SortableTable flag={(r) => lateFlag(r.summary, t, format)} columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} empty={t('dwell.noMatch')} />
+      <LateLegend format={format} />
     </section>
   )
 }

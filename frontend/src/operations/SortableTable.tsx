@@ -4,8 +4,14 @@ import { SortableHeader } from '../quality/SortableHeader'
 import { cn } from '../ui/cn'
 import { Pagination } from '../ui/Pagination'
 import { NUM, TABLE, TD } from '../ui/table'
+import { FlagMark, type RowFlag } from './RowFlag'
 import { sortableFeatures, type SortableColumn } from './tableFeatures'
 
+/** The left edge of a flagged row, in its status colour. */
+const FLAG_EDGE: Record<RowFlag['status'], string> = {
+  Warning: 'shadow-[inset_4px_0_0_var(--warning)]',
+  Fault: 'shadow-[inset_4px_0_0_var(--fault)]',
+}
 
 /**
  * A table every dwell view uses: click a header to sort (the direction is shown and announced),
@@ -19,6 +25,7 @@ export function SortableTable<T extends RowData>({
   sorting,
   pageSize = 25,
   highlight,
+  flag,
   empty,
 }: {
   columns: SortableColumn<T>[]
@@ -30,6 +37,8 @@ export function SortableTable<T extends RowData>({
   pageSize?: number
   /** Rows to mark (e.g. the selected stop). */
   highlight?: (row: T) => boolean
+  /** Rows over a limit: a coloured left edge, and an icon with the reason at the start of the row. */
+  flag?: (row: T) => RowFlag | null
   empty?: string
 }) {
   const top = useRef<HTMLDivElement>(null)
@@ -66,15 +75,19 @@ export function SortableTable<T extends RowData>({
             ))}
           </thead>
           <tbody>
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className={cn('hover:[&>td]:bg-surface', highlight?.(row.original) && '[&>td]:bg-route-soft')}>
-                {row.getAllCells().map((cell) => (
-                  <td key={cell.id} className={cn(TD, numeric.has(cell.column.id) && NUM)}>
-                    <table.FlexRender cell={cell} />
-                  </td>
-                ))}
-              </tr>
-            ))}
+            {table.getRowModel().rows.map((row) => {
+              const rowFlag = flag?.(row.original) ?? null
+              return (
+                <tr key={row.id} className={cn('hover:[&>td]:bg-surface', highlight?.(row.original) && '[&>td]:bg-route-soft')}>
+                  {row.getAllCells().map((cell, i) => (
+                    <td key={cell.id} className={cn(TD, numeric.has(cell.column.id) && NUM, i === 0 && rowFlag && FLAG_EDGE[rowFlag.status])}>
+                      {i === 0 && rowFlag && <FlagMark flag={rowFlag} />}
+                      <table.FlexRender cell={cell} />
+                    </td>
+                  ))}
+                </tr>
+              )
+            })}
             {rows.length === 0 && empty && (
               <tr>
                 <td colSpan={columns.length} className={cn(TD, 'text-ink-2')}>

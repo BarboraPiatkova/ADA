@@ -407,6 +407,17 @@ export const en = {
       search: 'Line, vehicle or stop',
     },
   },
+  flags: {
+    legend: 'Row marks:',
+    dwellWarning: 'Vehicles typically stand {{excess}} longer here than their passengers need',
+    dwellFault: 'Vehicles typically stand {{excess}} longer here than their passengers need – over two minutes',
+    dwellLegendWarning: 'extra dwell over {{from}}',
+    dwellLegendFault: 'over {{from}}',
+    lateWarning: '{{late}} of departures leave late',
+    lateFault: '{{late}} of departures leave late – over a third',
+    lateLegendWarning: 'more than {{from}} of departures late',
+    lateLegendFault: 'more than {{from}}',
+  },
   dates: {
     period: 'Period',
     filters: 'What the page shows',

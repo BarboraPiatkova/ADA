@@ -419,6 +419,17 @@ export const cs = {
       search: 'Linka, vůz nebo zastávka',
     },
   },
+  flags: {
+    legend: 'Značky u řádků:',
+    dwellWarning: 'Vozy tu stojí typicky o {{excess}} déle, než potřebují cestující',
+    dwellFault: 'Vozy tu stojí typicky o {{excess}} déle, než potřebují cestující – přes dvě minuty',
+    dwellLegendWarning: 'stání navíc přes {{from}}',
+    dwellLegendFault: 'přes {{from}}',
+    lateWarning: 'Pozdě odjíždí {{late}} odjezdů',
+    lateFault: 'Pozdě odjíždí {{late}} odjezdů – víc než třetina',
+    lateLegendWarning: 'pozdě víc než {{from}} odjezdů',
+    lateLegendFault: 'víc než {{from}}',
+  },
   dates: {
     period: 'Období',
     filters: 'Co stránka ukazuje',
