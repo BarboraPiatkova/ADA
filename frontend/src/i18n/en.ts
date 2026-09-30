@@ -288,6 +288,12 @@ export const en = {
       Late: 'late',
       VeryLate: 'very late',
     },
+    categoryRanges: {
+      Early: 'early (more than {{early}} ahead)',
+      OnTime: 'on time (at most {{early}} ahead, {{late}} behind)',
+      Late: 'late ({{late}} to {{veryLate}})',
+      VeryLate: 'very late (over {{veryLate}})',
+    },
     hours: {
       hour: 'Hour',
     },
@@ -329,6 +335,9 @@ export const en = {
       onTime: 'On time',
       late: 'Late',
       early: 'Early',
+      onTimeRange: 'On time (up to {{late}})',
+      lateRange: 'Late (over {{late}})',
+      earlyRange: 'Early (by more than {{early}})',
       median: 'Typical delay',
       passengerMinutes: 'Passengers × min',
       passengersOnTime: 'Passengers on time',

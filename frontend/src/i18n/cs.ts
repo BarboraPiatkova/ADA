@@ -300,6 +300,12 @@ export const cs = {
       Late: 'pozdě',
       VeryLate: 'velmi pozdě',
     },
+    categoryRanges: {
+      Early: 'předčasně (víc než {{early}} dřív)',
+      OnTime: 'včas (nejvýš {{early}} dřív, {{late}} později)',
+      Late: 'pozdě ({{late}} až {{veryLate}})',
+      VeryLate: 'velmi pozdě (přes {{veryLate}})',
+    },
     hours: {
       hour: 'Hodina',
     },
@@ -341,6 +347,9 @@ export const cs = {
       onTime: 'Včas',
       late: 'Pozdě',
       early: 'Předčasně',
+      onTimeRange: 'Včas (do {{late}})',
+      lateRange: 'Pozdě (přes {{late}})',
+      earlyRange: 'Předčasně (o víc než {{early}})',
       median: 'Typické zpoždění',
       passengerMinutes: 'Cestujících × min',
       passengersOnTime: 'Cestujících včas',

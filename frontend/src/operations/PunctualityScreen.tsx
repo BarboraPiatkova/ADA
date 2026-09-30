@@ -2,7 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useMemo, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { PunctualityReport, PunctualityStop, PunctualitySummary } from '../api'
+import type { PunctualityReport, PunctualityRules, PunctualityStop, PunctualitySummary } from '../api'
 import { ChartFigure } from '../charts/ChartFigure'
 import { useFormat, type Format } from '../i18n/format'
 import { stopLabel } from '../map/directions'
@@ -81,9 +81,10 @@ function PunctualityView({
   const longDay = weekdayNames(i18n.resolvedLanguage, 'long')
   const { total, rules } = report
   const share = (n: number, of: number) => (of === 0 ? '–' : format.percentWhole(n / of))
+  const limits = { early: format.seconds(rules.earlySeconds), late: format.seconds(rules.lateSeconds), veryLate: format.seconds(rules.veryLateSeconds) }
   const segments = (s: PunctualitySummary): Segment[] =>
     (['Early', 'OnTime', 'Late', 'VeryLate'] as const).map((k) => ({
-      label: t(`punctuality.categories.${k}`),
+      label: t(`punctuality.categoryRanges.${k}`, limits),
       value: k === 'Early' ? s.early : k === 'OnTime' ? s.onTime : k === 'Late' ? s.late : s.veryLate,
       fill: FILL[k],
       swatch: SWATCH[k],
@@ -220,9 +221,9 @@ function PunctualityView({
         />
       </div>
 
-      {line === null && report.byLine.length > 0 && <LineTable lines={report.byLine} format={format} />}
+      {line === null && report.byLine.length > 0 && <LineTable lines={report.byLine} rules={rules} format={format} />}
 
-      <StopTable stops={report.stops} minDepartures={rules.minDeparturesPerStop} format={format} />
+      <StopTable stops={report.stops} rules={rules} format={format} />
     </div>
   )
 }
@@ -239,15 +240,22 @@ interface SummaryRow {
 const summaryCol = createColumnHelper<typeof sortableFeatures, SummaryRow>()
 const SUMMARY_NUMERIC = ['departures', 'onTime', 'late', 'early', 'median', 'passengerMinutes', 'passengersOnTime']
 
-function summaryColumns(t: ReturnType<typeof useTranslation>['t'], format: Format, labelHeader: string, renderLabel?: (row: SummaryRow) => ReactNode) {
+function summaryColumns(
+  t: ReturnType<typeof useTranslation>['t'],
+  format: Format,
+  labelHeader: string,
+  rules: PunctualityRules,
+  renderLabel?: (row: SummaryRow) => ReactNode,
+) {
   const pct = (n: number, of: number) => (of === 0 ? 0 : n / of)
+  const limits = { early: format.seconds(rules.earlySeconds), late: format.seconds(rules.lateSeconds) }
   return [
     summaryCol.accessor((r) => r.sortLabel ?? r.label, { id: 'label', header: labelHeader, cell: (info) => (renderLabel ? renderLabel(info.row.original) : info.row.original.label) }),
     summaryCol.accessor((r) => r.summary.departures, { id: 'departures', header: t('punctuality.columns.departures'), cell: (info) => format.number(info.getValue()) }),
-    summaryCol.accessor((r) => pct(r.summary.onTime, r.summary.departures), { id: 'onTime', header: t('punctuality.columns.onTime'), cell: (info) => format.percentWhole(info.getValue()) }),
+    summaryCol.accessor((r) => pct(r.summary.onTime, r.summary.departures), { id: 'onTime', header: t('punctuality.columns.onTimeRange', limits), cell: (info) => format.percentWhole(info.getValue()) }),
     summaryCol.accessor((r) => pct(r.summary.late + r.summary.veryLate, r.summary.departures), {
       id: 'late',
-      header: t('punctuality.columns.late'),
+      header: t('punctuality.columns.lateRange', limits),
       cell: (info) => (
         <span className="font-semibold whitespace-nowrap">
           <StepSwatch step={lateStep(info.getValue())} />
@@ -255,7 +263,7 @@ function summaryColumns(t: ReturnType<typeof useTranslation>['t'], format: Forma
         </span>
       ),
     }),
-    summaryCol.accessor((r) => pct(r.summary.early, r.summary.departures), { id: 'early', header: t('punctuality.columns.early'), cell: (info) => format.percentWhole(info.getValue()) }),
+    summaryCol.accessor((r) => pct(r.summary.early, r.summary.departures), { id: 'early', header: t('punctuality.columns.earlyRange', limits), cell: (info) => format.percentWhole(info.getValue()) }),
     summaryCol.accessor((r) => r.summary.medianDelaySeconds, { id: 'median', header: t('punctuality.columns.median'), cell: (info) => signed(info.getValue(), format) }),
     summaryCol.accessor((r) => r.summary.passengerMinutesLate, { id: 'passengerMinutes', header: t('punctuality.columns.passengerMinutes'), cell: (info) => format.number(info.getValue()) }),
     summaryCol.accessor((r) => r.summary.passengersOnTimeShare ?? -1, {
@@ -266,10 +274,10 @@ function summaryColumns(t: ReturnType<typeof useTranslation>['t'], format: Forma
   ]
 }
 
-function SummarySortable({ rows, labelHeader, format }: { rows: SummaryRow[]; labelHeader: string; format: Format }) {
+function SummarySortable({ rows, labelHeader, rules, format }: { rows: SummaryRow[]; labelHeader: string; rules: PunctualityRules; format: Format }) {
   const { t, i18n } = useTranslation()
   // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-  const columns = useMemo(() => summaryColumns(t, format, labelHeader), [i18n.resolvedLanguage, format, labelHeader])
+  const columns = useMemo(() => summaryColumns(t, format, labelHeader, rules), [i18n.resolvedLanguage, format, labelHeader, rules])
   return (
     <>
       <SortableTable columns={columns} numeric={SUMMARY_NUMERIC} data={rows} rowId={(r) => String(r.key)} sorting={[{ id: 'passengerMinutes', desc: true }]} flag={(r) => lateFlag(r.summary, t, format)} />
@@ -322,7 +330,7 @@ function SummaryTable({ rows, labelHeader, format }: { rows: SummaryRow[]; label
   )
 }
 
-function LineTable({ lines, format }: { lines: PunctualityReport['byLine']; format: Format }) {
+function LineTable({ lines, rules, format }: { lines: PunctualityReport['byLine']; rules: PunctualityRules; format: Format }) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const rows = useMemo(
@@ -343,12 +351,13 @@ function LineTable({ lines, format }: { lines: PunctualityReport['byLine']; form
           <span className="text-xs text-ink-2">{t('dwell.list.shown', { shown: format.number(rows.length), total: format.number(lines.length) })}</span>
         </div>
       </div>
-      <SummarySortable rows={rows} labelHeader={t('punctuality.lines.line')} format={format} />
+      <SummarySortable rows={rows} labelHeader={t('punctuality.lines.line')} rules={rules} format={format} />
     </section>
   )
 }
 
-function StopTable({ stops, minDepartures, format }: { stops: PunctualityStop[]; minDepartures: number; format: Format }) {
+function StopTable({ stops, rules, format }: { stops: PunctualityStop[]; rules: PunctualityRules; format: Format }) {
+  const minDepartures = rules.minDeparturesPerStop
   const { t, i18n } = useTranslation()
   const [search, setSearch] = useState('')
   const rows = useMemo(
@@ -359,7 +368,7 @@ function StopTable({ stops, minDepartures, format }: { stops: PunctualityStop[];
     [stops, search],
   )
   // eslint-disable-next-line react-hooks/exhaustive-deps -- labels change with the language
-  const columns = useMemo(() => summaryColumns(t, format, t('punctuality.stops.stop'), (r) => <>{r.label} <span className="text-xs text-ink-2 tabular-nums">{r.key}</span></>), [i18n.resolvedLanguage, format])
+  const columns = useMemo(() => summaryColumns(t, format, t('punctuality.stops.stop'), rules, (r) => <>{r.label} <span className="text-xs text-ink-2 tabular-nums">{r.key}</span></>), [i18n.resolvedLanguage, format, rules])
 
   return (
     <section aria-labelledby="punctuality-stops">
