@@ -35,14 +35,16 @@ reach the database. Migrations are applied on startup.
 
 ### Load data
 
+The files, one folder per operator, are in `data/` (not in git): see [data/README.md](data/README.md).
+
 ```bash
 # Legacy ADA database — one-off seed into an empty database (reference + derived data only),
 # so run it before the first UCP import.
-dotnet run --project tools/AdaPlatform.Cli -- import-ada --source C:\Projects\ADA\ADA.dbFile
+dotnet run --project tools/AdaPlatform.Cli -- import-ada --source data/DPMJ/2024-10_ada/ADA.dbFile
 
 # Raw UCP-01/UCP-02 logs (APC_<vehicle>.<yyyy-MM-dd>.csv), from a folder or a .zip, and the
 # trips reconstructed from them. Safe to re-run.
-dotnet run -c Release --project tools/AdaPlatform.Cli -- import-ucp --source T:\Projects\DPMB\ADA\ADA_20220808\APC_Logs.zip
+dotnet run -c Release --project tools/AdaPlatform.Cli -- import-ucp --source data/DPMB/2022-08_epis-apc-logs/APC_Logs.zip
 
 # Rebuild every trip from the raw logs, e.g. after the reconstruction rules change.
 dotnet run -c Release --project tools/AdaPlatform.Cli -- reconstruct

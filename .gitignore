@@ -18,3 +18,7 @@ appsettings.*.local.json
 
 ## Proxied map tiles (runtime cache)
 tile-cache/
+
+## Imported data files (large, some with personal data): only the inventory is committed
+/data/*
+!/data/README.md
