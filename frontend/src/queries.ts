@@ -31,11 +31,12 @@ export const patternStopsQuery = (code: number) =>
 // the page asks again at most every 10 minutes.
 const REPORT_STALE_MS = 10 * 60 * 1000
 
-export const deviceHealthQuery = queryOptions({
-  queryKey: ['quality', 'devices'],
-  queryFn: ({ signal }) => api.deviceHealth(signal),
-  staleTime: REPORT_STALE_MS,
-})
+export const deviceHealthQuery = (period: Period) =>
+  queryOptions({
+    queryKey: ['quality', 'devices', period],
+    queryFn: ({ signal }) => api.deviceHealth(period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
 
 export const dwellQuery = (line: number | null, period: Period) =>
   queryOptions({
@@ -72,8 +73,9 @@ export const vehicleDayQuery = (vehicle: number, day: string) =>
     staleTime: REPORT_STALE_MS,
   })
 
-export const dailyQualityQuery = queryOptions({
-  queryKey: ['quality', 'daily'],
-  queryFn: ({ signal }) => api.dailyQuality(signal),
-  staleTime: REPORT_STALE_MS,
-})
+export const dailyQualityQuery = (period: Period) =>
+  queryOptions({
+    queryKey: ['quality', 'daily', period],
+    queryFn: ({ signal }) => api.dailyQuality(period, signal),
+    staleTime: REPORT_STALE_MS,
+  })

@@ -131,6 +131,8 @@ export interface DeviceHealthReport {
   to: string | null
   thresholds: HealthThresholds
   vehicles: VehicleHealth[]
+  /** Every service day with a vehicle log, whatever period the report covers: the period picker's days. */
+  days: string[]
 }
 
 /** How long vehicles stand at stops, and how much of it the passengers explain (/api/operations/dwell). */
@@ -428,8 +430,8 @@ export const api = {
   stops: (signal?: AbortSignal) => getJson<Stop[]>('/api/stops', signal),
   lines: (signal?: AbortSignal) => getJson<Line[]>('/api/lines', signal),
   patternStops: (code: number, signal?: AbortSignal) => getJson<PatternStop[]>(`/api/patterns/${code}/stops`, signal),
-  deviceHealth: (signal?: AbortSignal) => getJson<DeviceHealthReport>('/api/quality/devices', signal),
-  dailyQuality: (signal?: AbortSignal) => getJson<VehicleDay[]>('/api/quality/daily', signal),
+  deviceHealth: (period: Period, signal?: AbortSignal) => getJson<DeviceHealthReport>(`/api/quality/devices${operationsQuery({ ...period })}`, signal),
+  dailyQuality: (period: Period, signal?: AbortSignal) => getJson<VehicleDay[]>(`/api/quality/daily${operationsQuery({ ...period })}`, signal),
   dwell: (line: number | null, period: Period, signal?: AbortSignal) =>
     getJson<DwellReport>(`/api/operations/dwell${operationsQuery({ line, ...period })}`, signal),
   stopDwell: (code: number, line: number | null, period: Period, signal?: AbortSignal) =>

@@ -27,22 +27,29 @@ public sealed record VehicleDayDto(
 /// <see cref="DeviceHealthReport"/>, but by calendar day, so a reader can see when a
 /// problem started and whether it is one vehicle or one day.
 /// </summary>
-public sealed class DailyQualityReport(AppDbContext db, IOptions<HealthThresholds> options, HybridCache cache)
+public sealed class DailyQualityReport(AppDbContext db, IOptions<HealthThresholds> options, HybridCache cache, DayCalendar calendar)
 {
     // Immutable wrapper: the cache hands out the same list instead of a copy per request.
     [ImmutableObject(true)]
     private sealed record Days(IReadOnlyList<VehicleDayDto> Rows);
 
-    /// <summary>The report for the current data, from the cache when it's still valid.</summary>
-    public async Task<IReadOnlyList<VehicleDayDto>> GetAsync(CancellationToken ct = default) =>
-        (await ReportCache.GetAsync(db, cache, "quality/daily", async token => new Days(await BuildAsync(token)), ct)).Rows;
+    /// <summary>The report for the current data and period, from the cache when it's still valid.</summary>
+    public async Task<IReadOnlyList<VehicleDayDto>> GetAsync(ReportPeriod period = default, CancellationToken ct = default) =>
+        (await ReportCache.GetAsync(db, cache, $"quality/daily/{period.Key}", async token => new Days(await BuildAsync(period, token)), ct)).Rows;
 
-    public async Task<IReadOnlyList<VehicleDayDto>> BuildAsync(CancellationToken ct = default)
+    public async Task<IReadOnlyList<VehicleDayDto>> BuildAsync(ReportPeriod period = default, CancellationToken ct = default)
     {
         var thresholds = options.Value;
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
-        var summaries = await db.DeviceEvents.AsNoTracking()
+        var files = await period.SourceFilesAsync(db, calendar, ct);
+        var deviceEvents = db.DeviceEvents.AsNoTracking();
+        if (files is not null)
+        {
+            deviceEvents = deviceEvents.Where(e => files.Contains(e.SourceFileId));
+        }
+
+        var summaries = await deviceEvents
             .Where(e => e.Type == DeviceEventType.StopSummary)
             .GroupBy(e => new { e.VehicleId, Day = e.Time.Date })
             .Select(g => new
@@ -56,7 +63,7 @@ public sealed class DailyQualityReport(AppDbContext db, IOptions<HealthThreshold
             .ToDictionaryAsync(s => (s.VehicleId, DateOnly.FromDateTime(s.Day)), ct);
 
         // Passengers per stop are counter differences (see DoorStopPairing).
-        var passengers = await DoorStopPairing.SumAsync(db, c => (c.VehicleId, DateOnly.FromDateTime(c.Time)), ct);
+        var passengers = await DoorStopPairing.SumAsync(db, c => (c.VehicleId, DateOnly.FromDateTime(c.Time)), ct, files);
 
         return summaries.Keys.Union(passengers.Keys)
             .Order()

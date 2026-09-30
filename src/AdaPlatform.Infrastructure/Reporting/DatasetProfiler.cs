@@ -215,7 +215,7 @@ public sealed class DatasetProfiler(AppDbContext db, IOptions<HealthThresholds> 
         var perDoor = new Dictionary<(int VehicleId, int DeviceNumber), (int In, int Out, int Stops)>();
         var perVehicleDay = new Dictionary<(int VehicleId, DateTime Day), (int In, int Out)>();
         var perStopEvent = new Dictionary<(int VehicleId, DateTime Time), (int DeltaIn, int DeltaOut, int ReadingIn, int ReadingOut)>();
-        await foreach (var c in DoorStopPairing.StreamAsync(db, pairing, ct))
+        await foreach (var c in DoorStopPairing.StreamAsync(db, pairing, ct: ct))
         {
             var door = perDoor.GetValueOrDefault((c.VehicleId, c.DeviceNumber));
             perDoor[(c.VehicleId, c.DeviceNumber)] = (door.In + c.Boardings, door.Out + c.Alightings, door.Stops + 1);

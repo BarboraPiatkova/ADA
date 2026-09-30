@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTable } from '@tanstack/react-table'
 import { Fragment, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -22,18 +22,21 @@ import { FleetStatus } from './FleetStatus'
 import { HealthSkeleton } from './HealthSkeleton'
 import { formatMetricValue, indexDaily, METRICS, type MetricId } from './metrics'
 import { RulesPanel } from './RulesPanel'
+import { useReportPeriod } from '../operations/period'
 import { useHealthAnalysis, type GroupBy } from './useHealthAnalysis'
 
 const EMPTY_DAYS: VehicleDay[] = []
 
 export function DeviceHealthView() {
   const { t } = useTranslation()
-  const report = useQuery(deviceHealthQuery)
-  const daily = useQuery(dailyQualityQuery)
+  const { period, isAll } = useReportPeriod()
+  // Changing the days keeps the previous report on screen until the next one arrives.
+  const report = useQuery({ ...deviceHealthQuery(period), placeholderData: keepPreviousData })
+  const daily = useQuery({ ...dailyQualityQuery(period), placeholderData: keepPreviousData })
   return (
     <QueryState query={report} loading={t('health.loading')} skeleton={<HealthSkeleton label={t('health.loading')} />}>
       {(data) =>
-        data.vehicles.length === 0 ? (
+        data.vehicles.length === 0 && isAll ? (
           <Empty>{t('health.empty')}</Empty>
         ) : (
           // The heatmap fills in when the per-day data arrives; the rest doesn't wait for it.
@@ -106,7 +109,7 @@ function HealthScreen({ report, daily, dailyPending }: { report: DeviceHealthRep
       </header>
 
       <FleetStatus counts={analysis.counts} selected={filters.status} onSelect={(status) => set({ status })} />
-      <FilterBar filters={filters} onChange={set} tractions={tractions} metricId={metricId} onMetricChange={setMetricId} />
+      <FilterBar filters={filters} onChange={set} tractions={tractions} metricId={metricId} onMetricChange={setMetricId} days={report.days} format={format} />
       <ActiveFilters filters={filters} onChange={setFilters} formatRange={(id, value) => formatMetricValue(METRICS[id], format, value)} />
 
       <AnalysisCharts

@@ -470,6 +470,14 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
             var devices = vehicle.GetProperty("devices").EnumerateArray().ToDictionary(d => d.GetProperty("deviceNumber").GetInt32());
             Assert.Equal((2, 0), (devices[41].GetProperty("boardings").GetInt32(), devices[41].GetProperty("alightings").GetInt32()));
             Assert.Equal(["DeviceFlagged", "DeviceNotAlive"], Codes(devices[42]));
+
+            // A period without the fixture's day (Tuesday 2 August 2022, in the summer holidays) has no
+            // vehicles, and still lists the day for the period picker.
+            using var later = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/quality/devices?from=2022-08-03"));
+            Assert.Empty(later.RootElement.GetProperty("vehicles").EnumerateArray());
+            Assert.Equal(["2022-08-02"], later.RootElement.GetProperty("days").EnumerateArray().Select(d => d.GetString()));
+            using var holidays = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/quality/devices?days=holidayWorkdays"));
+            Assert.Single(holidays.RootElement.GetProperty("vehicles").EnumerateArray());
         }
         finally
         {
@@ -497,6 +505,9 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
             Assert.Equal((3, 1), (day.GetProperty("boardings").GetInt32(), day.GetProperty("alightings").GetInt32()));
             Assert.Equal(1.0, day.GetProperty("flaggedStopShare").GetDouble());    // the one stop flags device 42
             Assert.Equal(0.0, day.GetProperty("negativeOccupancyShare").GetDouble());
+
+            using var sundays = System.Text.Json.JsonDocument.Parse(await api.CreateSignedInClient().GetStringAsync("/api/quality/daily?days=sundayOrHoliday"));
+            Assert.Empty(sundays.RootElement.EnumerateArray());
         }
         finally
         {

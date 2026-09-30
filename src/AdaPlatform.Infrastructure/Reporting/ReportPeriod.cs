@@ -45,6 +45,39 @@ public readonly record struct ReportPeriod(DateOnly? From, DateOnly? To, DayKind
     /// <summary>ISO weekday: 1 = Monday … 7 = Sunday.</summary>
     public static int Weekday(DateTime at) => ((int)at.DayOfWeek + 6) % 7 + 1;
 
+    /// <summary>Whether the period narrows anything at all.</summary>
+    public bool IsAll => From is null && To is null && Days == DayKind.All;
+
+    /// <summary>
+    /// The vehicle log files of the period (one file = one vehicle's service day), or null for every file.
+    /// Reports over raw device events filter by these, so the kind of day is judged per service day.
+    /// </summary>
+    public async Task<IReadOnlyCollection<long>?> SourceFilesAsync(AppDbContext db, DayCalendar calendar, CancellationToken ct)
+    {
+        if (IsAll)
+        {
+            return null;
+        }
+        var files = db.SourceFiles.AsNoTracking();
+        if (From is { } from)
+        {
+            files = files.Where(f => f.ServiceDate >= from);
+        }
+        if (To is { } to)
+        {
+            files = files.Where(f => f.ServiceDate <= to);
+        }
+        var days = Days;
+        return (await files.Select(f => new { f.Id, f.ServiceDate }).ToListAsync(ct))
+            .Where(f => calendar.Keeps(days, f.ServiceDate.ToDateTime(TimeOnly.MinValue)))
+            .Select(f => f.Id)
+            .ToHashSet();
+    }
+
+    /// <summary>Every service day with a vehicle log, for the period picker on the device screens.</summary>
+    public static async Task<IReadOnlyList<DateOnly>> ServiceDaysAsync(AppDbContext db, CancellationToken ct) =>
+        await db.SourceFiles.AsNoTracking().Select(f => f.ServiceDate).Distinct().OrderBy(d => d).ToListAsync(ct);
+
     /// <summary>Every day with a trip from the vehicle logs, for the period picker (whatever period is shown).</summary>
     public static async Task<IReadOnlyList<DateOnly>> DaysWithDataAsync(AppDbContext db, CancellationToken ct)
     {
