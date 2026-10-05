@@ -716,6 +716,66 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/stop-statistics/999")).StatusCode);
     }
 
+    [Fact]
+    public async Task Patterns_with_the_same_stops_are_one_route_with_its_variants()
+    {
+        await using var api = NewApi();
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            SeedNetwork(db);
+            // Two timetable variants of one route (same stops), and a third that turns at 201 once more.
+            db.Patterns.AddRange(
+                new Pattern { Code = 2080002, LineId = 208, FirstStopName = "Dopravní podnik", LastStopName = "Brtnická ul." },
+                new Pattern { Code = 2080003, LineId = 208, FirstStopName = "Dopravní podnik", LastStopName = "Brtnická ul." });
+            var first = db.Patterns.Local.Single(p => p.Code == 2080001);
+            (first.FirstStopName, first.LastStopName) = ("Dopravní podnik", "Brtnická ul.");
+            db.PatternStops.AddRange(
+                new PatternStop { PatternCode = 2080001, Sequence = 1, StopCode = 201 },
+                new PatternStop { PatternCode = 2080001, Sequence = 2, StopCode = 301 },
+                new PatternStop { PatternCode = 2080002, Sequence = 1, StopCode = 201 },
+                new PatternStop { PatternCode = 2080002, Sequence = 2, StopCode = 301 },
+                new PatternStop { PatternCode = 2080003, Sequence = 1, StopCode = 201 },
+                new PatternStop { PatternCode = 2080003, Sequence = 2, StopCode = 201 },
+                new PatternStop { PatternCode = 2080003, Sequence = 3, StopCode = 301 });
+            var file = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-01.csv", Sha256 = "x", VehicleId = 13 };
+            db.SourceFiles.Add(file);
+            Trip NewTrip(int pattern, int hour) => new()
+            {
+                VehicleId = 13,
+                PatternCode = pattern,
+                SourceFile = file,
+                IsValid = true,
+                StartTime = new DateTime(2022, 8, 1, hour, 0, 0),
+                EndTime = new DateTime(2022, 8, 1, hour, 30, 0),
+                StopVisits = [new StopVisit { Sequence = 1, StopCode = 201, Boardings = 2 }, new StopVisit { Sequence = 2, StopCode = 301, Alightings = 2 }],
+            };
+            // Variant 02 runs by day (two trips), 01 early (one), 03 once in the evening.
+            db.Trips.AddRange(NewTrip(2080002, 9), NewTrip(2080002, 14), NewTrip(2080001, 5), NewTrip(2080003, 21));
+            await db.SaveChangesAsync();
+        }
+        var client = api.CreateSignedInClient();
+
+        var line = Assert.Single((await client.GetFromJsonAsync<List<NetworkEndpoints.LineDto>>("/api/lines"))!);
+        Assert.Equal(2, line.Patterns.Count);
+        var route = line.Patterns[0];
+        Assert.Equal((2080002, 3, 2), (route.Code, route.Trips, route.StopCount));   // named by its busiest variant
+        Assert.Equal([2080001, 2080002], route.Variants.Select(v => v.Code));
+        Assert.Equal((5, 5), (route.Variants[0].FirstHour, route.Variants[0].LastHour));
+        Assert.Equal((9, 14), (route.Variants[1].FirstHour, route.Variants[1].LastHour));
+        Assert.Empty(route.ExtraStops);
+        var turning = line.Patterns[1];
+        Assert.Equal((2080003, 1), (turning.Code, turning.Trips));
+        Assert.Equal(["Dopravní podnik"], turning.ExtraStops);
+        Assert.Empty(turning.MissingStops);
+
+        // The occupancy picker goes by route too; a variant's own code opens its route.
+        using var load = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load?pattern=2080001"));
+        Assert.Equal(2080002, load.RootElement.GetProperty("pattern").GetInt32());
+        Assert.Equal(2, load.RootElement.GetProperty("patterns").GetArrayLength());
+        Assert.Equal(3, load.RootElement.GetProperty("profile")[0].GetProperty("trips").GetInt32());
+    }
+
     private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());
 
     private static void SeedNetwork(AppDbContext db)

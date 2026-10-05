@@ -13,7 +13,7 @@ namespace AdaPlatform.Infrastructure.Reporting;
 /// at zero: the vehicle's own on-board figure carries drift from earlier trips (report F6). Occupancy as
 /// a share of capacity is given where the fleet register knows the vehicle's capacity.
 /// </summary>
-public sealed class LoadReport(AppDbContext db, HybridCache cache, DayCalendar calendar)
+public sealed class LoadReport(AppDbContext db, HybridCache cache, DayCalendar calendar, PatternGroups patternGroups)
 {
     private const int CrowdedTripsListed = 200;
 
@@ -93,23 +93,34 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache, DayCalendar c
             .Select(g => new LoadWeekHourDto(g.Key.Weekday, g.Key.Hour, weekdayDays[g.Key.Weekday], g.Sum(x => x.Boardings)))
             .ToList();
 
+        // Patterns with the same stops are one route (their variants are timetable versions): the picker
+        // and the profile go by route, named by its busiest variant's code. A variant code asked for (an
+        // older link) opens its route.
+        var groupOf = (await patternGroups.GetAsync(ct)).SelectMany(g => g.Variants.Select(v => (v.Code, Group: g))).ToDictionary(x => x.Code, x => x.Group);
+        int? Route(int? code) => code is { } c && groupOf.TryGetValue(c, out var g) ? g.Code : code;
         var patterns = loaded.Where(t => t.PatternCode is not null)
-            .GroupBy(t => t.PatternCode!.Value)
-            .Select(g => new LoadPatternDto(g.Key, g.First().Line, Clean(g.First().First), Clean(g.First().Last), g.Count()))
+            .GroupBy(t => Route(t.PatternCode)!.Value)
+            .Select(g =>
+            {
+                var group = groupOf.GetValueOrDefault(g.Key);
+                return new LoadPatternDto(
+                    g.Key, g.First().Line, Clean(group?.FirstStopName ?? g.First().First), Clean(group?.LastStopName ?? g.First().Last), g.Count(),
+                    group?.ExtraStops ?? [], group?.MissingStops ?? []);
+            })
             .OrderByDescending(p => p.Trips)
             .ToList();
 
-        // Profile of the chosen pattern; unless one is asked for, the best covered: most stop calls
-        // counted (trips x typical stops per trip), so a short pattern with many trips doesn't win.
-        var chosen = pattern ?? loaded.Where(t => t.PatternCode is not null)
-            .GroupBy(t => t.PatternCode!.Value)
+        // Profile of the chosen route; unless one is asked for, the best covered: most stop calls
+        // counted (trips x typical stops per trip), so a short route with many trips doesn't win.
+        var chosen = pattern is { } asked ? Route(asked) : loaded.Where(t => t.PatternCode is not null)
+            .GroupBy(t => Route(t.PatternCode)!.Value)
             .OrderByDescending(g => g.Count() * Median(g.Select(t => t.Stops.Count(s => !s.IsPassThrough))))
             .ThenBy(g => g.Key)
             .Select(g => (int?)g.Key).FirstOrDefault();
         var profile = new List<LoadProfileStopDto>();
         if (chosen is { } code)
         {
-            var ofPattern = loaded.Where(t => t.PatternCode == code).ToList();
+            var ofPattern = loaded.Where(t => Route(t.PatternCode) == code).ToList();
             // Stop order: the pattern's own stop list (from the timetable, or from a trip that ran all of
             // it); failing that, the sequence most trips share. Never the longest trip: a broken trip that
             // shuttled around a terminus has the most stops.
@@ -191,7 +202,12 @@ public sealed record LoadWeekdayDto(int Weekday, int Days, int Boardings, int Al
 /// <param name="Days">How many of these weekdays the period has with trips (to give boardings per day).</param>
 public sealed record LoadWeekHourDto(int Weekday, int Hour, int Days, int Boardings);
 
-public sealed record LoadPatternDto(int Code, int? Line, string? FirstStopName, string? LastStopName, int Trips);
+/// <summary>A route on the pattern picker: its patterns with the same stops (timetable variants) as one.</summary>
+/// <param name="Code">The busiest variant's code, which stands for the route.</param>
+/// <param name="ExtraStops">Stops it calls at that the busiest route between the same termini doesn't.</param>
+/// <param name="MissingStops">Stops the busiest route between the same termini calls at that it leaves out.</param>
+public sealed record LoadPatternDto(
+    int Code, int? Line, string? FirstStopName, string? LastStopName, int Trips, IReadOnlyList<string> ExtraStops, IReadOnlyList<string> MissingStops);
 
 /// <param name="MedianLoad">Median passengers on board after the stop, over the pattern's trips.</param>
 public sealed record LoadProfileStopDto(

@@ -79,6 +79,11 @@ export const en = {
     hiddenPatterns_one: '+ {{count}} pattern without trips',
     hiddenPatterns_other: '+ {{count}} patterns without trips',
     patternMeta: '{{trips}}, {{stops}}',
+    extraStops: 'also calls at {{stops}}',
+    missingStops: 'skips {{stops}}',
+    variants: 'departures {{hours}}',
+    variantHours: '{{from}}–{{to}} h',
+    variantHour: '{{hour}} h',
     noVisits: 'no recorded stop visits',
     stopActivity_one:
       '{{count, number}} stop visit, on average {{boardings, number(maximumFractionDigits: 1)}} boardings, {{alightings, number(maximumFractionDigits: 1)}} alightings',
@@ -373,6 +378,7 @@ export const en = {
     note: 'Occupancy is the running sum of boardings minus alightings from the trip’s start (never below zero); the vehicle’s own figure carries errors from earlier trips. Valid trips only, no depot runs.',
     pattern: 'Pattern',
     patternOption: '{{from}} → {{to}} ({{trips}} trips)',
+    patternDiffers: '{{route}} – {{difference}}',
     patternOnLine: '{{line}}: {{route}}',
     hours: {
       hour: 'Hour',

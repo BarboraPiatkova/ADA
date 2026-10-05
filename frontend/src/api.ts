@@ -32,12 +32,28 @@ export interface Stop {
   bearing: number | null
 }
 
+/** One timetable version of a route: the hours its trips start in (null without trips). */
+export interface PatternVariant {
+  code: number
+  trips: number
+  firstHour: number | null
+  lastHour: number | null
+}
+
+/** A route of a line: its patterns with the same stops (timetable variants) as one entry. */
 export interface PatternSummary {
+  /** The busiest variant's code: draws the route. */
   code: number
   firstStopName: string | null
   lastStopName: string | null
   stopCount: number
+  /** Trips of every variant. */
   trips: number
+  variants: PatternVariant[]
+  /** Stops it calls at that the busiest route between the same termini doesn't. */
+  extraStops: string[]
+  /** Stops the busiest route between the same termini calls at that it leaves out. */
+  missingStops: string[]
 }
 
 export interface Line {
@@ -322,12 +338,15 @@ export interface PunctualityReport {
   days: string[]
 }
 
+/** A route on the occupancy picker (its timetable variants as one). */
 export interface LoadPattern {
   code: number
   line: number | null
   firstStopName: string | null
   lastStopName: string | null
   trips: number
+  extraStops: string[]
+  missingStops: string[]
 }
 
 export interface LoadProfileStop {

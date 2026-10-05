@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import { useQuery } from '@tanstack/react-query'
 import { latLngBounds } from 'leaflet'
 import { Accordion } from 'radix-ui'
@@ -6,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { CircleMarker, Polygon, Polyline, Popup, Tooltip, useMap } from 'react-leaflet'
 import type { BaseLayer, Line, PatternSummary, Stop } from '../api'
 import { linesQuery, patternStopsQuery, stopsQuery } from '../queries'
+import { routeDifference } from './routes'
 import { cn } from '../ui/cn'
 import { matchesRow } from '../operations/shared'
 import { Empty } from '../ui/Empty'
@@ -65,6 +67,16 @@ function patternLabel(p: PatternSummary) {
   return `${withoutStopCode(p.firstStopName)} → ${withoutStopCode(p.lastStopName)}`
 }
 
+/** When a route's timetable variants run, e.g. "departures 4–20 h · 6–18 h · 20–21 h"; nothing for a single variant. */
+function variantHours(t: TFunction, p: PatternSummary) {
+  const running = p.variants
+    .filter((v) => v.trips > 0 && v.firstHour !== null && v.lastHour !== null)
+    .sort((a, b) => (a.firstHour ?? 0) - (b.firstHour ?? 0) || (a.lastHour ?? 0) - (b.lastHour ?? 0))
+  if (running.length < 2) return null
+  const hours = running.map((v) => (v.firstHour === v.lastHour ? t('map.variantHour', { hour: v.firstHour }) : t('map.variantHours', { from: v.firstHour, to: v.lastHour })))
+  return t('map.variants', { hours: hours.join(' · ') })
+}
+
 function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: number | null; onSelect: (code: number | null) => void }) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
@@ -110,6 +122,8 @@ function LinePicker({ lines, selected, onSelect }: { lines: Line[]; selected: nu
                     <span className="text-xs text-ink-2">
                       {t('map.patternMeta', { trips: t('map.trips', { count: p.trips }), stops: t('map.stops', { count: p.stopCount }) })}
                     </span>
+                    {routeDifference(t, p) && <span className="text-xs font-semibold text-ink">{routeDifference(t, p)}</span>}
+                    {variantHours(t, p) && <span className="text-xs text-ink-2">{variantHours(t, p)}</span>}
                   </button>
                 ))}
                 {hidden > 0 && <p className="mx-2 mt-1 text-xs text-ink-2">{t('map.hiddenPatterns', { count: hidden })}</p>}

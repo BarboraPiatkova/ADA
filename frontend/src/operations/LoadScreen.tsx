@@ -25,6 +25,7 @@ import { VehicleDay } from './VehicleDay'
 import { Findings, type Finding } from './Findings'
 import { numberParam, useScreenParams } from '../navigation'
 import { ScreenLink } from './ScreenLink'
+import { routeDifference } from '../map/routes'
 
 const ALL = 'all'
 
@@ -103,7 +104,9 @@ function LoadView({
   // With all lines shown, each pattern names its line, and a number searches it ("1" = line 1's patterns).
   const patternLine = new Map(report.patterns.map((p) => [String(p.code), p.line]))
   const patternOptions = report.patterns.map((p) => {
-    const route = t('load.patternOption', { from: p.firstStopName ?? '?', to: p.lastStopName ?? '?', trips: p.trips })
+    const difference = routeDifference(t, p)
+    const plain = t('load.patternOption', { from: p.firstStopName ?? '?', to: p.lastStopName ?? '?', trips: p.trips })
+    const route = difference ? t('load.patternDiffers', { route: plain, difference }) : plain
     return { value: String(p.code), label: line === null && p.line !== null ? t('load.patternOnLine', { line: p.line, route }) : route }
   })
   const patternMatch = (query: string, option: { value: string; label: string }) =>
