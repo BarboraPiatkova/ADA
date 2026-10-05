@@ -42,6 +42,7 @@ public sealed class TripReconstruction(AppDbContext db, IOptions<ReconstructionO
         var lines = (await db.Lines.Select(l => l.Id).ToListAsync(ct)).ToHashSet();
         var patternHasStops = await db.Patterns.Select(p => new { p.Code, HasStops = p.Stops.Any() })
             .ToDictionaryAsync(p => p.Code, p => p.HasStops, ct);
+        report.BrokenPatternStopListsCleared = await ClearBrokenStopListsAsync(patternHasStops, ct);
         var blocks = (await db.Blocks.Select(b => b.Code).ToListAsync(ct)).ToHashSet();
         var devices = await db.CountingDevices.AsNoTracking()
             .ToDictionaryAsync(d => (d.VehicleId, d.DeviceNumber), d => d.Id, ct);
@@ -87,6 +88,25 @@ public sealed class TripReconstruction(AppDbContext db, IOptions<ReconstructionO
 
         report.Elapsed = stopwatch.Elapsed;
         return report;
+    }
+
+    /// <summary>
+    /// Stop lists taken from a trip whose log repeated calls back and forth (before the reconstructor
+    /// recognised doors opening before the arrival) are dropped, so a clean trip fills them again.
+    /// </summary>
+    private async Task<int> ClearBrokenStopListsAsync(Dictionary<int, bool> patternHasStops, CancellationToken ct)
+    {
+        var lists = (await db.PatternStops.AsNoTracking().Select(ps => new { ps.PatternCode, ps.Sequence, ps.StopCode }).ToListAsync(ct))
+            .GroupBy(ps => ps.PatternCode)
+            .Where(g => UcpTripReconstructor.RepeatedCalls(g.OrderBy(ps => ps.Sequence).Select(ps => ps.StopCode).ToList()) >= 2)
+            .Select(g => g.Key)
+            .ToList();
+        foreach (var code in lists)
+        {
+            await db.PatternStops.Where(ps => ps.PatternCode == code).ExecuteDeleteAsync(ct);
+            patternHasStops[code] = false;
+        }
+        return lists.Count;
     }
 
     private void AddStops(ReconstructedDay day, Dictionary<int, Stop> known, ReconstructionReport report)
@@ -143,6 +163,9 @@ public sealed class ReconstructionReport
     public int TripsReplaced { get; set; }
     public int NewStops { get; set; }
     public int NewLines { get; set; }
+
+    /// <summary>Pattern stop lists with calls repeated back and forth, dropped to be filled again.</summary>
+    public int BrokenPatternStopListsCleared { get; set; }
     public int NewPatterns { get; set; }
     public int NewBlocks { get; set; }
     public ReconstructionStats Stats { get; } = new();
@@ -151,6 +174,7 @@ public sealed class ReconstructionReport
     public override string ToString() => $"""
         Trip reconstruction ({Elapsed:mm\:ss}): {Files} files, {TripsReplaced} earlier trips replaced
           new stops {NewStops}, lines {NewLines}, patterns {NewPatterns}, blocks {NewBlocks}
+          broken pattern stop lists cleared {BrokenPatternStopListsCleared}
         {Stats}
         """;
 }

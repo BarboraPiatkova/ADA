@@ -71,6 +71,15 @@ Findings from the EPIS source (it ships inside the application package, `Epis-*.
 - A door count is the stop reading minus the start reading. It belongs to the visit where the door
   **started** counting, because at a terminus the stop readings already carry the next trip's stop.
 - A repeated stop reading adds late passengers.
+- **Doors open before the arrival.** When the doors open before EPIS has registered the arrival, the
+  counting starts (10) are logged first and carry the stop the vehicle has already left (departed, or
+  went through, 120). The stop summary (15) is then keyed to that stale code too, and EPIS adds two
+  stops' counts together when the code repeats; its on-board figure stays right. A start naming the
+  stop just left, followed within 10 s by an arrival, belongs to that arrival; a summary naming the
+  stale code, or the stop before the last one reached, belongs to the last one. Seen at every stop on
+  the Iveco Urbanway 18M buses (2001–2008, depot 4) from 2022 to 2025, and now and then on trams.
+  Before this rule, 2,962 of 12,522 trips repeated calls back and forth (A, B, A, B, C, B…), with
+  62,000 extra stop visits and the next stop's passengers counted at the stop left; 37 remain.
 - A trip is invalid when a device is flagged, not alive, or lost a count.
 
 Result on the DPMB week (698 files): 9,216 trips, 178,247 stop visits, 766,653 door counts; 24 % of
