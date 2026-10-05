@@ -603,6 +603,60 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/fleet/vehicles/999")).StatusCode);
     }
 
+    [Fact]
+    public async Task Trip_list_and_trip_detail_show_every_trip_with_why_it_is_invalid()
+    {
+        var folder = UcpLogFixture.WriteToNewFolder();
+        try
+        {
+            await using var api = NewApi();
+            long adaTripId;
+            await using (var scope = api.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await new UcpLogIngestor(db).IngestAsync(folder);
+                await new TripReconstruction(db, Options.Create(new ReconstructionOptions())).ReconstructAsync();
+                // Imported from ADA (no log file): not listed, no detail.
+                var ada = new Trip { VehicleId = UcpLogFixture.VehicleId, StartTime = new DateTime(2022, 8, 2, 9, 0, 0), EndTime = new DateTime(2022, 8, 2, 9, 30, 0), IsValid = true };
+                db.Trips.Add(ada);
+                await db.SaveChangesAsync();
+                adaTripId = ada.Id;
+            }
+            var client = api.CreateSignedInClient();
+
+            // The fixture's one trip: a depot run on line 12, invalid because unit 42 flagged its count at the first stop.
+            var list = await client.GetFromJsonAsync<TripListDto>("/api/trips");
+            var row = Assert.Single(list!.Trips);
+            Assert.Equal(1, list.Total);
+            Assert.Equal([12], list.Lines);
+            Assert.Equal([UcpLogFixture.VehicleId], list.Vehicles);
+            Assert.Equal((12, false, true, 1, 1, 3), (row.Line, row.IsValid, row.IsDepotRun, row.Stops, row.FlaggedStops, row.Boardings));
+            Assert.Equal(("Garaz ED Pisarky", "Komarov"), (row.FirstStopName, row.LastStopName));
+
+            Assert.Empty((await client.GetFromJsonAsync<TripListDto>("/api/trips?line=99"))!.Trips);
+            Assert.Empty((await client.GetFromJsonAsync<TripListDto>("/api/trips?vehicle=1"))!.Trips);
+            Assert.Single((await client.GetFromJsonAsync<TripListDto>($"/api/trips?vehicle={UcpLogFixture.VehicleId}&from=2022-08-02&to=2022-08-02"))!.Trips);
+            // 2 August 2022 was a Tuesday.
+            Assert.Empty((await client.GetFromJsonAsync<TripListDto>("/api/trips?days=saturday"))!.Trips);
+
+            var detail = await client.GetFromJsonAsync<TripDetailDto>($"/api/trips/{row.Id}");
+            Assert.Equal([165902, 134302], detail!.Trip.Stops.Select(s => s.StopCode));
+            Assert.Equal("Technologicky park", detail.Trip.Stops[0].StopName);
+            var flagged = Assert.Single(detail.FlaggedStops);
+            Assert.Equal((1, 165902), (flagged.Sequence, flagged.StopCode));
+            Assert.Equal([42], flagged.DeviceNumbers);
+            Assert.Equal((3, (double?)null, (int?)null), (detail.Overview.Passengers, detail.Overview.Km, detail.Capacity));
+            Assert.Equal("01200715", detail.Block);
+
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/trips/{adaTripId}")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/trips/999999")).StatusCode);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());
 
     private static void SeedNetwork(AppDbContext db)

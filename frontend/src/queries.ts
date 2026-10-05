@@ -93,3 +93,17 @@ export const vehicleDetailQuery = (vehicle: number, period: Period) =>
     queryFn: ({ signal }) => api.vehicle(vehicle, period, signal),
     staleTime: REPORT_STALE_MS,
   })
+
+export const tripsQuery = (line: number | null, vehicle: number | null, period: Period) =>
+  queryOptions({
+    queryKey: ['trips', line, vehicle, period],
+    queryFn: ({ signal }) => api.trips(line, vehicle, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const tripQuery = (id: number) =>
+  queryOptions({
+    queryKey: ['trips', 'detail', id],
+    queryFn: ({ signal }) => api.trip(id, signal),
+    staleTime: REPORT_STALE_MS,
+  })

@@ -94,7 +94,8 @@ function VehicleDayView({ data, at, openTripId, format, onDayChange }: { data: V
   )
 }
 
-function TripStrip({ trip, format }: { trip: VehicleTrip; format: Format }) {
+/** One trip stop by stop: each stop's dwell as a bar with its passengers below, and the stops as a table. */
+export function TripStrip({ trip, format }: { trip: VehicleTrip; format: Format }) {
   const { t, i18n } = useTranslation()
   const signed = (seconds: number) => (seconds > 0 ? '+' : '') + format.seconds(seconds)
   const title = [

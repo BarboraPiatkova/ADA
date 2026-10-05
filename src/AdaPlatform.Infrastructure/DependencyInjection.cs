@@ -60,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<PunctualityReport>();
         services.AddScoped<LoadReport>();
         services.AddScoped<FleetReport>();
+        services.AddScoped<TripsReport>();
         return services;
     }
 

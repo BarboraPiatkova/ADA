@@ -450,6 +450,71 @@ export interface VehicleDetail {
   days: string[]
 }
 
+/** A trip in the trip list: invalid ones and depot runs included, marked. */
+export interface TripRow {
+  id: number
+  vehicleId: number
+  /** The second unit of a coupled set, if any. */
+  secondVehicleId: number | null
+  start: string
+  end: string
+  line: number | null
+  patternCode: number | null
+  /** Service block (ADA: služba). */
+  block: string | null
+  firstStopName: string | null
+  lastStopName: string | null
+  /** Stops served (pass-throughs not counted). */
+  stops: number
+  boardings: number
+  alightings: number
+  isValid: boolean
+  isDepotRun: boolean
+  /** Stops where a counting unit flagged its count as invalid. */
+  flaggedStops: number
+}
+
+export interface TripList {
+  from: string | null
+  to: string | null
+  line: number | null
+  vehicle: number | null
+  lines: number[]
+  vehicles: number[]
+  /** Trips matching the filter; the list holds at most 20 000 of them. */
+  total: number
+  trips: TripRow[]
+  days: string[]
+}
+
+/** ADA's "Přehled" of a trip. */
+export interface TripOverview {
+  km: number | null
+  /** Kilometres times the units in the set. */
+  vehicleKm: number | null
+  /** Kilometres times the vehicle's capacity. */
+  placeKm: number | null
+  /** Everyone who boarded. */
+  passengers: number
+}
+
+export interface FlaggedStop {
+  sequence: number
+  stopCode: number
+  deviceNumbers: number[]
+}
+
+export interface TripDetail {
+  trip: VehicleTrip
+  vehicleId: number
+  secondVehicleId: number | null
+  block: string | null
+  capacity: number | null
+  overview: TripOverview
+  flaggedStops: FlaggedStop[]
+  faults: VehicleFault[]
+}
+
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
 export class ApiError extends Error {
   readonly path: string
@@ -493,7 +558,7 @@ export type DayKind = 'all' | 'workdays' | 'schoolWorkdays' | 'holidayWorkdays' 
 export type Period = { from?: string; to?: string; days?: Exclude<DayKind, 'all'> }
 
 /** "?line=1&from=…&to=…" with only the parameters that are set, or "". */
-function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string; days?: string; times?: string }) {
+function operationsQuery(params: { line?: number | null; pattern?: number | null; vehicle?: number | null; from?: string; to?: string; days?: string; times?: string }) {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value))
   const qs = query.toString()
@@ -520,4 +585,7 @@ export const api = {
   fleet: (period: Period, signal?: AbortSignal) => getJson<FleetReport>(`/api/fleet/vehicles${operationsQuery({ ...period })}`, signal),
   vehicle: (vehicle: number, period: Period, signal?: AbortSignal) =>
     getJson<VehicleDetail>(`/api/fleet/vehicles/${vehicle}${operationsQuery({ ...period })}`, signal),
+  trips: (line: number | null, vehicle: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<TripList>(`/api/trips${operationsQuery({ line, vehicle, ...period })}`, signal),
+  trip: (id: number, signal?: AbortSignal) => getJson<TripDetail>(`/api/trips/${id}`, signal),
 }
