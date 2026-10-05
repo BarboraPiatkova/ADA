@@ -47,7 +47,10 @@ public sealed class LoadReport(AppDbContext db, HybridCache cache, DayCalendar c
         var rows = await trips
             .Select(t => new
             {
-                t.Id, t.VehicleId, t.StartTime, t.PatternCode,
+                t.Id,
+                t.VehicleId,
+                t.StartTime,
+                t.PatternCode,
                 Line = t.Pattern != null ? (int?)t.Pattern.LineId : null,
                 First = t.Pattern != null ? t.Pattern.FirstStopName : null,
                 Last = t.Pattern != null ? t.Pattern.LastStopName : null,

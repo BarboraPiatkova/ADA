@@ -222,13 +222,26 @@ public sealed class StopDwellReport(AppDbContext db, IOptions<DwellRules> option
             .OrderBy(t => t.StartTime)
             .Select(t => new
             {
-                t.Id, t.StartTime, t.EndTime, t.IsValid, t.IsDepotRun, t.PatternCode,
+                t.Id,
+                t.StartTime,
+                t.EndTime,
+                t.IsValid,
+                t.IsDepotRun,
+                t.PatternCode,
                 Line = t.Pattern != null ? (int?)t.Pattern.LineId : null,
                 First = t.Pattern != null ? t.Pattern.FirstStopName : null,
                 Last = t.Pattern != null ? t.Pattern.LastStopName : null,
                 Visits = t.StopVisits.OrderBy(v => v.Sequence).Select(v => new
                 {
-                    v.Sequence, v.StopCode, v.ArrivalTime, v.DepartureTime, v.Boardings, v.Alightings, v.Occupancy, v.DelaySeconds, v.IsPassThrough,
+                    v.Sequence,
+                    v.StopCode,
+                    v.ArrivalTime,
+                    v.DepartureTime,
+                    v.Boardings,
+                    v.Alightings,
+                    v.Occupancy,
+                    v.DelaySeconds,
+                    v.IsPassThrough,
                 }).ToList(),
             })
             .ToListAsync(ct);

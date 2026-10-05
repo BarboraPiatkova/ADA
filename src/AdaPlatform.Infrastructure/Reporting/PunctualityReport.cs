@@ -198,8 +198,16 @@ public sealed class PunctualityReport(AppDbContext db, IOptions<PunctualityRules
         var rows = await query
             .Select(v => new
             {
-                v.TripId, v.Sequence, v.StopCode, v.DepartureTime, v.DelaySeconds, v.Boardings, v.Alightings, v.IsPassThrough,
-                v.Trip.IsValid, v.Trip.StartTime,
+                v.TripId,
+                v.Sequence,
+                v.StopCode,
+                v.DepartureTime,
+                v.DelaySeconds,
+                v.Boardings,
+                v.Alightings,
+                v.IsPassThrough,
+                v.Trip.IsValid,
+                v.Trip.StartTime,
                 Line = v.Trip.Pattern != null ? (int?)v.Trip.Pattern.LineId : null,
             })
             .ToListAsync(ct);

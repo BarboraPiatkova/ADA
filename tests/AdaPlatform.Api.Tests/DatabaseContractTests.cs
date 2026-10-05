@@ -296,8 +296,13 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
             var t0 = new DateTime(2022, 8, 1, 7, 0, 0);
             StopVisit Visit(int sequence, int stop, int minute, int dwell, int passengers, int delay = 0) => new()
             {
-                Sequence = sequence, StopCode = stop, ArrivalTime = t0.AddMinutes(minute), DepartureTime = t0.AddMinutes(minute).AddSeconds(dwell),
-                Boardings = passengers, Alightings = 0, DelaySeconds = delay,
+                Sequence = sequence,
+                StopCode = stop,
+                ArrivalTime = t0.AddMinutes(minute),
+                DepartureTime = t0.AddMinutes(minute).AddSeconds(dwell),
+                Boardings = passengers,
+                Alightings = 0,
+                DelaySeconds = delay,
             };
             // Middle stops follow dwell = 10 s + 1 s per passenger exactly; one stop stands 150 s with 2
             // passengers and leaves on time. First and last stops (the layover) must not count.
@@ -305,7 +310,12 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
             {
                 db.Trips.Add(new Trip
                 {
-                    VehicleId = 13, PatternCode = 2080001, SourceFile = file, IsValid = true, StartTime = t0, EndTime = t0.AddHours(1),
+                    VehicleId = 13,
+                    PatternCode = 2080001,
+                    SourceFile = file,
+                    IsValid = true,
+                    StartTime = t0,
+                    EndTime = t0.AddHours(1),
                     StopVisits =
                     [
                         Visit(1, 201, 0, 900, 0),
@@ -383,13 +393,23 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
             var t0 = new DateTime(2022, 8, 1, 7, 0, 0);
             StopVisit Visit(int sequence, int stop, int delay, int on, int off) => new()
             {
-                Sequence = sequence, StopCode = stop, ArrivalTime = t0.AddMinutes(sequence), DepartureTime = t0.AddMinutes(sequence).AddSeconds(20),
-                DelaySeconds = delay, Boardings = on, Alightings = off,
+                Sequence = sequence,
+                StopCode = stop,
+                ArrivalTime = t0.AddMinutes(sequence),
+                DepartureTime = t0.AddMinutes(sequence).AddSeconds(20),
+                DelaySeconds = delay,
+                Boardings = on,
+                Alightings = off,
             };
             // Loads after each stop: 10, 30, 25, 0. Delays: early, on time, late, very late.
             db.Trips.Add(new Trip
             {
-                VehicleId = 13, PatternCode = 2080001, SourceFile = file, IsValid = true, StartTime = t0, EndTime = t0.AddHours(1),
+                VehicleId = 13,
+                PatternCode = 2080001,
+                SourceFile = file,
+                IsValid = true,
+                StartTime = t0,
+                EndTime = t0.AddHours(1),
                 StopVisits = [Visit(1, 201, -120, 10, 0), Visit(2, 301, 0, 20, 0), Visit(3, 201, 240, 5, 10), Visit(4, 301, 600, 0, 25)],
             });
             await db.SaveChangesAsync();
