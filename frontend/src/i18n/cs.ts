@@ -16,6 +16,12 @@ export const cs = {
       jizdy: 'Jízdy',
       zastavky: 'Zastávky',
     },
+    groups: {
+      mapa: 'Mapa sítě',
+      statistiky: 'Statistiky',
+      data: 'Data',
+      jednotky: 'Stav jednotek',
+    },
     loading: 'Načítám…',
     skipToContent: 'Přeskočit na obsah',
   },

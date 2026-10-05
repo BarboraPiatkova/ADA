@@ -16,6 +16,12 @@ export const en = {
       jizdy: 'Trips',
       zastavky: 'Stops',
     },
+    groups: {
+      mapa: 'Network map',
+      statistiky: 'Statistics',
+      data: 'Data',
+      jednotky: 'Device health',
+    },
     loading: 'Loading…',
     skipToContent: 'Skip to content',
   },
