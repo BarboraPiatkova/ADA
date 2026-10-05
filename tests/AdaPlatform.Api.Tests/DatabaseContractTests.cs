@@ -12,6 +12,7 @@ using AdaPlatform.Infrastructure.Import.Ada;
 using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
 using AdaPlatform.Infrastructure.Reconstruction;
+using AdaPlatform.Infrastructure.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -533,6 +534,73 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         {
             Directory.Delete(folder, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Fleet_register_lists_every_vehicle_with_what_its_logs_hold()
+    {
+        await using var api = NewApi();
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            SeedNetwork(db);
+            db.Vehicles.Add(new Vehicle { Id = 14, Traction = "autobus", SeatingCapacity = 30, StandingCapacity = 60 });
+            db.CountingDevices.Add(new CountingDevice
+            {
+                VehicleId = 13,
+                DeviceNumber = 41,
+                FirmwareVersion = "201913121247",
+                FirstSeenAt = new DateTime(2022, 8, 1, 4, 0, 0),
+                LastSeenAt = new DateTime(2022, 8, 6, 22, 0, 0),
+            });
+            var monday = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-01.csv", Sha256 = "a", VehicleId = 13, ServiceDate = new DateOnly(2022, 8, 1) };
+            var saturday = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-06.csv", Sha256 = "b", VehicleId = 13, ServiceDate = new DateOnly(2022, 8, 6) };
+            db.SourceFiles.AddRange(monday, saturday);
+            Trip NewTrip(SourceFile? file, DateTime start, bool valid = true, bool depot = false, int on = 0, int off = 0) => new()
+            {
+                VehicleId = 13,
+                SourceFile = file,
+                StartTime = start,
+                EndTime = start.AddMinutes(40),
+                IsValid = valid,
+                IsDepotRun = depot,
+                Boardings = on,
+                Alightings = off,
+            };
+            db.Trips.AddRange(
+                NewTrip(monday, new DateTime(2022, 8, 1, 6, 0, 0), on: 10, off: 8),
+                NewTrip(monday, new DateTime(2022, 8, 1, 7, 0, 0), valid: false, on: 5, off: 6),
+                NewTrip(saturday, new DateTime(2022, 8, 6, 5, 0, 0), depot: true),
+                // Imported from ADA (no log file): left out, as on the other screens.
+                NewTrip(null, new DateTime(2022, 8, 1, 8, 0, 0), on: 100, off: 100));
+            db.DeviceFaults.Add(new DeviceFault { VehicleId = 13, DeviceNumber = 41, From = new DateTime(2022, 8, 1, 7, 10, 0), Kind = FaultKind.UnexpectedRestart, Source = FaultSource.LegacyAda });
+            await db.SaveChangesAsync();
+        }
+        var client = api.CreateSignedInClient();
+
+        // Every vehicle, with or without trips; invalid trips and depot runs counted.
+        var fleet = await client.GetFromJsonAsync<FleetReportDto>("/api/fleet/vehicles");
+        Assert.Equal([13, 14], fleet!.Vehicles.Select(v => v.Id));
+        Assert.Equal((new DateOnly(2022, 8, 1), new DateOnly(2022, 8, 6)), (fleet.From, fleet.To));
+        var busy = fleet.Vehicles[0];
+        Assert.Equal((2, 3, 1, 15, 14), (busy.Days, busy.Trips, busy.InvalidTrips, busy.Boardings, busy.Alightings));
+        Assert.Equal((1, 1, new DateOnly(2022, 8, 6)), (busy.Devices, busy.Faults, busy.LastData));
+        var idle = fleet.Vehicles[1];
+        Assert.Equal((0, 90, (DateOnly?)null), (idle.Trips, idle.Capacity, idle.LastData));
+
+        // 1 August 2022 was a Monday, 6 August a Saturday.
+        var workdays = await client.GetFromJsonAsync<FleetReportDto>("/api/fleet/vehicles?days=workdays");
+        Assert.Equal((1, 2, 1), (workdays!.Vehicles[0].Days, workdays.Vehicles[0].Trips, workdays.Vehicles[0].Faults));
+
+        var detail = await client.GetFromJsonAsync<VehicleDetailDto>("/api/fleet/vehicles/13?days=saturday");
+        var day = Assert.Single(detail!.TripDays);
+        Assert.Equal((new DateOnly(2022, 8, 6), 1, 1), (day.Day, day.Trips, day.DepotRuns));
+        Assert.Empty(detail.Faults);
+        Assert.Equal(("201913121247", 41), (Assert.Single(detail.Devices).FirmwareVersion, detail.Devices[0].DeviceNumber));
+        var allFaults = await client.GetFromJsonAsync<VehicleDetailDto>("/api/fleet/vehicles/13");
+        Assert.Equal(("UnexpectedRestart", "LegacyAda"), (Assert.Single(allFaults!.Faults).Kind, allFaults.Faults[0].Source));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/fleet/vehicles/999")).StatusCode);
     }
 
     private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());

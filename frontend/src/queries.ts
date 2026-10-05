@@ -79,3 +79,17 @@ export const dailyQualityQuery = (period: Period) =>
     queryFn: ({ signal }) => api.dailyQuality(period, signal),
     staleTime: REPORT_STALE_MS,
   })
+
+export const fleetQuery = (period: Period) =>
+  queryOptions({
+    queryKey: ['fleet', 'vehicles', period],
+    queryFn: ({ signal }) => api.fleet(period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const vehicleDetailQuery = (vehicle: number, period: Period) =>
+  queryOptions({
+    queryKey: ['fleet', 'vehicles', vehicle, period],
+    queryFn: ({ signal }) => api.vehicle(vehicle, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })

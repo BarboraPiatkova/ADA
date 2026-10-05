@@ -380,6 +380,76 @@ export interface LoadReport {
   days: string[]
 }
 
+/** One vehicle of the fleet register, with what its logs hold for the period (invalid trips and depot runs included). */
+export interface FleetVehicle {
+  id: number
+  depot: string | null
+  traction: string | null
+  model: string | null
+  seatingCapacity: number | null
+  standingCapacity: number | null
+  /** Seats plus standing places; null unless both are known. */
+  capacity: number | null
+  isExcluded: boolean
+  devices: number
+  /** Last service day a log file of the vehicle was imported for (ADA: "Poslední data"). */
+  lastData: string | null
+  days: number
+  trips: number
+  invalidTrips: number
+  boardings: number
+  alightings: number
+  /** Known device faults that began in the period. */
+  faults: number
+}
+
+export interface FleetReport {
+  from: string | null
+  to: string | null
+  vehicles: FleetVehicle[]
+  /** Every day with a trip from the vehicle logs, for the period picker. */
+  days: string[]
+}
+
+export interface VehicleDevice {
+  deviceNumber: number
+  firmwareVersion: string | null
+  firstSeen: string
+  lastSeen: string
+}
+
+export interface VehicleDaySummary {
+  day: string
+  trips: number
+  invalidTrips: number
+  depotRuns: number
+  boardings: number
+  alightings: number
+  firstStart: string
+  lastEnd: string
+}
+
+export type FaultKind = 'UnexpectedRestart' | 'PowerCutUntilEnd' | 'PowerCutStatusFalse' | 'InvalidPassengerCount'
+
+export interface VehicleFault {
+  id: number
+  deviceNumber: number | null
+  tripId: number | null
+  from: string
+  to: string | null
+  kind: FaultKind
+  source: 'LegacyAda' | 'Detector'
+  details: string | null
+}
+
+export interface VehicleDetail {
+  vehicle: FleetVehicle
+  devices: VehicleDevice[]
+  tripDays: VehicleDaySummary[]
+  faults: VehicleFault[]
+  days: string[]
+}
+
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
 export class ApiError extends Error {
   readonly path: string
@@ -447,4 +517,7 @@ export const api = {
     getJson<LoadReport>(`/api/operations/load${operationsQuery({ line, pattern, ...period })}`, signal),
   vehicleDay: (vehicle: number, day: string, signal?: AbortSignal) =>
     getJson<VehicleTripsDay>(`/api/operations/vehicles/${vehicle}/days/${day}`, signal),
+  fleet: (period: Period, signal?: AbortSignal) => getJson<FleetReport>(`/api/fleet/vehicles${operationsQuery({ ...period })}`, signal),
+  vehicle: (vehicle: number, period: Period, signal?: AbortSignal) =>
+    getJson<VehicleDetail>(`/api/fleet/vehicles/${vehicle}${operationsQuery({ ...period })}`, signal),
 }
