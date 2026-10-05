@@ -10,7 +10,7 @@ import { HealthSkeleton } from './quality/HealthSkeleton'
  */
 export interface Screen {
   /** URL hash and i18n key (app.views.<id>). */
-  id: 'mapa' | 'jednotky' | 'provoz' | 'dochvilnost' | 'obsazenost' | 'vozidla' | 'jizdy'
+  id: 'mapa' | 'jednotky' | 'provoz' | 'dochvilnost' | 'obsazenost' | 'vozidla' | 'jizdy' | 'zastavky'
   permission: Permission
   Component: LazyExoticComponent<ComponentType>
   skeleton: (label: string) => ReactNode
@@ -57,6 +57,12 @@ export const SCREENS: readonly Screen[] = [
     id: 'jizdy',
     permission: PERMISSIONS.operationsRead,
     Component: lazy(() => import('./trips/TripsScreen').then((m) => ({ default: m.TripsScreen }))),
+    skeleton: (label) => <HealthSkeleton label={label} />,
+  },
+  {
+    id: 'zastavky',
+    permission: PERMISSIONS.operationsRead,
+    Component: lazy(() => import('./stops/StopsScreen').then((m) => ({ default: m.StopsScreen }))),
     skeleton: (label) => <HealthSkeleton label={label} />,
   },
 ]

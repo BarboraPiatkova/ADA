@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -291,7 +292,7 @@ function LoadView({
 }
 
 const hourCol = createColumnHelper<typeof sortableFeatures, LoadReport['boardingsByHour'][number]>()
-function hourColumns(t: ReturnType<typeof useTranslation>['t'], format: Format) {
+function hourColumns(t: TFunction, format: Format) {
   return [
     hourCol.accessor('hour', { id: 'hour', header: t('load.hours.hour'), cell: (info) => `${info.getValue()}:00` }),
     hourCol.accessor('boardings', { id: 'boardings', header: t('load.hours.boardings'), cell: (info) => format.number(info.getValue()) }),
@@ -309,7 +310,7 @@ interface WeekRow {
   alightings: number | null
 }
 const weekCol = createColumnHelper<typeof sortableFeatures, WeekRow>()
-function weekColumns(t: ReturnType<typeof useTranslation>['t'], format: Format) {
+function weekColumns(t: TFunction, format: Format) {
   return [
     weekCol.accessor('order', { id: 'order', header: t('dates.weekday'), cell: (info) => info.row.original.label }),
     weekCol.accessor('days', { id: 'days', header: t('load.weekday.days') }),

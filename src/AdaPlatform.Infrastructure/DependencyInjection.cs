@@ -61,6 +61,7 @@ public static class DependencyInjection
         services.AddScoped<LoadReport>();
         services.AddScoped<FleetReport>();
         services.AddScoped<TripsReport>();
+        services.AddScoped<StopStatisticsReport>();
         return services;
     }
 

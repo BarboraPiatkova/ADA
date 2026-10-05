@@ -59,6 +59,7 @@ app.MapQualityEndpoints();
 app.MapOperationsEndpoints();
 app.MapFleetEndpoints();
 app.MapTripEndpoints();
+app.MapStopStatisticsEndpoints();
 
 app.Run();
 

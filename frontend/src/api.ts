@@ -515,6 +515,49 @@ export interface TripDetail {
   faults: VehicleFault[]
 }
 
+/** One stop post over the filtered trips. */
+export interface StopStat {
+  code: number
+  name: string
+  /** The direction the post serves. */
+  toward: string | null
+  /** Calls where the vehicle stopped. */
+  visits: number
+  passThroughs: number
+  boardings: number
+  alightings: number
+  /** Mean passengers on board after the stop. */
+  meanLoad: number
+  maxLoad: number
+  lines: number[]
+}
+
+/** Which trips the stop figures count: those the statistics use (valid, no depot runs), or all. */
+export type StopTrips = 'valid' | 'all'
+
+export interface StopStatistics {
+  from: string | null
+  to: string | null
+  line: number | null
+  vehicle: number | null
+  allTrips: boolean
+  lines: number[]
+  vehicles: number[]
+  trips: number
+  stops: StopStat[]
+  days: string[]
+}
+
+export interface StopStatisticsDetail {
+  code: number
+  name: string
+  toward: string | null
+  byLine: { line: number | null; visits: number; boardings: number; alightings: number; meanLoad: number }[]
+  byHour: { hour: number; visits: number; boardings: number; alightings: number }[]
+  /** weekday: 1 = Monday … 7 = Sunday; days: how many such days had calls here. */
+  byWeekday: { weekday: number; days: number; boardings: number; alightings: number }[]
+}
+
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
 export class ApiError extends Error {
   readonly path: string
@@ -558,7 +601,7 @@ export type DayKind = 'all' | 'workdays' | 'schoolWorkdays' | 'holidayWorkdays' 
 export type Period = { from?: string; to?: string; days?: Exclude<DayKind, 'all'> }
 
 /** "?line=1&from=…&to=…" with only the parameters that are set, or "". */
-function operationsQuery(params: { line?: number | null; pattern?: number | null; vehicle?: number | null; from?: string; to?: string; days?: string; times?: string }) {
+function operationsQuery(params: { line?: number | null; pattern?: number | null; vehicle?: number | null; trips?: string; from?: string; to?: string; days?: string; times?: string }) {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value))
   const qs = query.toString()
@@ -588,4 +631,8 @@ export const api = {
   trips: (line: number | null, vehicle: number | null, period: Period, signal?: AbortSignal) =>
     getJson<TripList>(`/api/trips${operationsQuery({ line, vehicle, ...period })}`, signal),
   trip: (id: number, signal?: AbortSignal) => getJson<TripDetail>(`/api/trips/${id}`, signal),
+  stopStatistics: (line: number | null, vehicle: number | null, trips: StopTrips, period: Period, signal?: AbortSignal) =>
+    getJson<StopStatistics>(`/api/stop-statistics${operationsQuery({ line, vehicle, trips: trips === 'all' ? trips : undefined, ...period })}`, signal),
+  stopStatisticsDetail: (code: number, line: number | null, vehicle: number | null, trips: StopTrips, period: Period, signal?: AbortSignal) =>
+    getJson<StopStatisticsDetail>(`/api/stop-statistics/${code}${operationsQuery({ line, vehicle, trips: trips === 'all' ? trips : undefined, ...period })}`, signal),
 }
