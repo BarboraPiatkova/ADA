@@ -9,6 +9,7 @@ Every import recognises a file by its content, so moving or re-importing never d
 | Operator | File | Period | What it is | Import |
 |---|---|---|---|---|
 | **DPMB** Brno | `DPMB/2022-08_epis-apc-logs/APC_Logs.zip` | 1.–7. 8. 2022 | EPIS APC logs (`APC_<vehicle>.<date>.csv`) of 104 vehicles with UCP counting units | `import-ucp` → trips, stop visits, door counts; every screen |
+| **DPMB** Brno | `DPMB/2025-10_2025-11_radon-apc-logs/Radon_APC_Logs.zip` | 11. 10. – 12. 11. 2025 | the same APC logs collected on the RADON share: 8 Iveco Urbanway 18M CNG buses (2001–2008) of depot 4. Their counting units flag themselves faulty most of the time, so only 730 of 3 306 trips count passengers and 2001 counts nothing | `import-ucp` → trips, stop visits, door counts; every screen |
 | **DPMB** Brno | `DPMB/2025-05_epcomp/stations.xml` | export 21. 5. 2025 | EPComp's stop list: code, name with diacritics, WGS84 and S-JTSK | `import-stations` → stop names |
 | **DPMB** Brno | `DPMB/2026-09_ids-jmk-onedaytraffic/OneDayTraffic_20260920.zip` | 20.–27. 9. 2026 | Transportella daily service reports of IDS JMK ("Vypravenost – detail"): per carrier and duty, every trip stop by stop, planned and actual times, the vehicle; no APC | `import-transportella --carrier "Brna, a.s."` → recorded calls (DPMB only); Dochvilnost with "Zdroj časů: Transportella" |
 | **DPMJ** Jihlava | `DPMJ/2024-10_ada/ADA.dbFile` | 30. 9. – 31. 10. 2024 | legacy ADA database, 5 vehicles, processed trips (totals only) | `import-ada` → stops, lines, patterns (empty database only) |
@@ -18,6 +19,7 @@ Every import recognises a file by its content, so moving or re-importing never d
 ```bash
 dotnet run -c Release --project tools/AdaPlatform.Cli -- import-ada --source data/DPMJ/2024-10_ada/ADA.dbFile
 dotnet run -c Release --project tools/AdaPlatform.Cli -- import-ucp --source data/DPMB/2022-08_epis-apc-logs/APC_Logs.zip
+dotnet run -c Release --project tools/AdaPlatform.Cli -- import-ucp --source data/DPMB/2025-10_2025-11_radon-apc-logs/Radon_APC_Logs.zip
 dotnet run -c Release --project tools/AdaPlatform.Cli -- import-stations --source data/DPMB/2025-05_epcomp/stations.xml
 dotnet run -c Release --project tools/AdaPlatform.Cli -- import-transportella --source data/DPMO/2025-10_2026-09_transportella-dump/transportella_stat_statistics_2026-09-29.sql --from 2026-09-01 --to 2026-09-30
 dotnet run -c Release --project tools/AdaPlatform.Cli -- import-transportella --source data/DPMB/2026-09_ids-jmk-onedaytraffic/OneDayTraffic_20260920.zip --carrier "Brna, a.s."
