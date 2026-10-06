@@ -10,11 +10,12 @@ import { Empty } from './ui/Empty'
 import { BrandMark } from './ui/icons'
 import { LanguageSwitch } from './ui/LanguageSwitch'
 import { ThemeSwitch } from './ui/ThemeSwitch'
+import { screenInHash } from './navigation'
 
 // The screens as Radix tabs, mirrored in the URL hash so each has a shareable link and the
 // browser's back button works — without a router for two routes.
 function screenFromHash(allowed: readonly Screen[]): ScreenId | undefined {
-  const hash = window.location.hash.replace(/^#\/?/, '')
+  const hash = screenInHash()
   return (allowed.find((s) => s.id === hash) ?? allowed[0])?.id
 }
 

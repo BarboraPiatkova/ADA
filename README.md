@@ -9,6 +9,9 @@ One deployment serves one operator, inside the operator's own network
 switchable between **PostgreSQL** and **SQL Server**
 ([ADR 0003](docs/adr/0003-switchable-database-provider.md)).
 
+Planning workspace for the project (claude.ai artifact, private to the organisation):
+[ADA → Web Platform — Planning Workspace](https://claude.ai/artifact/TBzRuBUMJb6atpfyXNUQbg).
+
 ## Stack
 - **.NET 10**, ASP.NET Core minimal APIs, EF Core 10
 - **PostgreSQL or SQL Server**, chosen by config (`Database:Provider`)
@@ -18,11 +21,12 @@ switchable between **PostgreSQL** and **SQL Server**
 ## Run it
 
 ```bash
-docker compose up -d                                  # API + PostgreSQL
+docker compose --profile api up -d                    # API + PostgreSQL
+docker compose up -d                                  # PostgreSQL only (then run the API from source: dotnet run --project src/AdaPlatform.Api)
 docker compose -f docker-compose.sqlserver.yml up -d  # API + SQL Server (same image)
 
 # With a local Tokari for sign-in (built from ../Tokari), then register AdaPlatform in it once:
-docker compose -f docker-compose.yml -f docker-compose.tokari.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.tokari.yml up -d --build   # add --profile api for the API container
 ./tools/tokari/seed-dev.ps1                           # user "dispecer", password "Dispecer-dev-1"
 ```
 
@@ -31,12 +35,19 @@ reach the database. Migrations are applied on startup.
 
 ### Load data
 
-```bash
-# Raw UCP-01/UCP-02 logs (APC_<vehicle>.<yyyy-MM-dd>.csv), from a folder or a .zip. Safe to re-run.
-dotnet run -c Release --project tools/AdaPlatform.Cli -- import-ucp --source T:\Projects\DPMB\ADA\ADA_20220808\APC_Logs.zip
+The files, one folder per operator, are in `data/` (not in git): see [data/README.md](data/README.md).
 
-# Legacy ADA database — one-off seed into an empty database (reference + derived data only).
-dotnet run --project tools/AdaPlatform.Cli -- import-ada --source C:\Projects\ADA\ADA.dbFile
+```bash
+# Legacy ADA database — one-off seed into an empty database (reference + derived data only),
+# so run it before the first UCP import.
+dotnet run --project tools/AdaPlatform.Cli -- import-ada --source data/DPMJ/2024-10_ada/ADA.dbFile
+
+# Raw UCP-01/UCP-02 logs (APC_<vehicle>.<yyyy-MM-dd>.csv), from a folder or a .zip, and the
+# trips reconstructed from them. Safe to re-run.
+dotnet run -c Release --project tools/AdaPlatform.Cli -- import-ucp --source data/DPMB/2022-08_epis-apc-logs/APC_Logs.zip
+
+# Rebuild every trip from the raw logs, e.g. after the reconstruction rules change.
+dotnet run -c Release --project tools/AdaPlatform.Cli -- reconstruct
 
 # Thesis data report: every figure with an ID and its provenance, plus CSVs for charts.
 dotnet run -c Release --project tools/AdaPlatform.Cli -- profile --out docs/thesis/data
@@ -57,8 +68,10 @@ Four layers, named with standard transit terms (GTFS / Transmodel):
 | Quality | `DeviceFaults` | known device problems (legacy ADA, later the detector) |
 
 Reference data (`Stops`, `Lines`, `Patterns`, `PatternStops`, `Blocks`) keeps the
-operator's natural codes. ADA → new names: Station → Stop, Trace → Pattern,
-Service → Block, Ride → Trip, VehicleStopRecord → StopVisit, ApcError → DeviceFault.
+operator's natural codes. Trip reconstruction adds what the logs reveal and the timetable
+lacks, and only fills in a missing name or position on existing entries. ADA → new names:
+Station → Stop, Trace → Pattern, Service → Block, Ride → Trip, VehicleStopRecord → StopVisit,
+ApcError → DeviceFault.
 
 ### Map key (Mapy.com)
 
@@ -92,6 +105,76 @@ TOKARI_DB_PASSWORD=<random, for the local Tokari's SQL Server>
 dotnet user-secrets set "Tokari:SigningKey" "<key>" --project src/AdaPlatform.Api
 ```
 
+### Fleet register (vehicle types and capacities)
+
+Vehicles appear from the logs on their own. Type, traction, depot and capacity can come from the
+operator's register, through one adapter per source (`IFleetSource`), chosen by `Fleet:Source`:
+
+| `Fleet:Source` | Reads | Settings |
+|---|---|---|
+| `None` (default) | nothing; vehicles from the logs only | — |
+| `Atlas` | Atlas's vehicle sync endpoint (HTTP pull, shared-secret header) | `Fleet:Atlas:BaseUrl`, `ApiKeyHeader`, `ApiKey` (user-secrets / environment), optional `VehiclesPath` |
+| `EpisVehiclesXml` | `vehicles.xml` from an EPIS data package | `Fleet:Path` |
+| `Csv` | a CSV with `id;model;traction;depot;seating;standing;excluded` | `Fleet:Path` |
+
+`Fleet:TypeCapacities` (e.g. `"SOR 30 TR": { "Seating": 32, "Standing": 62 }`) fills capacity for
+vehicles no source gives one. Run `dotnet run --project tools/AdaPlatform.Cli -- sync-fleet`; the
+register overwrites what the logs said, never deletes a vehicle, and a re-run changes nothing.
+
+### Transportella operations (per-stop times)
+
+Transportella supplies the operations: planned and actual arrival and departure at every stop
+(`RecordedCalls`); the counts come from the vehicles' logs. Three ways in, the same import behind them:
+
+| `Transportella:Statistics:Source` | Reads |
+|---|---|
+| `Database` | Transportella's `Stat.Statistics` table directly (connection string `TransportellaStatistics`, read-only account) |
+| `Dump` | a tab-separated dump of that table (code page 852; `DumpCodePage`) |
+| `Report` | the per-trip statistics report exported as XLSX (`StaLineCourse_*.xlsx`) |
+| `DailyService` | the daily service reports ("Vypravenost – detail", `OneDayTraffic_*`): a zip or folder of per-duty workbooks; `Carrier` (or `--carrier`) keeps one carrier of a regional system. Stops are named, and matched to the stop list by name |
+
+```bash
+dotnet run -c Release --project tools/AdaPlatform.Cli -- import-transportella --source <dump or .xlsx> [--from 2026-09-01] [--to 2026-09-30]
+```
+
+Dochvilnost can take its times from these calls ("Zdroj časů: Transportella"): no passengers then, so the
+passenger columns are left out; stops are stations, and only calls whose stop name matches the stop list count.
+
+Without `--source` it uses the configured source. Re-runs only add new rows. Driver columns are never
+read. Stops join on the operator's EPComp numbering: post code = station × 100 + post.
+
+### Stop names (EPComp)
+
+The vehicles' logs write stop names without diacritics ("Namesti Miru"). EPComp's stop list has them
+as the operator writes them; every EPComp export carries it:
+
+```bash
+dotnet run -c Release --project tools/AdaPlatform.Cli -- import-stations --source <EPComp export>\General\stations.xml
+```
+
+Only accents are corrected, and route ends get the same names. A name that differs in more than accents is
+kept and listed, to be checked by hand. Restart the API afterwards: the reports are cached.
+
+### Calendar (public and school holidays)
+
+The statistics can keep one kind of day: working days (all, in school term, in school holidays),
+Saturdays, Sundays with public holidays, or public holidays alone. Czech public holidays are computed,
+Easter included. The national school holidays come with the platform (`CzechSchoolHolidays`, from MŠMT's
+"Organizace školního roku"; add each new school year there once MŠMT publishes it). Only the spring
+week differs by district, so an operator names its district, and may add days it ran a holiday
+timetable on anyway:
+
+```json
+"Operations": {
+  "Calendar": {
+    "District": "Brno-město",
+    "SchoolHolidays": [ { "From": "2025-12-29", "To": "2025-12-31" } ]
+  }
+}
+```
+
+An unknown district stops the API at start-up, with the reason.
+
 ### Frontend
 
 ```bash
@@ -99,6 +182,20 @@ cd frontend
 npm install
 npm run dev       # http://localhost:5173, proxies /api to localhost:8080
 ```
+
+### Trip reconstruction
+
+`UcpTripReconstructor` turns one vehicle-day of raw events into trips, stop visits and door
+counts; the rules are documented on the class. Per door, a count is the stop reading minus the
+start reading. It belongs to the visit where the door started counting. Visit totals are the sum
+over the doors. A trip is invalid when a door was flagged (`chyba`), reported itself not alive,
+or lost its count. A trip whose planned first or last stop is a depot is marked `IsDepotRun`. The
+depot name prefix is configurable (`Reconstruction:DepotStopNamePrefix`, default `Garaz`).
+
+Each run prints what it could not reconstruct and why. For the DPMB week: 9,216 trips, 178,247
+stop visits and 766,653 door counts from 698 files in about 1.5 minutes. 24 % of the trips are
+invalid, largely because the counters restart before the doors stop counting at a quick terminus
+turnaround, which loses the terminus counts.
 
 ## Switching the database
 
@@ -138,7 +235,7 @@ src/AdaPlatform.Infrastructure/      AppDbContext, entity configurations, provid
 src/AdaPlatform.Migrations.Postgres/ migrations for PostgreSQL
 src/AdaPlatform.Migrations.SqlServer/ migrations for SQL Server
 src/AdaPlatform.Api/                 the API
-tools/AdaPlatform.Cli/                CLI: import legacy ADA data and raw UCP logs
+tools/AdaPlatform.Cli/                CLI: import legacy ADA data and raw UCP logs, reconstruct trips
 tests/AdaPlatform.Api.Tests/         contract tests, run once per engine
 frontend/                            React SPA
 docs/adr/                            architecture decision records
@@ -146,8 +243,11 @@ docs/adr/                            architecture decision records
 
 ## Next steps
 
-1. **Trip reconstruction** from raw events: trip start (code 7) → stop visits (codes 8/9/15) →
-   door counts (code 11 per device), with restarts and missing devices handled explicitly.
+What we know about the data sources (EPIS, IRMA MATRIX, EPComp, the datasets) is in
+[docs/data-sources.md](docs/data-sources.md).
+
+1. **MDML logs:** import the first EPIS APC logs with IRMA MATRIX, check the readings behave like
+   UCP's, and map the EPIS codes not handled yet (13, 50, 52, 53).
 2. **Fault detection** over devices: silent devices, heartbeats with `alive=false`, restart
    rates, flagged `chyba` stops, vehicle-day in/out balance, negative occupancy drift.
 3. **Gap-filling comparison**: mask measured stop visits and compare methods (ADA's
@@ -155,4 +255,7 @@ docs/adr/                            architecture decision records
    one ML model) by MAE/RMSE.
 4. **Transportella XLSX parser** for the confirmed fields; must tolerate cells without the
    `r` attribute.
-5. **Frontend:** patterns on the map, charts (ECharts), the stop × trip occupancy matrix.
+5. **Device types:** an EPIS provider per counting device and health rules per type
+   ([ADR 0006](docs/adr/0006-counting-units-per-customer.md)); an EPComp import for planned trips.
+6. **Coupled trams:** link the two cars' trips (code 200) through `SecondVehicleId`.
+7. **Frontend:** patterns on the map, charts (ECharts), the stop × trip occupancy matrix.

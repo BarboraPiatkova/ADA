@@ -26,6 +26,10 @@ export interface Stop {
   visits: number
   boardings: number
   alightings: number
+  /** The most frequent destination of trips calling here: which direction this post serves. */
+  toward: string | null
+  /** Compass direction (0 = north) towards the most frequent next stop. */
+  bearing: number | null
 }
 
 export interface PatternSummary {
@@ -127,6 +131,253 @@ export interface DeviceHealthReport {
   to: string | null
   thresholds: HealthThresholds
   vehicles: VehicleHealth[]
+  /** Every service day with a vehicle log, whatever period the report covers: the period picker's days. */
+  days: string[]
+}
+
+/** How long vehicles stand at stops, and how much of it the passengers explain (/api/operations/dwell). */
+export interface DwellRules {
+  minUnexplainedSeconds: number
+  minExcessSeconds: number
+  fitMaxSeconds: number
+  minVisitsPerStop: number
+  onTimeSeconds: number
+  minOtherVehiclesAtOnce: number
+}
+
+/** dwell ≈ baseSeconds + secondsPerPassenger × (boardings + alightings) */
+export interface DwellModel {
+  visits: number
+  baseSeconds: number
+  secondsPerPassenger: number
+  correlation: number | null
+}
+
+export interface DwellBand {
+  minPassengers: number
+  /** null: the open top band ("21+"). */
+  maxPassengers: number | null
+  visits: number
+  medianSeconds: number
+  p90Seconds: number
+}
+
+export interface StopDwell {
+  code: number
+  name: string
+  latitude: number | null
+  longitude: number | null
+  /** The most frequent destination of trips calling here: which direction this post serves. */
+  toward: string | null
+  /** Compass direction (0 = north) towards the most frequent next stop. */
+  bearing: number | null
+  visits: number
+  medianSeconds: number
+  p90Seconds: number
+  meanPassengers: number
+  /** Median of dwell minus what its passengers explain; positive = stands longer than they need. */
+  medianExcessSeconds: number
+  unexplained: number
+}
+
+export type DwellCause = 'HeldForTimetable' | 'SeveralVehicles' | 'Other'
+
+export interface UnexplainedDwell {
+  /** Local time, ISO without zone. */
+  arrival: string
+  vehicleId: number
+  line: number | null
+  stopCode: number
+  stopName: string
+  dwellSeconds: number
+  passengers: number
+  expectedSeconds: number
+  /** Delay at departure; negative = early. */
+  delaySeconds: number
+  cause: DwellCause
+  /** Other vehicles standing long at the same time. */
+  otherVehiclesAtOnce: number
+}
+
+/** One visit of one stop, for the stop detail. */
+export interface StopVisitDwell {
+  arrival: string
+  vehicleId: number
+  line: number | null
+  dwellSeconds: number
+  passengers: number
+  expectedSeconds: number
+  delaySeconds: number
+  unexplained: boolean
+}
+
+export interface StopDwellDetail {
+  code: number
+  name: string
+  line: number | null
+  model: DwellModel
+  visits: StopVisitDwell[]
+}
+
+export interface VehicleStop {
+  sequence: number
+  stopCode: number
+  stopName: string
+  arrival: string | null
+  departure: string | null
+  /** null: no arrival or no departure in the log (a pass, the terminus). */
+  dwellSeconds: number | null
+  boardings: number
+  alightings: number
+  occupancy: number
+  delaySeconds: number
+  isPassThrough: boolean
+}
+
+export interface VehicleTrip {
+  id: number
+  start: string
+  end: string
+  line: number | null
+  patternCode: number | null
+  firstStopName: string | null
+  lastStopName: string | null
+  isValid: boolean
+  isDepotRun: boolean
+  stops: VehicleStop[]
+}
+
+export interface VehicleTripsDay {
+  vehicleId: number
+  day: string
+  days: string[]
+  trips: VehicleTrip[]
+}
+
+export interface DwellReport {
+  from: string | null
+  to: string | null
+  line: number | null
+  lines: number[]
+  timeSource: 'VehicleLog' | 'Transportella'
+  rules: DwellRules
+  model: DwellModel
+  bands: DwellBand[]
+  stops: StopDwell[]
+  unexplainedTotal: number
+  unexplained: UnexplainedDwell[]
+  /** Every day with data, whatever period the report covers: the days the period picker offers. */
+  days: string[]
+}
+
+export interface PunctualityRules {
+  earlySeconds: number
+  lateSeconds: number
+  veryLateSeconds: number
+  minDeparturesPerStop: number
+}
+
+export interface PunctualitySummary {
+  departures: number
+  early: number
+  onTime: number
+  late: number
+  veryLate: number
+  /** Negative = early. */
+  medianDelaySeconds: number
+  /** Passengers on board × minutes beyond the on-time limit, summed. */
+  passengerMinutesLate: number
+  /** Share of passengers on board who left on time; null without trusted counts. */
+  passengersOnTimeShare: number | null
+}
+
+export interface PunctualityStop {
+  code: number
+  name: string
+  latitude: number | null
+  longitude: number | null
+  toward: string | null
+  bearing: number | null
+  summary: PunctualitySummary
+}
+
+/** Where arrival and departure times come from: the vehicles' logs (with passengers) or Transportella (times only). */
+export type TimesSource = 'vehicleLog' | 'transportella'
+
+export interface PunctualityReport {
+  /** False for Transportella's times: nobody was counted, so the passenger figures are empty. */
+  hasPassengers: boolean
+  from: string | null
+  to: string | null
+  line: number | null
+  lines: number[]
+  rules: PunctualityRules
+  total: PunctualitySummary
+  hours: { hour: number; summary: PunctualitySummary }[]
+  /** Weekday 1 = Monday … 7 = Sunday; days = how many such days the period has. */
+  weekdays: { weekday: number; days: number; summary: PunctualitySummary }[]
+  weekHours: { weekday: number; hour: number; summary: PunctualitySummary }[]
+  byLine: { line: number; summary: PunctualitySummary }[]
+  stops: PunctualityStop[]
+  days: string[]
+}
+
+export interface LoadPattern {
+  code: number
+  line: number | null
+  firstStopName: string | null
+  lastStopName: string | null
+  trips: number
+}
+
+export interface LoadProfileStop {
+  sequence: number
+  stopCode: number
+  stopName: string
+  trips: number
+  meanBoardings: number
+  meanAlightings: number
+  medianLoad: number
+  p90Load: number
+  maxLoad: number
+}
+
+export interface CrowdedTrip {
+  tripId: number
+  vehicleId: number
+  start: string
+  line: number | null
+  patternCode: number | null
+  firstStopName: string | null
+  lastStopName: string | null
+  peakLoad: number
+  peakStopName: string | null
+  peakStopCode: number | null
+  boardings: number
+  capacity: number | null
+  /** Peak load as a share of capacity; null when the capacity is unknown. */
+  peakShare: number | null
+}
+
+export interface LoadReport {
+  from: string | null
+  to: string | null
+  line: number | null
+  lines: number[]
+  trips: number
+  boardings: number
+  tripsWithCapacity: number
+  boardingsByHour: { hour: number; boardings: number; alightings: number }[]
+  patterns: LoadPattern[]
+  pattern: number | null
+  profile: LoadProfileStop[]
+  /** The profile shows the best covered pattern because the reader picked none. */
+  patternChosenForReader: boolean
+  crowded: CrowdedTrip[]
+  /** Weekday 1 = Monday … 7 = Sunday; days = how many such days the period has (boardings are totals). */
+  boardingsByWeekday: { weekday: number; days: number; boardings: number; alightings: number }[]
+  boardingsByWeekHour: { weekday: number; hour: number; days: number; boardings: number }[]
+  days: string[]
 }
 
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
@@ -162,11 +413,38 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return (await response.json()) as T
 }
 
+/**
+ * Which days a report counts, as timetables run: working days (all, in school term, in school holidays),
+ * Saturdays, Sundays with public holidays, or public holidays alone.
+ */
+export type DayKind = 'all' | 'workdays' | 'schoolWorkdays' | 'holidayWorkdays' | 'saturday' | 'sundayOrHoliday' | 'publicHoliday'
+
+/** A report's days: from–to, both included (either end may be open), and which days of the week. */
+export type Period = { from?: string; to?: string; days?: Exclude<DayKind, 'all'> }
+
+/** "?line=1&from=…&to=…" with only the parameters that are set, or "". */
+function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string; days?: string; times?: string }) {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value))
+  const qs = query.toString()
+  return qs ? `?${qs}` : ''
+}
+
 export const api = {
   mapConfig: (signal?: AbortSignal) => getJson<MapConfig>('/api/map/config', signal),
   stops: (signal?: AbortSignal) => getJson<Stop[]>('/api/stops', signal),
   lines: (signal?: AbortSignal) => getJson<Line[]>('/api/lines', signal),
   patternStops: (code: number, signal?: AbortSignal) => getJson<PatternStop[]>(`/api/patterns/${code}/stops`, signal),
-  deviceHealth: (signal?: AbortSignal) => getJson<DeviceHealthReport>('/api/quality/devices', signal),
-  dailyQuality: (signal?: AbortSignal) => getJson<VehicleDay[]>('/api/quality/daily', signal),
+  deviceHealth: (period: Period, signal?: AbortSignal) => getJson<DeviceHealthReport>(`/api/quality/devices${operationsQuery({ ...period })}`, signal),
+  dailyQuality: (period: Period, signal?: AbortSignal) => getJson<VehicleDay[]>(`/api/quality/daily${operationsQuery({ ...period })}`, signal),
+  dwell: (line: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<DwellReport>(`/api/operations/dwell${operationsQuery({ line, ...period })}`, signal),
+  stopDwell: (code: number, line: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<StopDwellDetail>(`/api/operations/dwell/stops/${code}${operationsQuery({ line, ...period })}`, signal),
+  punctuality: (line: number | null, period: Period, times: TimesSource, signal?: AbortSignal) =>
+    getJson<PunctualityReport>(`/api/operations/punctuality${operationsQuery({ line, ...period, times: times === 'transportella' ? times : undefined })}`, signal),
+  load: (line: number | null, pattern: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<LoadReport>(`/api/operations/load${operationsQuery({ line, pattern, ...period })}`, signal),
+  vehicleDay: (vehicle: number, day: string, signal?: AbortSignal) =>
+    getJson<VehicleTripsDay>(`/api/operations/vehicles/${vehicle}/days/${day}`, signal),
 }

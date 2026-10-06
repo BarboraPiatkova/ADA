@@ -10,8 +10,11 @@ public static class QualityEndpoints
     {
         var quality = app.MapGroup("/api/quality").RequireAuthorization(Permissions.QualityRead);
 
-        quality.MapGet("/devices", (DeviceHealthReport report, CancellationToken ct) => report.GetAsync(ct));
-        quality.MapGet("/daily", (DailyQualityReport report, CancellationToken ct) => report.GetAsync(ct));
+        // ?from=&to=&days= as on the operations screens: the log files of those service days only.
+        quality.MapGet("/devices", (DeviceHealthReport report, DateOnly? from, DateOnly? to, string? days, CancellationToken ct) =>
+            report.GetAsync(new ReportPeriod(from, to, ReportPeriod.ParseDays(days)), ct));
+        quality.MapGet("/daily", (DailyQualityReport report, DateOnly? from, DateOnly? to, string? days, CancellationToken ct) =>
+            report.GetAsync(new ReportPeriod(from, to, ReportPeriod.ParseDays(days)), ct));
 
         return app;
     }

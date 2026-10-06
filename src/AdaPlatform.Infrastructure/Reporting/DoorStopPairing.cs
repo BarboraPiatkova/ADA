@@ -92,17 +92,23 @@ public sealed class DoorStopPairing
     }
 
     /// <summary>
-    /// Streams all counter readings from the database through a pairing: a new one unless
-    /// the caller wants its statistics afterwards (report F11).
+    /// Streams the counter readings from the database through a pairing: a new one unless the caller
+    /// wants its statistics afterwards (report F11). <paramref name="files"/> keeps some log files only.
     /// </summary>
     public static async IAsyncEnumerable<DoorStopCount> StreamAsync(
-        AppDbContext db, DoorStopPairing? pairing = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+        AppDbContext db, DoorStopPairing? pairing = null, IReadOnlyCollection<long>? files = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         pairing ??= new DoorStopPairing();
-        var readings = db.DeviceEvents.AsNoTracking()
+        var events = db.DeviceEvents.AsNoTracking()
             .Where(e => e.DeviceNumber > 0 && (e.Type == DeviceEventType.CountingStarted
                                                || e.Type == DeviceEventType.CountingStopped
-                                               || e.Type == DeviceEventType.DeviceRestart))
+                                               || e.Type == DeviceEventType.DeviceRestart));
+        if (files is not null)
+        {
+            events = events.Where(e => files.Contains(e.SourceFileId));
+        }
+        var readings = events
             .OrderBy(e => e.VehicleId).ThenBy(e => e.DeviceNumber).ThenBy(e => e.Time).ThenBy(e => e.SourceFileId).ThenBy(e => e.LineNumber)
             .Select(e => new CounterReading(e.VehicleId, e.DeviceNumber, e.Time, e.Type, e.StopCode, e.Boardings ?? 0, e.Alightings ?? 0))
             .AsAsyncEnumerable();
@@ -118,11 +124,11 @@ public sealed class DoorStopPairing
 
     /// <summary>Door counts added up by <paramref name="keyOf"/>: stops, boardings and alightings per key.</summary>
     public static async Task<Dictionary<TKey, DoorTotals>> SumAsync<TKey>(
-        AppDbContext db, Func<DoorStopCount, TKey> keyOf, CancellationToken ct = default)
+        AppDbContext db, Func<DoorStopCount, TKey> keyOf, CancellationToken ct = default, IReadOnlyCollection<long>? files = null)
         where TKey : notnull
     {
         var totals = new Dictionary<TKey, DoorTotals>();
-        await foreach (var count in StreamAsync(db, ct: ct))
+        await foreach (var count in StreamAsync(db, files: files, ct: ct))
         {
             var key = keyOf(count);
             var t = totals.GetValueOrDefault(key);

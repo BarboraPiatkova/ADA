@@ -109,34 +109,47 @@ public sealed record VehicleHealthDto(
 
 // Immutable: the report cache hands out the same instance instead of a copy per request.
 [ImmutableObject(true)]
+/// <param name="Days">Every service day with a vehicle log, whatever period the report covers: the period picker's days.</param>
 public sealed record DeviceHealthReportDto(
     DateOnly? From,
     DateOnly? To,
     HealthThresholds Thresholds,
-    IReadOnlyList<VehicleHealthDto> Vehicles);
+    IReadOnlyList<VehicleHealthDto> Vehicles,
+    IReadOnlyList<DateOnly> Days);
 
-public sealed class DeviceHealthReport(AppDbContext db, IOptions<HealthThresholds> options, HybridCache cache)
+public sealed class DeviceHealthReport(AppDbContext db, IOptions<HealthThresholds> options, HybridCache cache, DayCalendar calendar)
 {
-    /// <summary>The report for the current data, from the cache when it's still valid.</summary>
-    public Task<DeviceHealthReportDto> GetAsync(CancellationToken ct = default) =>
-        ReportCache.GetAsync(db, cache, "quality/devices", BuildAsync, ct);
+    /// <summary>The report for the current data and period, from the cache when it's still valid.</summary>
+    public Task<DeviceHealthReportDto> GetAsync(ReportPeriod period = default, CancellationToken ct = default) =>
+        ReportCache.GetAsync(db, cache, $"quality/devices/{period.Key}", token => BuildAsync(period, token), ct);
 
-    public async Task<DeviceHealthReportDto> BuildAsync(CancellationToken ct = default)
+    public async Task<DeviceHealthReportDto> BuildAsync(ReportPeriod period = default, CancellationToken ct = default)
     {
         var thresholds = options.Value;
         db.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
 
-        var days = await db.SourceFiles.AsNoTracking()
+        // The period picks log files (vehicle × service day); every count below comes from those alone.
+        var files = await period.SourceFilesAsync(db, calendar, ct);
+        var serviceDays = await ReportPeriod.ServiceDaysAsync(db, ct);
+        var sourceFiles = db.SourceFiles.AsNoTracking();
+        var deviceEvents = db.DeviceEvents.AsNoTracking();
+        if (files is not null)
+        {
+            sourceFiles = sourceFiles.Where(f => files.Contains(f.Id));
+            deviceEvents = deviceEvents.Where(e => files.Contains(e.SourceFileId));
+        }
+
+        var days = await sourceFiles
             .GroupBy(f => f.VehicleId)
             .Select(g => new { VehicleId = g.Key, Days = g.Select(f => f.ServiceDate).Distinct().Count(), From = g.Min(f => f.ServiceDate), To = g.Max(f => f.ServiceDate) })
             .ToListAsync(ct);
         if (days.Count == 0)
         {
-            return new DeviceHealthReportDto(null, null, thresholds, []);
+            return new DeviceHealthReportDto(null, null, thresholds, [], serviceDays);
         }
 
         // Heartbeats and restarts per device, counted directly.
-        var perDevice = await db.DeviceEvents.AsNoTracking()
+        var perDevice = await deviceEvents
             .Where(e => e.DeviceNumber > 0 && (e.Type == DeviceEventType.Heartbeat || e.Type == DeviceEventType.DeviceRestart))
             .GroupBy(e => new { e.VehicleId, e.DeviceNumber, e.Type })
             .Select(g => new { g.Key.VehicleId, g.Key.DeviceNumber, g.Key.Type, Count = g.Count(), NotAlive = g.Count(e => e.Alive == false) })
@@ -144,16 +157,16 @@ public sealed class DeviceHealthReport(AppDbContext db, IOptions<HealthThreshold
 
         // Passengers per door: counter readings are running totals, so pair start → stop
         // and take the difference (see DoorStopPairing).
-        var doors = await DoorStopPairing.SumAsync(db, c => (c.VehicleId, c.DeviceNumber), ct);
+        var doors = await DoorStopPairing.SumAsync(db, c => (c.VehicleId, c.DeviceNumber), ct, files);
 
-        var summaries = await db.DeviceEvents.AsNoTracking()
+        var summaries = await deviceEvents
             .Where(e => e.Type == DeviceEventType.StopSummary)
             .GroupBy(e => e.VehicleId)
             .Select(g => new { VehicleId = g.Key, Total = g.Count(), Negative = g.Count(e => e.OnBoard < 0), Flagged = g.Count(e => e.InvalidDevices != null) })
             .ToDictionaryAsync(s => s.VehicleId, ct);
 
         // "chyba" lists device numbers ("41 42"); count per device in memory (≈11k rows).
-        var flaggedPerDevice = (await db.DeviceEvents.AsNoTracking()
+        var flaggedPerDevice = (await deviceEvents
                 .Where(e => e.Type == DeviceEventType.StopSummary && e.InvalidDevices != null)
                 .Select(e => new { e.VehicleId, e.InvalidDevices })
                 .ToListAsync(ct))
@@ -212,6 +225,6 @@ public sealed class DeviceHealthReport(AppDbContext db, IOptions<HealthThreshold
                 assessment.Status, assessment.Reasons, devices));
         }
 
-        return new DeviceHealthReportDto(days.Min(d => d.From), days.Max(d => d.To), thresholds, rows);
+        return new DeviceHealthReportDto(days.Min(d => d.From), days.Max(d => d.To), thresholds, rows, serviceDays);
     }
 }

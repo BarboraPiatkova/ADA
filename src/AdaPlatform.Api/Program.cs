@@ -56,6 +56,7 @@ app.MapAuthEndpoints();
 app.MapNetworkEndpoints();
 app.MapMapEndpoints();
 app.MapQualityEndpoints();
+app.MapOperationsEndpoints();
 
 app.Run();
 

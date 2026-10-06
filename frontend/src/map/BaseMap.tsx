@@ -3,7 +3,7 @@ import { Control, DomEvent, DomUtil, type LatLngBoundsExpression } from 'leaflet
 import { Popover } from 'radix-ui'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { AttributionControl, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import { cn } from '../ui/cn'
 import { readSetting, writeSetting } from '../ui/storage'
 import type { BaseLayer } from '../api'
@@ -134,7 +134,9 @@ export function BaseMap({ layers, bounds, children }: { layers: BaseLayer[]; bou
   const active = layers.find((l) => l.id === activeId) ?? layers[0]
 
   return (
-    <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} minZoom={MIN_ZOOM} className="flex-1 bg-surface font-sans">
+    <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} minZoom={MIN_ZOOM} attributionControl={false} className="isolate flex-1 bg-surface font-sans">
+      {/* The tile providers' credits stay (Mapy.com requires theirs); the "Leaflet" prefix is optional under its BSD licence. */}
+      <AttributionControl prefix={false} />
       {active && (
         <>
           {/* Keyed by id so switching swaps the tile layer (and its attribution) cleanly. */}

@@ -21,18 +21,17 @@ export interface TooltipState {
 }
 
 /**
- * One tooltip per chart, positioned relative to the chart's own box. Marks call show()
- * on pointer move and focus; content is React nodes, so data is always text-escaped.
+ * One tooltip per chart, at the pointer in window coordinates (drawn position: fixed, so it never
+ * makes the chart's scrollable box grow scrollbars). Marks call show() on pointer move and focus;
+ * content is React nodes, so data is always text-escaped. `box` stays on the chart box for callers.
  */
 export function useTooltip() {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
   const box = useRef<HTMLDivElement>(null)
 
   const show = useCallback((event: { clientX: number; clientY: number } | DOMRect, content: ReactNode) => {
-    const rect = box.current?.getBoundingClientRect()
-    if (!rect) return
     const point = 'clientX' in event ? { x: event.clientX, y: event.clientY } : { x: event.x + event.width / 2, y: event.y }
-    setTooltip({ x: point.x - rect.left, y: point.y - rect.top, content })
+    setTooltip({ x: point.x, y: point.y, content })
   }, [])
   const hide = useCallback(() => setTooltip(null), [])
 
