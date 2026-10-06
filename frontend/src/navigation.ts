@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { ScreenId } from './screens'
+import { screenPath, type ScreenId } from './screens'
 
-// Links between screens ride on the URL hash, which already names the screen: "#/provoz?stop=163305"
+// Links between screens ride on the URL hash, which already names the screen: "#/statistiky/provoz?stop=163305"
 // opens the dwell screen on that stop. The screen reads its parameters when it opens, then the hash
 // goes back to just the screen, so reloading later doesn't bring back an old selection.
 
-/** The screen id in the hash, without its parameters. */
-export function screenInHash() {
+/** The screen's path in the hash ("mapa", "statistiky/provoz"), without its parameters. */
+export function pathInHash() {
   return window.location.hash.replace(/^#\/?/, '').split('?')[0]
 }
 
@@ -15,7 +15,7 @@ export function openScreen(screen: ScreenId, params: Record<string, string | num
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value))
   const qs = query.toString()
-  window.location.hash = `/${screen}${qs ? `?${qs}` : ''}`
+  window.location.hash = `/${screenPath(screen)}${qs ? `?${qs}` : ''}`
 }
 
 const readParams = () => new URLSearchParams(window.location.hash.split('?')[1] ?? '')
@@ -27,7 +27,7 @@ const readParams = () => new URLSearchParams(window.location.hash.split('?')[1] 
 export function useScreenParams(): URLSearchParams {
   const [params] = useState(readParams)
   useEffect(() => {
-    if (window.location.hash.includes('?')) window.history.replaceState(null, '', `#/${screenInHash()}`)
+    if (window.location.hash.includes('?')) window.history.replaceState(null, '', `#/${pathInHash()}`)
   }, [])
   return params
 }

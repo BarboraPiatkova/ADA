@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import { useTranslation } from 'react-i18next'
 import type { DwellBand } from '../api'
 import type { Format } from '../i18n/format'
@@ -21,7 +22,7 @@ function secondsStep(max: number) {
   return [5, 10, 15, 20, 30, 60, 120, 300].find((s) => max / s <= 5) ?? 600
 }
 
-function bandLabel(band: DwellBand, t: ReturnType<typeof useTranslation>['t']) {
+function bandLabel(band: DwellBand, t: TFunction) {
   if (band.maxPassengers === null) return t('dwell.bands.bandOpen', { from: band.minPassengers })
   if (band.minPassengers === band.maxPassengers) return String(band.minPassengers)
   return t('dwell.bands.band', { from: band.minPassengers, to: band.maxPassengers })

@@ -16,6 +16,7 @@ import type { Format } from '../i18n/format'
 import { TractionIcon } from '../ui/icons'
 import { STATUS_ORDER } from '../ui/status'
 import { StatusPill } from '../ui/StatusPill'
+import { SORT_FNS } from '../operations/tableFeatures'
 import { HeaderHint, Share } from './cells'
 import { tractionLabel } from './labels'
 import { Reasons } from './Reasons'
@@ -26,12 +27,13 @@ import { Reasons } from './Reasons'
 export const vehicleFeatures = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
+  sortFns: SORT_FNS,
   rowExpandingFeature,
   expandedRowModel: createExpandedRowModel(),
   rowPaginationFeature,
   paginatedRowModel: createPaginatedRowModel(),
 })
-export const deviceFeatures = tableFeatures({ rowSortingFeature, sortedRowModel: createSortedRowModel() })
+export const deviceFeatures = tableFeatures({ rowSortingFeature, sortedRowModel: createSortedRowModel(), sortFns: SORT_FNS })
 
 const vehicleColumns = createColumnHelper<typeof vehicleFeatures, VehicleHealth>()
 const deviceColumns = createColumnHelper<typeof deviceFeatures, DeviceHealth>()

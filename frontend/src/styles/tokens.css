@@ -49,6 +49,9 @@
   --seq-5: #007575;
   --seq-6: #1d5151;
   --series-1: #009090; /* single-series marks: passes band, chroma and contrast checks */
+  /* Boardings beside alightings (the map's diverging poles, re-stepped for marks on paper): validated as a pair, light and dark. */
+  --series-boardings: #009090;
+  --series-alightings: #b3541e;
   --gridline: #e6eaea;
   --axis: #c3cccc;
 
@@ -101,6 +104,8 @@
   --seq-5: #67c1c1;
   --seq-6: #acdcdb;
   --series-1: #119999;
+  --series-boardings: #119999;
+  --series-alightings: #d06a2c;
   --gridline: #23323a;
   --axis: #3a4b55;
   color-scheme: dark;

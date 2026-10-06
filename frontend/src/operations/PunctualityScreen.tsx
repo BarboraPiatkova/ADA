@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { createColumnHelper } from '@tanstack/react-table'
 import { useMemo, useState, type ReactNode } from 'react'
@@ -307,7 +308,7 @@ const summaryCol = createColumnHelper<typeof sortableFeatures, SummaryRow>()
 const SUMMARY_NUMERIC = ['departures', 'onTime', 'late', 'early', 'median', 'passengerMinutes', 'passengersOnTime']
 
 function summaryColumns(
-  t: ReturnType<typeof useTranslation>['t'],
+  t: TFunction,
   format: Format,
   labelHeader: string,
   rules: PunctualityRules,
@@ -369,7 +370,7 @@ function SummarySortable({ rows, labelHeader, rules, passengers, format }: { row
 }
 
 /** Flag a line or stop by its share of late departures: the map's two darkest steps. */
-function lateFlag(s: PunctualitySummary, t: ReturnType<typeof useTranslation>['t'], format: Format): RowFlag | null {
+function lateFlag(s: PunctualitySummary, t: TFunction, format: Format): RowFlag | null {
   const share = lateShare(s)
   const late = format.percentWhole(share)
   return share > LATE_FAULT ? { status: 'Fault', reason: t('flags.lateFault', { late }) } : share > LATE_WARNING ? { status: 'Warning', reason: t('flags.lateWarning', { late }) } : null

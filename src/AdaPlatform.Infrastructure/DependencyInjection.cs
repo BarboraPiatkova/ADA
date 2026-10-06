@@ -59,6 +59,10 @@ public static class DependencyInjection
         services.AddOptions<PunctualityRules>().Bind(configuration.GetSection(PunctualityRules.SectionName));
         services.AddScoped<PunctualityReport>();
         services.AddScoped<LoadReport>();
+        services.AddScoped<FleetReport>();
+        services.AddScoped<TripsReport>();
+        services.AddScoped<StopStatisticsReport>();
+        services.AddScoped<PatternGroups>();
         return services;
     }
 

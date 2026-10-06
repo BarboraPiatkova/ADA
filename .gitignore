@@ -22,3 +22,20 @@ tile-cache/
 ## Imported data files (large, some with personal data): only the inventory is committed
 /data/*
 !/data/README.md
+
+## Local tool output: Playwright snapshots and screenshots, design critiques
+.playwright-mcp/
+.impeccable/critique/
+
+## Personal AI-assistant setup (caveman rules and skills), kept out of the shared repo
+.agents/
+skills-lock.json
+AGENTS.md
+.clinerules/
+.cursor/
+.opencode/
+.windsurf/
+.github/copilot-instructions.md
+
+## The thesis text (LaTeX): kept local, not in the repo
+/docs/thesis/latex/

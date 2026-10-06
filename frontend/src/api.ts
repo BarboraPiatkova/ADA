@@ -32,12 +32,28 @@ export interface Stop {
   bearing: number | null
 }
 
+/** One timetable version of a route: the hours its trips start in (null without trips). */
+export interface PatternVariant {
+  code: number
+  trips: number
+  firstHour: number | null
+  lastHour: number | null
+}
+
+/** A route of a line: its patterns with the same stops (timetable variants) as one entry. */
 export interface PatternSummary {
+  /** The busiest variant's code: draws the route. */
   code: number
   firstStopName: string | null
   lastStopName: string | null
   stopCount: number
+  /** Trips of every variant. */
   trips: number
+  variants: PatternVariant[]
+  /** Stops it calls at that the busiest route between the same termini doesn't. */
+  extraStops: string[]
+  /** Stops the busiest route between the same termini calls at that it leaves out. */
+  missingStops: string[]
 }
 
 export interface Line {
@@ -322,12 +338,15 @@ export interface PunctualityReport {
   days: string[]
 }
 
+/** A route on the occupancy picker (its timetable variants as one). */
 export interface LoadPattern {
   code: number
   line: number | null
   firstStopName: string | null
   lastStopName: string | null
   trips: number
+  extraStops: string[]
+  missingStops: string[]
 }
 
 export interface LoadProfileStop {
@@ -380,6 +399,184 @@ export interface LoadReport {
   days: string[]
 }
 
+/** One vehicle of the fleet register, with what its logs hold for the period (invalid trips and depot runs included). */
+export interface FleetVehicle {
+  id: number
+  depot: string | null
+  traction: string | null
+  model: string | null
+  seatingCapacity: number | null
+  standingCapacity: number | null
+  /** Seats plus standing places; null unless both are known. */
+  capacity: number | null
+  isExcluded: boolean
+  devices: number
+  /** Last service day a log file of the vehicle was imported for (ADA: "Poslední data"). */
+  lastData: string | null
+  days: number
+  trips: number
+  invalidTrips: number
+  boardings: number
+  alightings: number
+  /** Known device faults that began in the period. */
+  faults: number
+}
+
+export interface FleetReport {
+  from: string | null
+  to: string | null
+  vehicles: FleetVehicle[]
+  /** Every day with a trip from the vehicle logs, for the period picker. */
+  days: string[]
+}
+
+export interface VehicleDevice {
+  deviceNumber: number
+  firmwareVersion: string | null
+  firstSeen: string
+  lastSeen: string
+}
+
+export interface VehicleDaySummary {
+  day: string
+  trips: number
+  invalidTrips: number
+  depotRuns: number
+  boardings: number
+  alightings: number
+  firstStart: string
+  lastEnd: string
+}
+
+export type FaultKind = 'UnexpectedRestart' | 'PowerCutUntilEnd' | 'PowerCutStatusFalse' | 'InvalidPassengerCount'
+
+export interface VehicleFault {
+  id: number
+  deviceNumber: number | null
+  tripId: number | null
+  from: string
+  to: string | null
+  kind: FaultKind
+  source: 'LegacyAda' | 'Detector'
+  details: string | null
+}
+
+export interface VehicleDetail {
+  vehicle: FleetVehicle
+  devices: VehicleDevice[]
+  tripDays: VehicleDaySummary[]
+  faults: VehicleFault[]
+  days: string[]
+}
+
+/** A trip in the trip list: invalid ones and depot runs included, marked. */
+export interface TripRow {
+  id: number
+  vehicleId: number
+  /** The second unit of a coupled set, if any. */
+  secondVehicleId: number | null
+  start: string
+  end: string
+  line: number | null
+  patternCode: number | null
+  /** Service block (ADA: služba). */
+  block: string | null
+  firstStopName: string | null
+  lastStopName: string | null
+  /** Stops served (pass-throughs not counted). */
+  stops: number
+  boardings: number
+  alightings: number
+  isValid: boolean
+  isDepotRun: boolean
+  /** Stops where a counting unit flagged its count as invalid. */
+  flaggedStops: number
+}
+
+export interface TripList {
+  from: string | null
+  to: string | null
+  line: number | null
+  vehicle: number | null
+  lines: number[]
+  vehicles: number[]
+  /** Trips matching the filter; the list holds at most 20 000 of them. */
+  total: number
+  trips: TripRow[]
+  days: string[]
+}
+
+/** ADA's "Přehled" of a trip. */
+export interface TripOverview {
+  km: number | null
+  /** Kilometres times the units in the set. */
+  vehicleKm: number | null
+  /** Kilometres times the vehicle's capacity. */
+  placeKm: number | null
+  /** Everyone who boarded. */
+  passengers: number
+}
+
+export interface FlaggedStop {
+  sequence: number
+  stopCode: number
+  deviceNumbers: number[]
+}
+
+export interface TripDetail {
+  trip: VehicleTrip
+  vehicleId: number
+  secondVehicleId: number | null
+  block: string | null
+  capacity: number | null
+  overview: TripOverview
+  flaggedStops: FlaggedStop[]
+  faults: VehicleFault[]
+}
+
+/** One stop post over the filtered trips. */
+export interface StopStat {
+  code: number
+  name: string
+  /** The direction the post serves. */
+  toward: string | null
+  /** Calls where the vehicle stopped. */
+  visits: number
+  passThroughs: number
+  boardings: number
+  alightings: number
+  /** Mean passengers on board after the stop. */
+  meanLoad: number
+  maxLoad: number
+  lines: number[]
+}
+
+/** Which trips the stop figures count: those the statistics use (valid, no depot runs), or all. */
+export type StopTrips = 'valid' | 'all'
+
+export interface StopStatistics {
+  from: string | null
+  to: string | null
+  line: number | null
+  vehicle: number | null
+  allTrips: boolean
+  lines: number[]
+  vehicles: number[]
+  trips: number
+  stops: StopStat[]
+  days: string[]
+}
+
+export interface StopStatisticsDetail {
+  code: number
+  name: string
+  toward: string | null
+  byLine: { line: number | null; visits: number; boardings: number; alightings: number; meanLoad: number }[]
+  byHour: { hour: number; visits: number; boardings: number; alightings: number }[]
+  /** weekday: 1 = Monday … 7 = Sunday; days: how many such days had calls here. */
+  byWeekday: { weekday: number; days: number; boardings: number; alightings: number }[]
+}
+
 /** A non-2xx answer from the API. 401: not signed in; 403: signed in, but no permission. */
 export class ApiError extends Error {
   readonly path: string
@@ -423,7 +620,7 @@ export type DayKind = 'all' | 'workdays' | 'schoolWorkdays' | 'holidayWorkdays' 
 export type Period = { from?: string; to?: string; days?: Exclude<DayKind, 'all'> }
 
 /** "?line=1&from=…&to=…" with only the parameters that are set, or "". */
-function operationsQuery(params: { line?: number | null; pattern?: number | null; from?: string; to?: string; days?: string; times?: string }) {
+function operationsQuery(params: { line?: number | null; pattern?: number | null; vehicle?: number | null; trips?: string; from?: string; to?: string; days?: string; times?: string }) {
   const query = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) if (value !== null && value !== undefined) query.set(key, String(value))
   const qs = query.toString()
@@ -447,4 +644,14 @@ export const api = {
     getJson<LoadReport>(`/api/operations/load${operationsQuery({ line, pattern, ...period })}`, signal),
   vehicleDay: (vehicle: number, day: string, signal?: AbortSignal) =>
     getJson<VehicleTripsDay>(`/api/operations/vehicles/${vehicle}/days/${day}`, signal),
+  fleet: (period: Period, signal?: AbortSignal) => getJson<FleetReport>(`/api/fleet/vehicles${operationsQuery({ ...period })}`, signal),
+  vehicle: (vehicle: number, period: Period, signal?: AbortSignal) =>
+    getJson<VehicleDetail>(`/api/fleet/vehicles/${vehicle}${operationsQuery({ ...period })}`, signal),
+  trips: (line: number | null, vehicle: number | null, period: Period, signal?: AbortSignal) =>
+    getJson<TripList>(`/api/trips${operationsQuery({ line, vehicle, ...period })}`, signal),
+  trip: (id: number, signal?: AbortSignal) => getJson<TripDetail>(`/api/trips/${id}`, signal),
+  stopStatistics: (line: number | null, vehicle: number | null, trips: StopTrips, period: Period, signal?: AbortSignal) =>
+    getJson<StopStatistics>(`/api/stop-statistics${operationsQuery({ line, vehicle, trips: trips === 'all' ? trips : undefined, ...period })}`, signal),
+  stopStatisticsDetail: (code: number, line: number | null, vehicle: number | null, trips: StopTrips, period: Period, signal?: AbortSignal) =>
+    getJson<StopStatisticsDetail>(`/api/stop-statistics/${code}${operationsQuery({ line, vehicle, trips: trips === 'all' ? trips : undefined, ...period })}`, signal),
 }

@@ -16,7 +16,14 @@ public static class NetworkEndpoints
     public sealed record StopDto(
         int Code, string Name, double Latitude, double Longitude, int Visits, int Boardings, int Alightings, string? Toward, double? Bearing);
 
-    public sealed record PatternSummaryDto(int Code, string? FirstStopName, string? LastStopName, int StopCount, int Trips);
+    /// <summary>A route of a line: its patterns with the same stops (timetable variants) as one entry.</summary>
+    /// <param name="Code">The busiest variant's code: draws the route (GET /api/patterns/{code}/stops).</param>
+    /// <param name="Variants">The timetable versions, with the hours their trips start in.</param>
+    /// <param name="ExtraStops">Stops it calls at that the busiest route between the same termini doesn't.</param>
+    /// <param name="MissingStops">Stops the busiest route between the same termini calls at that it leaves out.</param>
+    public sealed record PatternSummaryDto(
+        int Code, string? FirstStopName, string? LastStopName, int StopCount, int Trips,
+        IReadOnlyList<PatternVariant> Variants, IReadOnlyList<string> ExtraStops, IReadOnlyList<string> MissingStops);
 
     public sealed record LineDto(int Id, IReadOnlyList<PatternSummaryDto> Patterns);
 
@@ -50,27 +57,14 @@ public static class NetworkEndpoints
             });
         });
 
-        // Lines with their patterns, busiest pattern first — the map's line picker.
-        api.MapGet("/lines", async (AppDbContext db, CancellationToken ct) =>
-        {
-            var tripsPerPattern = await db.Trips.AsNoTracking()
-                .Where(t => t.PatternCode != null)
-                .GroupBy(t => t.PatternCode!.Value)
-                .Select(g => new { Code = g.Key, Trips = g.Count() })
-                .ToDictionaryAsync(p => p.Code, p => p.Trips, ct);
-
-            var patterns = await db.Patterns.AsNoTracking()
-                .Select(p => new { p.LineId, p.Code, p.FirstStopName, p.LastStopName, StopCount = p.Stops.Count })
-                .ToListAsync(ct);
-
-            return patterns
-                .GroupBy(p => p.LineId)
+        // Lines with their routes (patterns with the same stops as one), busiest first — the map's line picker.
+        api.MapGet("/lines", async (PatternGroups patternGroups, CancellationToken ct) =>
+            (await patternGroups.GetAsync(ct))
+                .GroupBy(g => g.LineId)
                 .OrderBy(g => g.Key)
                 .Select(g => new LineDto(g.Key, g
-                    .Select(p => new PatternSummaryDto(p.Code, p.FirstStopName, p.LastStopName, p.StopCount, tripsPerPattern.GetValueOrDefault(p.Code)))
-                    .OrderByDescending(p => p.Trips).ThenBy(p => p.Code)
-                    .ToList()));
-        });
+                    .Select(p => new PatternSummaryDto(p.Code, p.FirstStopName, p.LastStopName, p.StopCount, p.Trips, p.Variants, p.ExtraStops, p.MissingStops))
+                    .ToList())));
 
         api.MapGet("/patterns/{code:int}/stops", async (int code, AppDbContext db, CancellationToken ct) =>
         {

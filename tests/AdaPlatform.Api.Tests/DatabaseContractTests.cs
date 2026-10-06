@@ -12,6 +12,7 @@ using AdaPlatform.Infrastructure.Import.Ada;
 using AdaPlatform.Infrastructure.Import.Ucp;
 using AdaPlatform.Infrastructure.Persistence;
 using AdaPlatform.Infrastructure.Reconstruction;
+using AdaPlatform.Infrastructure.Reporting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -533,6 +534,246 @@ public abstract class DatabaseContractTests<TFixture>(TFixture fixture) : IClass
         {
             Directory.Delete(folder, recursive: true);
         }
+    }
+
+    [Fact]
+    public async Task Fleet_register_lists_every_vehicle_with_what_its_logs_hold()
+    {
+        await using var api = NewApi();
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            SeedNetwork(db);
+            db.Vehicles.Add(new Vehicle { Id = 14, Traction = "autobus", SeatingCapacity = 30, StandingCapacity = 60 });
+            db.CountingDevices.Add(new CountingDevice
+            {
+                VehicleId = 13,
+                DeviceNumber = 41,
+                FirmwareVersion = "201913121247",
+                FirstSeenAt = new DateTime(2022, 8, 1, 4, 0, 0),
+                LastSeenAt = new DateTime(2022, 8, 6, 22, 0, 0),
+            });
+            var monday = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-01.csv", Sha256 = "a", VehicleId = 13, ServiceDate = new DateOnly(2022, 8, 1) };
+            var saturday = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-06.csv", Sha256 = "b", VehicleId = 13, ServiceDate = new DateOnly(2022, 8, 6) };
+            db.SourceFiles.AddRange(monday, saturday);
+            Trip NewTrip(SourceFile? file, DateTime start, bool valid = true, bool depot = false, int on = 0, int off = 0) => new()
+            {
+                VehicleId = 13,
+                SourceFile = file,
+                StartTime = start,
+                EndTime = start.AddMinutes(40),
+                IsValid = valid,
+                IsDepotRun = depot,
+                Boardings = on,
+                Alightings = off,
+            };
+            db.Trips.AddRange(
+                NewTrip(monday, new DateTime(2022, 8, 1, 6, 0, 0), on: 10, off: 8),
+                NewTrip(monday, new DateTime(2022, 8, 1, 7, 0, 0), valid: false, on: 5, off: 6),
+                NewTrip(saturday, new DateTime(2022, 8, 6, 5, 0, 0), depot: true),
+                // Imported from ADA (no log file): left out, as on the other screens.
+                NewTrip(null, new DateTime(2022, 8, 1, 8, 0, 0), on: 100, off: 100));
+            db.DeviceFaults.Add(new DeviceFault { VehicleId = 13, DeviceNumber = 41, From = new DateTime(2022, 8, 1, 7, 10, 0), Kind = FaultKind.UnexpectedRestart, Source = FaultSource.LegacyAda });
+            await db.SaveChangesAsync();
+        }
+        var client = api.CreateSignedInClient();
+
+        // Every vehicle, with or without trips; invalid trips and depot runs counted.
+        var fleet = await client.GetFromJsonAsync<FleetReportDto>("/api/fleet/vehicles");
+        Assert.Equal([13, 14], fleet!.Vehicles.Select(v => v.Id));
+        Assert.Equal((new DateOnly(2022, 8, 1), new DateOnly(2022, 8, 6)), (fleet.From, fleet.To));
+        var busy = fleet.Vehicles[0];
+        Assert.Equal((2, 3, 1, 15, 14), (busy.Days, busy.Trips, busy.InvalidTrips, busy.Boardings, busy.Alightings));
+        Assert.Equal((1, 1, new DateOnly(2022, 8, 6)), (busy.Devices, busy.Faults, busy.LastData));
+        var idle = fleet.Vehicles[1];
+        Assert.Equal((0, 90, (DateOnly?)null), (idle.Trips, idle.Capacity, idle.LastData));
+
+        // 1 August 2022 was a Monday, 6 August a Saturday.
+        var workdays = await client.GetFromJsonAsync<FleetReportDto>("/api/fleet/vehicles?days=workdays");
+        Assert.Equal((1, 2, 1), (workdays!.Vehicles[0].Days, workdays.Vehicles[0].Trips, workdays.Vehicles[0].Faults));
+
+        var detail = await client.GetFromJsonAsync<VehicleDetailDto>("/api/fleet/vehicles/13?days=saturday");
+        var day = Assert.Single(detail!.TripDays);
+        Assert.Equal((new DateOnly(2022, 8, 6), 1, 1), (day.Day, day.Trips, day.DepotRuns));
+        Assert.Empty(detail.Faults);
+        Assert.Equal(("201913121247", 41), (Assert.Single(detail.Devices).FirmwareVersion, detail.Devices[0].DeviceNumber));
+        var allFaults = await client.GetFromJsonAsync<VehicleDetailDto>("/api/fleet/vehicles/13");
+        Assert.Equal(("UnexpectedRestart", "LegacyAda"), (Assert.Single(allFaults!.Faults).Kind, allFaults.Faults[0].Source));
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/fleet/vehicles/999")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Trip_list_and_trip_detail_show_every_trip_with_why_it_is_invalid()
+    {
+        var folder = UcpLogFixture.WriteToNewFolder();
+        try
+        {
+            await using var api = NewApi();
+            long adaTripId;
+            await using (var scope = api.Services.CreateAsyncScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await new UcpLogIngestor(db).IngestAsync(folder);
+                await new TripReconstruction(db, Options.Create(new ReconstructionOptions())).ReconstructAsync();
+                // Imported from ADA (no log file): not listed, no detail.
+                var ada = new Trip { VehicleId = UcpLogFixture.VehicleId, StartTime = new DateTime(2022, 8, 2, 9, 0, 0), EndTime = new DateTime(2022, 8, 2, 9, 30, 0), IsValid = true };
+                db.Trips.Add(ada);
+                await db.SaveChangesAsync();
+                adaTripId = ada.Id;
+            }
+            var client = api.CreateSignedInClient();
+
+            // The fixture's one trip: a depot run on line 12, invalid because unit 42 flagged its count at the first stop.
+            var list = await client.GetFromJsonAsync<TripListDto>("/api/trips");
+            var row = Assert.Single(list!.Trips);
+            Assert.Equal(1, list.Total);
+            Assert.Equal([12], list.Lines);
+            Assert.Equal([UcpLogFixture.VehicleId], list.Vehicles);
+            Assert.Equal((12, false, true, 1, 1, 3), (row.Line, row.IsValid, row.IsDepotRun, row.Stops, row.FlaggedStops, row.Boardings));
+            Assert.Equal(("Garaz ED Pisarky", "Komarov"), (row.FirstStopName, row.LastStopName));
+
+            Assert.Empty((await client.GetFromJsonAsync<TripListDto>("/api/trips?line=99"))!.Trips);
+            Assert.Empty((await client.GetFromJsonAsync<TripListDto>("/api/trips?vehicle=1"))!.Trips);
+            Assert.Single((await client.GetFromJsonAsync<TripListDto>($"/api/trips?vehicle={UcpLogFixture.VehicleId}&from=2022-08-02&to=2022-08-02"))!.Trips);
+            // 2 August 2022 was a Tuesday.
+            Assert.Empty((await client.GetFromJsonAsync<TripListDto>("/api/trips?days=saturday"))!.Trips);
+
+            var detail = await client.GetFromJsonAsync<TripDetailDto>($"/api/trips/{row.Id}");
+            Assert.Equal([165902, 134302], detail!.Trip.Stops.Select(s => s.StopCode));
+            Assert.Equal("Technologicky park", detail.Trip.Stops[0].StopName);
+            var flagged = Assert.Single(detail.FlaggedStops);
+            Assert.Equal((1, 165902), (flagged.Sequence, flagged.StopCode));
+            Assert.Equal([42], flagged.DeviceNumbers);
+            Assert.Equal((3, (double?)null, (int?)null), (detail.Overview.Passengers, detail.Overview.Km, detail.Capacity));
+            Assert.Equal("01200715", detail.Block);
+
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/trips/{adaTripId}")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/trips/999999")).StatusCode);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Stop_statistics_sum_each_post_with_the_load_after_it()
+    {
+        await using var api = NewApi();
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            SeedNetwork(db);
+            var file = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-01.csv", Sha256 = "x", VehicleId = 13 };
+            db.SourceFiles.Add(file);
+            var t0 = new DateTime(2022, 8, 1, 7, 0, 0);
+            StopVisit Visit(int sequence, int stop, int on, int off) => new()
+            {
+                Sequence = sequence,
+                StopCode = stop,
+                ArrivalTime = t0.AddMinutes(sequence),
+                DepartureTime = t0.AddMinutes(sequence).AddSeconds(20),
+                Boardings = on,
+                Alightings = off,
+            };
+            // A loop: 201, 301, back to 201. Loads after each stop: 10, 12, 0.
+            db.Trips.Add(new Trip
+            {
+                VehicleId = 13,
+                PatternCode = 2080001,
+                SourceFile = file,
+                IsValid = true,
+                StartTime = t0,
+                EndTime = t0.AddHours(1),
+                StopVisits = [Visit(1, 201, 10, 0), Visit(2, 301, 5, 3), Visit(3, 201, 0, 12)],
+            });
+            // An invalid trip counts only when every trip is asked for.
+            db.Trips.Add(new Trip { VehicleId = 13, SourceFile = file, IsValid = false, StartTime = t0, EndTime = t0.AddHours(1), StopVisits = [Visit(1, 301, 100, 0)] });
+            await db.SaveChangesAsync();
+        }
+        var client = api.CreateSignedInClient();
+
+        var report = await client.GetFromJsonAsync<StopStatisticsDto>("/api/stop-statistics");
+        Assert.Equal((1, false), (report!.Trips, report.AllTrips));
+        var stops = report.Stops.ToDictionary(s => s.Code);
+        Assert.Equal((2, 10, 12, 5.0, 10), (stops[201].Visits, stops[201].Boardings, stops[201].Alightings, stops[201].MeanLoad, stops[201].MaxLoad));
+        Assert.Equal((1, 5, 3, 12.0), (stops[301].Visits, stops[301].Boardings, stops[301].Alightings, stops[301].MeanLoad));
+        Assert.Equal([208], stops[201].Lines);
+        Assert.Equal("Dopravní podnik", stops[201].Name);
+
+        var all = await client.GetFromJsonAsync<StopStatisticsDto>("/api/stop-statistics?trips=all");
+        Assert.Equal((2, 105), (all!.Trips, all.Stops.Single(s => s.Code == 301).Boardings));
+        Assert.Empty((await client.GetFromJsonAsync<StopStatisticsDto>("/api/stop-statistics?line=999"))!.Stops);
+        Assert.Empty((await client.GetFromJsonAsync<StopStatisticsDto>("/api/stop-statistics?days=saturday"))!.Stops);
+
+        var detail = await client.GetFromJsonAsync<StopStatisticsDetailDto>("/api/stop-statistics/201");
+        var line = Assert.Single(detail!.ByLine);
+        Assert.Equal((208, 2, 10, 12, 5.0), (line.Line, line.Visits, line.Boardings, line.Alightings, line.MeanLoad));
+        Assert.Equal((7, 2), (Assert.Single(detail.ByHour).Hour, detail.ByHour[0].Visits));
+        Assert.Equal((1, 1), (Assert.Single(detail.ByWeekday).Weekday, detail.ByWeekday[0].Days));   // 1 August 2022: a Monday
+
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/stop-statistics/999")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Patterns_with_the_same_stops_are_one_route_with_its_variants()
+    {
+        await using var api = NewApi();
+        await using (var scope = api.Services.CreateAsyncScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            SeedNetwork(db);
+            // Two timetable variants of one route (same stops), and a third that turns at 201 once more.
+            db.Patterns.AddRange(
+                new Pattern { Code = 2080002, LineId = 208, FirstStopName = "Dopravní podnik", LastStopName = "Brtnická ul." },
+                new Pattern { Code = 2080003, LineId = 208, FirstStopName = "Dopravní podnik", LastStopName = "Brtnická ul." });
+            var first = db.Patterns.Local.Single(p => p.Code == 2080001);
+            (first.FirstStopName, first.LastStopName) = ("Dopravní podnik", "Brtnická ul.");
+            db.PatternStops.AddRange(
+                new PatternStop { PatternCode = 2080001, Sequence = 1, StopCode = 201 },
+                new PatternStop { PatternCode = 2080001, Sequence = 2, StopCode = 301 },
+                new PatternStop { PatternCode = 2080002, Sequence = 1, StopCode = 201 },
+                new PatternStop { PatternCode = 2080002, Sequence = 2, StopCode = 301 },
+                new PatternStop { PatternCode = 2080003, Sequence = 1, StopCode = 201 },
+                new PatternStop { PatternCode = 2080003, Sequence = 2, StopCode = 201 },
+                new PatternStop { PatternCode = 2080003, Sequence = 3, StopCode = 301 });
+            var file = new SourceFile { SourcePath = "t", FileName = "APC_13.2022-08-01.csv", Sha256 = "x", VehicleId = 13 };
+            db.SourceFiles.Add(file);
+            Trip NewTrip(int pattern, int hour) => new()
+            {
+                VehicleId = 13,
+                PatternCode = pattern,
+                SourceFile = file,
+                IsValid = true,
+                StartTime = new DateTime(2022, 8, 1, hour, 0, 0),
+                EndTime = new DateTime(2022, 8, 1, hour, 30, 0),
+                StopVisits = [new StopVisit { Sequence = 1, StopCode = 201, Boardings = 2 }, new StopVisit { Sequence = 2, StopCode = 301, Alightings = 2 }],
+            };
+            // Variant 02 runs by day (two trips), 01 early (one), 03 once in the evening.
+            db.Trips.AddRange(NewTrip(2080002, 9), NewTrip(2080002, 14), NewTrip(2080001, 5), NewTrip(2080003, 21));
+            await db.SaveChangesAsync();
+        }
+        var client = api.CreateSignedInClient();
+
+        var line = Assert.Single((await client.GetFromJsonAsync<List<NetworkEndpoints.LineDto>>("/api/lines"))!);
+        Assert.Equal(2, line.Patterns.Count);
+        var route = line.Patterns[0];
+        Assert.Equal((2080002, 3, 2), (route.Code, route.Trips, route.StopCount));   // named by its busiest variant
+        Assert.Equal([2080001, 2080002], route.Variants.Select(v => v.Code));
+        Assert.Equal((5, 5), (route.Variants[0].FirstHour, route.Variants[0].LastHour));
+        Assert.Equal((9, 14), (route.Variants[1].FirstHour, route.Variants[1].LastHour));
+        Assert.Empty(route.ExtraStops);
+        var turning = line.Patterns[1];
+        Assert.Equal((2080003, 1), (turning.Code, turning.Trips));
+        Assert.Equal(["Dopravní podnik"], turning.ExtraStops);
+        Assert.Empty(turning.MissingStops);
+
+        // The occupancy picker goes by route too; a variant's own code opens its route.
+        using var load = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync("/api/operations/load?pattern=2080001"));
+        Assert.Equal(2080002, load.RootElement.GetProperty("pattern").GetInt32());
+        Assert.Equal(2, load.RootElement.GetProperty("patterns").GetArrayLength());
+        Assert.Equal(3, load.RootElement.GetProperty("profile")[0].GetProperty("trips").GetInt32());
     }
 
     private ApiFactory NewApi() => new(fixture.Provider, fixture.NewDatabaseConnectionString());

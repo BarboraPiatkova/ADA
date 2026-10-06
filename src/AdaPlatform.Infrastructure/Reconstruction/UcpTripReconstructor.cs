@@ -38,6 +38,13 @@ public sealed record ReconstructionOptions
 /// previous trip's destination go to that trip until the new one departs.</item>
 /// <item><b>Stop visit:</b> arrival (8), counting start (10), departure (9), the vehicle's
 /// stop summary (15), or a pass (120) when the doors don't open.</item>
+/// <item><b>Doors open before the arrival:</b> when the doors open before the computer has
+/// registered the arrival, the counting starts are logged first and carry the stop the vehicle
+/// has already left (departed or went through); the stop summary then names that stop too (and, if the code repeats, adds
+/// the two stops' counts). A start naming a departed stop that is followed within
+/// <see cref="LateArrivalWindow"/> by an arrival belongs to that arrival, and the summary logged
+/// under the stale code to the same visit. Without this, each stale code read as a second call
+/// at the stop just left, carrying the new stop's passengers.</item>
 /// <item><b>Door count:</b> the stop reading (11) minus the start reading (10), see
 /// <see cref="DoorStopPairing"/>. It belongs to the visit where the door <i>started</i>
 /// counting: at a terminus the stop readings already carry the next trip's first stop.
@@ -53,6 +60,9 @@ public sealed record ReconstructionOptions
 /// </summary>
 public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
 {
+    /// <summary>How soon after a counting start naming the departed stop the next arrival must follow to take it.</summary>
+    public static readonly TimeSpan LateArrivalWindow = TimeSpan.FromSeconds(10);
+
     /// <param name="events">One source file's events, ordered by line number.</param>
     /// <param name="countingDeviceId">Database id of the vehicle's counting device with this number.</param>
     public ReconstructedDay Reconstruct(IEnumerable<DeviceEvent> events, Func<int, long?> countingDeviceId)
@@ -78,6 +88,9 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
         // The trip being run, and the one before it while its terminus may still be logged.
         private OpenTrip? _current;
         private OpenTrip? _previous;
+
+        // Counting starts naming a stop the vehicle has already left, waiting for the arrival that follows.
+        private LateStart? _lateStart;
 
         private ReconstructionStats Stats => _day.Stats;
 
@@ -120,6 +133,7 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
 
         public ReconstructedDay Finish()
         {
+            KeepLateStartAtDepartedStop();
             foreach (var trip in _trips)
             {
                 Complete(trip);
@@ -210,6 +224,11 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
 
         private void OnCountingStopped(DeviceEvent e)
         {
+            if (_lateStart is { } late && late.Devices.Contains(e.DeviceNumber))
+            {
+                // The doors closed again before any arrival: the start was at the departed stop after all.
+                KeepLateStartAtDepartedStop();
+            }
             var device = Device(e.DeviceNumber);
             var repeated = device.LastType == DeviceEventType.CountingStopped;
             var visit = device.StartVisit;
@@ -267,7 +286,50 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
                 return;
             }
 
-            var visit = trip.VisitAt(stopCode);
+            var last = trip.Visits.Count > 0 ? trip.Visits[^1] : null;
+            // The stop the vehicle was last at; a visit without times after it (a stray summary) doesn't count.
+            var lastReal = trip.Visits.LastOrDefault(v => v.Arrival is not null || v.Left);
+            if (e.Type == DeviceEventType.CountingStarted && lastReal is not null && lastReal.Left && lastReal.StopCode == stopCode && trip == _current)
+            {
+                // Names the stop just left: wait for the arrival that should follow (see "Doors open before the arrival").
+                if (_lateStart is { } pending && (pending.Visit != lastReal || e.Time - pending.Time > LateArrivalWindow))
+                {
+                    KeepLateStartAtDepartedStop();
+                }
+                _lateStart ??= new LateStart(trip, lastReal, e.Time);
+                _lateStart.Devices.Add(e.DeviceNumber);
+                return;
+            }
+
+            // A summary under the stale code belongs to the visit whose doors started counting under it; so
+            // does one naming the stop before the last the vehicle reached (its units may not have counted at all).
+            var beforeLastReal = lastReal is null ? null : trip.Visits.Take(trip.Visits.IndexOf(lastReal)).LastOrDefault(v => v.Arrival is not null || v.Left);
+            var staleSummary = e.Type == DeviceEventType.StopSummary && lastReal is not null && lastReal.StopCode != stopCode
+                && (lastReal.LateStartCode == stopCode || beforeLastReal?.StopCode == stopCode);
+            var visit = staleSummary ? lastReal! : trip.VisitAt(stopCode);
+            if (staleSummary)
+            {
+                Stats.LateSummaries++;
+            }
+            if (e.Type is DeviceEventType.Arrival or DeviceEventType.StopPassed && _lateStart is { } waiting && waiting.Visit != visit)
+            {
+                if (waiting.Trip == trip && e.Time - waiting.Time <= LateArrivalWindow)
+                {
+                    foreach (var device in waiting.Devices)
+                    {
+                        visit.StartedDevices.Add(device);
+                        Device(device).StartVisit = visit;
+                    }
+                    visit.LateStartCode = waiting.Visit.StopCode;
+                    Stats.LateStarts += waiting.Devices.Count;
+                    _lateStart = null;
+                }
+                else
+                {
+                    KeepLateStartAtDepartedStop();
+                }
+            }
+
             var payload = e.Type is DeviceEventType.StopSummary or DeviceEventType.StopPassed
                 ? UcpLogParser.ParsePayload(e.Payload)
                 : null;
@@ -294,7 +356,11 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
                     Device(e.DeviceNumber).StartVisit = visit;
                     break;
                 case DeviceEventType.StopSummary:
-                    visit.Summary = (e.Boardings ?? 0, e.Alightings ?? 0, e.OnBoard);
+                    // A stale summary never replaces the visit's own: only its flags are taken then.
+                    if (!staleSummary || visit.Summary is null)
+                    {
+                        visit.Summary = (e.Boardings ?? 0, e.Alightings ?? 0, e.OnBoard);
+                    }
                     foreach (var flagged in DeviceNumbers(e.InvalidDevices))
                     {
                         visit.FlaggedDevices.Add(flagged);
@@ -303,8 +369,24 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
                 case DeviceEventType.StopPassed:
                     visit.Arrival ??= e.Time;
                     visit.PassDelay = e.DelaySeconds;
+                    visit.Passed = true;
                     break;
             }
+        }
+
+        /// <summary>No arrival took the pending counting starts: they stay with the stop they name, as logged.</summary>
+        private void KeepLateStartAtDepartedStop()
+        {
+            if (_lateStart is not { } late)
+            {
+                return;
+            }
+            foreach (var device in late.Devices)
+            {
+                late.Visit.StartedDevices.Add(device);
+                Device(device).StartVisit = late.Visit;
+            }
+            _lateStart = null;
         }
 
         /// <summary>The trip an event belongs to (see "Late terminus" above), or null before any trip start.</summary>
@@ -321,6 +403,11 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
 
         private void Complete(OpenTrip open)
         {
+            // A visit with no times, no doors and no usable summary carries nothing (a stray summary of
+            // another trip, logged with negative counts across the counter restart).
+            var empty = open.Visits.RemoveAll(v => v.Arrival is null && v.Departure is null && v.StartedDevices.Count == 0 && v.Doors.Count == 0
+                && v.Summary is null or { Boardings: < 0 } or { Alightings: < 0 });
+            Stats.EmptyVisitsDropped += empty;
             var visits = open.Visits;
             if (visits.Count == 0)
             {
@@ -369,9 +456,11 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
             if (!open.CountersReset) Stats.TripsWithoutCounterReset++;
             _day.Trips.Add(trip);
 
-            // A pattern the timetable doesn't know gets its stops from a trip that ran all of it.
+            // A pattern the timetable doesn't know gets its stops from a trip that ran all of it, without
+            // calls repeated back and forth (one A, B, A is a turning loop; more is a broken log).
             if (open.PatternCode is { } code && _day.Patterns.TryGetValue(code, out var sighting) && sighting.StopCodes is null
-                && open.ReachedTerminus && visits[0].StopCode == open.PlannedFirst?.Code && visits[^1].StopCode == open.Destination)
+                && open.ReachedTerminus && visits[0].StopCode == open.PlannedFirst?.Code && visits[^1].StopCode == open.Destination
+                && RepeatedCalls(visits.Select(v => v.StopCode).ToList()) < 2)
             {
                 sighting.StopCodes = visits.Select(v => v.StopCode).ToList();
             }
@@ -424,6 +513,23 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
 
     private sealed record PlannedStop(int Code, string Name);
 
+    /// <summary>Counting starts that named <paramref name="Visit"/>'s stop after the vehicle had left it.</summary>
+    private sealed record LateStart(OpenTrip Trip, OpenVisit Visit, DateTime Time)
+    {
+        public HashSet<int> Devices { get; } = [];
+    }
+
+    /// <summary>Calls back at the stop before the last (A, B, A): one is a turning loop, several a broken log.</summary>
+    public static int RepeatedCalls(IReadOnlyList<int> stops)
+    {
+        var count = 0;
+        for (var i = 2; i < stops.Count; i++)
+        {
+            if (stops[i] == stops[i - 2] && stops[i] != stops[i - 1]) count++;
+        }
+        return count;
+    }
+
     private sealed class DeviceState
     {
         public DoorStopPairing Pairing { get; } = new();
@@ -469,6 +575,15 @@ public sealed partial class UcpTripReconstructor(ReconstructionOptions options)
     private sealed class OpenVisit(int stopCode)
     {
         public int StopCode { get; } = stopCode;
+
+        /// <summary>The departed stop's code its doors started counting under, when they opened before the arrival.</summary>
+        public int? LateStartCode { get; set; }
+
+        /// <summary>The vehicle went through without stopping (120).</summary>
+        public bool Passed { get; set; }
+
+        /// <summary>The vehicle has left the stop: departed, or went through it.</summary>
+        public bool Left => Departure is not null || Passed;
         public DateTime? Arrival { get; set; }
         public DateTime? Departure { get; set; }
         public int? ArrivalDelay { get; set; }
@@ -616,6 +731,15 @@ public sealed class ReconstructionStats
     public int EventsOutsideTrips { get; set; }
     public int UnknownDevices { get; set; }
 
+    /// <summary>Counting starts naming the departed stop, given to the arrival right after them.</summary>
+    public int LateStarts { get; set; }
+
+    /// <summary>Stop summaries under such a stale code, given to the same visit.</summary>
+    public int LateSummaries { get; set; }
+
+    /// <summary>Visits with no times, no doors and no usable summary, left out.</summary>
+    public int EmptyVisitsDropped { get; set; }
+
     public void Add(ReconstructionStats o)
     {
         Trips += o.Trips;
@@ -642,6 +766,9 @@ public sealed class ReconstructionStats
         EventsForPreviousTrip += o.EventsForPreviousTrip;
         EventsOutsideTrips += o.EventsOutsideTrips;
         UnknownDevices += o.UnknownDevices;
+        LateStarts += o.LateStarts;
+        LateSummaries += o.LateSummaries;
+        EmptyVisitsDropped += o.EmptyVisitsDropped;
     }
 
     public override string ToString() => $"""
@@ -650,5 +777,6 @@ public sealed class ReconstructionStats
           stop visits {StopVisits}: pass-throughs {PassThroughs}, summary only {SummaryOnlyVisits} (negative summary rejected {RejectedSummaries}), door sum ≠ summary {SummaryMismatches}
           door counts {DoorCounts}: missing {MissingDoorCounts}, late counts {LateCounts} (of {RepeatedStopReadings} repeated readings), unusable stop readings {UnusableStopReadings}
           events for the previous trip {EventsForPreviousTrip}, outside any trip {EventsOutsideTrips}, unknown devices {UnknownDevices}
+          doors open before the arrival: counting starts moved {LateStarts}, summaries moved {LateSummaries}; empty visits dropped {EmptyVisitsDropped}
         """;
 }

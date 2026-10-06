@@ -1,5 +1,5 @@
 import { queryOptions } from '@tanstack/react-query'
-import { api, type Period, type TimesSource } from './api'
+import { api, type Period, type StopTrips, type TimesSource } from './api'
 
 // Every server read goes through TanStack Query: one cache, request de-duplication and
 // cancellation (the AbortSignal is passed down to fetch) for free.
@@ -77,5 +77,47 @@ export const dailyQualityQuery = (period: Period) =>
   queryOptions({
     queryKey: ['quality', 'daily', period],
     queryFn: ({ signal }) => api.dailyQuality(period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const fleetQuery = (period: Period) =>
+  queryOptions({
+    queryKey: ['fleet', 'vehicles', period],
+    queryFn: ({ signal }) => api.fleet(period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const vehicleDetailQuery = (vehicle: number, period: Period) =>
+  queryOptions({
+    queryKey: ['fleet', 'vehicles', vehicle, period],
+    queryFn: ({ signal }) => api.vehicle(vehicle, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const tripsQuery = (line: number | null, vehicle: number | null, period: Period) =>
+  queryOptions({
+    queryKey: ['trips', line, vehicle, period],
+    queryFn: ({ signal }) => api.trips(line, vehicle, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const tripQuery = (id: number) =>
+  queryOptions({
+    queryKey: ['trips', 'detail', id],
+    queryFn: ({ signal }) => api.trip(id, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const stopStatisticsQuery = (line: number | null, vehicle: number | null, trips: StopTrips, period: Period) =>
+  queryOptions({
+    queryKey: ['stop-statistics', line, vehicle, trips, period],
+    queryFn: ({ signal }) => api.stopStatistics(line, vehicle, trips, period, signal),
+    staleTime: REPORT_STALE_MS,
+  })
+
+export const stopStatisticsDetailQuery = (code: number, line: number | null, vehicle: number | null, trips: StopTrips, period: Period) =>
+  queryOptions({
+    queryKey: ['stop-statistics', code, line, vehicle, trips, period],
+    queryFn: ({ signal }) => api.stopStatisticsDetail(code, line, vehicle, trips, period, signal),
     staleTime: REPORT_STALE_MS,
   })

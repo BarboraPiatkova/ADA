@@ -118,4 +118,10 @@ aplikace, ETL, provozní ukazatele, vizualizace dat.
 ## Otevřené body pro vedoucího
 - Doporučená literatura (povinné pole zadání) – potřeba doplnit, včetně české.
 - Potvrdit zdroj obsazenosti/km/kWh: ověřený export Transportelly je neobsahuje.
-- Pravidla fakulty pro použití AI nástrojů a jejich uvedení v práci.
+- ~~Pravidla fakulty pro použití AI nástrojů a jejich uvedení v práci.~~ Vyřešeno: FI MU,
+  „Pravidla a doporučení pro vypracování BP a DP na FI MU“ (17. 3. 2025), oddíl 1.2.3 — AI je
+  povoleno; uvést nástroje a účel, doslovně převzaté části a převzetí odpovědnosti, na straně
+  s prohlášením o autorství (viz `latex/prace.tex`).
+- Data pro práci: pravděpodobně MDML (IRMA MATRIX) místo DPMB; potvrdit, až budou logy.
+- Transportella: vyžádat export z nové Transportelly u MDML (DPMB-éra export neobsahuje
+  obsazenost, km ani kWh).

@@ -46,6 +46,8 @@
   --color-seq-5: var(--seq-5);
   --color-seq-6: var(--seq-6);
   --color-series-1: var(--series-1);
+  --color-series-boardings: var(--series-boardings);
+  --color-series-alightings: var(--series-alightings);
   --color-gridline: var(--gridline);
   --color-axis: var(--axis);
 
